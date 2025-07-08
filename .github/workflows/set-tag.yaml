@@ -24,6 +24,9 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "release" ]]; then
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "Unhandled event: ${{ github.event_name }}, ref: ${{ github.ref }}"
+            echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
           # Print out the tag we just set for debugging
