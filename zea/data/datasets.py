@@ -115,7 +115,7 @@ class H5FileHandleCache:
 
 def find_h5_files(paths: str | list, key: str = None, search_file_tree_kwargs: dict | None = None):
     """
-    Find HDF5 files from a directory or list of directories and retrieve their shapes.
+    Find HDF5 files from a directory or list of directories and optionally retrieve their shapes.
 
     Args:
         paths (str or list): A single directory path, a list of directory paths,
@@ -397,7 +397,8 @@ class Folder:
             total=self.n_files,
             desc=f"Copying dataset from {self.folder_path} to {to_path}. {key_msg}",
         ):
-            with File(file_path) as src, File(to_path / src.name, mode) as dst:
+            dst_path = Path(file_path).relative_to(self.folder_path)
+            with File(file_path) as src, File(to_path / dst_path, mode) as dst:
                 if all_keys:
                     for obj in src.keys():
                         src.copy(obj, dst)

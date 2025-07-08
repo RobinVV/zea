@@ -175,6 +175,8 @@ class File(h5py.File):
         if isinstance(key, enum.Enum):
             key = key.value
 
+        assert isinstance(key, str), f"Key must be a string, got {type(key)}. "
+
         # Return the key if it is in the file
         if key in self.keys():
             return key
