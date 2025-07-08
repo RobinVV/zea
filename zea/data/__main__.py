@@ -1,7 +1,7 @@
 """Command-line interface for copying a zea.Folder to a new location.
 
 Usage:
-    python -m zea.data <source_folder> <destination_folder> <key> [--all_keys]
+    python -m zea.data <source_folder> <destination_folder> <key>
 """
 
 import argparse
@@ -15,9 +15,6 @@ def main():
     parser.add_argument("dst", help="Destination folder path")
     parser.add_argument("key", help="Key to access in the hdf5 files")
     parser.add_argument(
-        "--all_keys", action="store_true", help="Copy all keys from the source files"
-    )
-    parser.add_argument(
         "--mode",
         default="a",
         choices=["a", "w", "r+", "x"],
@@ -27,7 +24,7 @@ def main():
     args = parser.parse_args()
 
     src_folder = Folder(args.src, args.key, validate=False)
-    src_folder.copy(args.dst, all_keys=args.all_keys, mode=args.mode)
+    src_folder.copy(args.dst, args.key, mode=args.mode)
 
 
 if __name__ == "__main__":
