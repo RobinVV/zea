@@ -113,14 +113,14 @@ class H5FileHandleCache:
             self._file_handle_cache = OrderedDict()
 
 
-def find_h5_files(paths: str | list, key: str, search_file_tree_kwargs: dict | None = None):
+def find_h5_files(paths: str | list, key: str = None, search_file_tree_kwargs: dict | None = None):
     """
     Find HDF5 files from a directory or list of directories and retrieve their shapes.
 
     Args:
         paths (str or list): A single directory path, a list of directory paths,
             or a single HDF5 file path.
-        key (str): The key to access the HDF5 dataset.
+        key (str, optional): The key to get the file shapes for.
         search_file_tree_kwargs (dict, optional): Additional keyword arguments for the
             search_file_tree function. Defaults to None.
 
@@ -147,7 +147,8 @@ def find_h5_files(paths: str | list, key: str, search_file_tree_kwargs: dict | N
         if Path(path).is_file():
             path = Path(path)
             # If the path is a file, get its shape directly
-            file_shapes.append(File.get_shape(path, key))
+            if key is not None:
+                file_shapes.append(File.get_shape(path, key))
             file_paths.append(str(path))
             continue
 
@@ -171,7 +172,7 @@ class Folder:
     def __init__(
         self,
         folder_path: list[str] | list[Path],
-        key: str,
+        key: str = None,
         search_file_tree_kwargs: dict | None = None,
         validate: bool = True,
         hf_cache_dir: str = HF_DATASETS_DIR,
@@ -346,7 +347,7 @@ class Folder:
     def __str__(self):
         return f"Folder with {self.n_files} files in '{self.folder_path}' (key='{self.key}')"
 
-    def copy(self, to_path: str | Path, all_keys: bool = False, mode: str | None = None):
+    def copy(self, to_path: str | Path, key: str = None, mode: str | None = None):
         """Copy the data for all or a specific key to a new location.
 
         Has the option to copy all keys or only a specific key. By default, it only copies if the
@@ -356,12 +357,23 @@ class Folder:
 
         Args:
             to_path (str or Path): The destination path where files will be copied.
-            all_keys (bool): If True, copy all keys from the files. If False,
-                only copy the specified key. Defaults to False.
+            key (str, optional): The key to copy from the source files.
+                If 'all' or '*', all keys will be copied. Defaults to None, which
+                uses the key set in the Folder instance.
             mode (str): The mode in which to open the destination files.
-                Defaults to 'a' (append mode), and 'w' (write mode) if all_keys is True.
+                Defaults to 'a' (append mode), and 'w' (write mode) if key is 'all' or '*'.
                 See: https://docs.h5py.org/en/stable/high/file.html#opening-creating-files
         """
+        if key is None and self.key is None:
+            raise ValueError(
+                "No key specified. Please provide a key to copy the data for, or set the "
+                "key attribute of the Folder instance."
+            )
+        elif key is None:
+            key = self.key
+
+        all_keys = key == "all" or key == "*"
+
         if mode is None:
             mode = "a" if not all_keys else "w"
 
@@ -372,7 +384,7 @@ class Folder:
                 "in 'w' or 'x' mode, which means it will be overwritten or created."
             )
         else:
-            key_msg = f"Only copying key '{self.key}'."
+            key_msg = f"Only copying key '{key}'."
             assert mode in ["a", "w", "r+", "x"], (
                 f"Invalid mode '{mode}'. Must be one of 'a', 'w', 'r+', or 'x'."
             )
@@ -390,7 +402,7 @@ class Folder:
                     for obj in src.keys():
                         src.copy(obj, dst)
                 else:
-                    src.copy_key(self.key, dst)
+                    src.copy_key(key, dst)
 
 
 class Dataset(H5FileHandleCache):
