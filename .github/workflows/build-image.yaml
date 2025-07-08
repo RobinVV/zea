@@ -1,0 +1,54 @@
+name: Build CI Image
+
+on:
+  workflow_call:
+    inputs:
+      docker_tag:
+        description: "Docker tag to use for the image"
+        required: true
+        type: string
+
+env:
+  REGISTRY: docker.io
+  IMAGE_PREFIX: zeahub
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /opt/hostedtoolcache
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push all-cpu Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            INSTALL_JAX=cpu
+            INSTALL_TORCH=cpu
+            INSTALL_TF=cpu
+            DEV=true
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/all-cpu:${{ inputs.docker_tag }}
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/cache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/cache,mode=max
