@@ -66,7 +66,7 @@ One can build an image for a specific backend using the provided `Dockerfile` an
 
    docker build --build-arg INSTALL_JAX=gpu . -t zeahub/jax:latest
 
-To build the full image with all backends, use `BACKEND=all`.
+To build the full image including all backends with GPU support:
 
 .. code-block:: shell
 
