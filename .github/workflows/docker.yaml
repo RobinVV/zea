@@ -12,11 +12,11 @@ env:
   IMAGE_PREFIX: zeahub
 
 jobs:
-  set-tag:
+  tag:
     uses: ./.github/workflows/set-tag.yaml
 
   build-production-images:
-    needs: [set-tag]
+    needs: [tag]
     runs-on: self-hosted
     strategy:
       max-parallel: 1
@@ -41,7 +41,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.backend }}-cpu:${{ needs.set-tag.outputs.docker_tag }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.backend }}-cpu:${{ needs.tag.outputs.docker_tag }}
           build-args: |
             INSTALL_JAX=${{ contains('all,jax', matrix.backend) && 'cpu' || 'false' }}
             INSTALL_TORCH=${{ contains('all,torch', matrix.backend) && 'cpu' || 'false' }}
@@ -56,7 +56,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.backend }}:${{ needs.set-tag.outputs.docker_tag }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.backend }}:${{ needs.tag.outputs.docker_tag }}
           build-args: |
             INSTALL_JAX=${{ (matrix.backend == 'all' || matrix.backend == 'jax') && 'gpu' || 'false' }}
             INSTALL_TORCH=${{ (matrix.backend == 'all' || matrix.backend == 'torch') && 'gpu' || 'false' }}

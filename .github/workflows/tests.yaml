@@ -11,14 +11,14 @@ env:
   IMAGE_PREFIX: zeahub
 
 jobs:
-  set-tag:
+  tag:
     uses: ./.github/workflows/set-tag.yaml
 
-  build-image:
-    needs: [set-tag]
+  image:
+    needs: [tag]
     uses: ./.github/workflows/build-image.yaml
     with:
-      docker_tag: ${{ needs.set-tag.outputs.docker_tag }}
+      docker_tag: ${{ needs.tag.outputs.docker_tag }}
     secrets: inherit
 
   linter:
@@ -44,7 +44,7 @@ jobs:
         run: ruff format --config pyproject.toml --check --verbose
 
   tests:
-    needs: [build-image, set-tag]
+    needs: [image, tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -55,10 +55,10 @@ jobs:
 
       - name: Pull full Docker image
         run: |
-          if [ -z "${{ needs.set-tag.outputs.docker_tag }}" ]; then
+          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
             echo "Image tag not set!" && exit 1
           fi
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }}
+          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run Pytest in container
         run: |
@@ -67,10 +67,9 @@ jobs:
             -w /zea \
             -u $(id -u):$(id -g) \
             -e HOME=/tmp \
-            -e USER=$(id -un) \
-            -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }} \
-            sh -c "pip install -e . && pytest --cov --cov-branch --cov-report=xml -p no:cacheprovider -m 'not heavy and not notebook' ./tests"
+            -e USER=$(id -un) \          -e LOGNAME=$(id -un) \
+          ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+          sh -c "pip install -e . && pytest --cov --cov-branch --cov-report=xml -p no:cacheprovider -m 'not heavy and not notebook' ./tests"
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
@@ -92,7 +91,7 @@ jobs:
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
   heavy-tests:
-    needs: [build-image, set-tag]
+    needs: [image, tag]
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
@@ -104,10 +103,10 @@ jobs:
 
       - name: Pull full Docker image
         run: |
-          if [ -z "${{ needs.set-tag.outputs.docker_tag }}" ]; then
+          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
             echo "Image tag not set!" && exit 1
           fi
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }}
+          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run heavy Pytest
         run: |
@@ -118,7 +117,7 @@ jobs:
           -e HOME=/tmp \
           -e USER=$(id -un) \
           -e LOGNAME=$(id -un) \
-          ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }} \
+          ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
       - name: Run notebook tests with Pytest
@@ -130,5 +129,5 @@ jobs:
             -e HOME=/tmp \
             -e USER=$(id -un) \
             -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }} \
+            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
             sh -c "pip install -e .[dev] && pytest -s -m 'notebook'"

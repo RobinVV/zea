@@ -1,4 +1,4 @@
-name: Documentation
+name: Docs
 
 on:
   pull_request:
@@ -11,18 +11,18 @@ env:
   IMAGE_PREFIX: zeahub
 
 jobs:
-  set-tag:
+  tag:
     uses: ./.github/workflows/set-tag.yaml
 
-  build-image:
-    needs: [set-tag]
+  image:
+    needs: [tag]
     uses: ./.github/workflows/build-image.yaml
     with:
-      docker_tag: ${{ needs.set-tag.outputs.docker_tag }}
+      docker_tag: ${{ needs.tag.outputs.docker_tag }}
     secrets: inherit
 
   build-docs:
-    needs: [build-image, set-tag]
+    needs: [image, tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,10 +33,10 @@ jobs:
 
       - name: Pull full Docker image
         run: |
-          if [ -z "${{ needs.set-tag.outputs.docker_tag }}" ]; then
+          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
             echo "Image tag not set!" && exit 1
           fi
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }}
+          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Build documentation with Sphinx (fail on warnings)
         run: |
@@ -47,7 +47,7 @@ jobs:
             -e HOME=/tmp \
             -e USER=$(id -un) \
             -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.set-tag.outputs.docker_tag }} \
+            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
             sh -c "\
               sudo apt-get update && \
               sudo apt-get install -y pandoc && \
