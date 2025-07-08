@@ -178,7 +178,7 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [build-full-image, set-tag]
     runs-on: self-hosted
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
