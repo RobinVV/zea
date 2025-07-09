@@ -7,8 +7,9 @@ on:
       - main
 
 env:
-  REGISTRY: docker.io
-  IMAGE_PREFIX: zeahub
+  REGISTRY: ghcr.io
+  BASE_IMAGE: ghcr.io/tue-bmd/zea/all-cpu
+  MAIN_REPO: tue-bmd/zea
 
 jobs:
   tag:
@@ -16,13 +17,81 @@ jobs:
 
   image:
     needs: [tag]
-    uses: ./.github/workflows/build-image.yaml
-    with:
-      docker_tag: ${{ needs.tag.outputs.docker_tag }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    outputs:
+      docker_image: ${{ steps.set-image.outputs.docker_image }}
+    steps:
+      - name: Debug repository context
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Is main repo: ${{ github.repository == 'tue-bmd/zea' }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Event name: ${{ github.event_name }}"
+          echo "PR head repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          echo "PR base repo: ${{ github.event.pull_request.base.repo.full_name }}"
+          echo "Is fork PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}"
+
+      - name: Free up disk space
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /opt/hostedtoolcache
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Checkout repository
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push CI Docker image
+        id: build
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            INSTALL_JAX=cpu
+            INSTALL_TORCH=cpu
+            INSTALL_TF=cpu
+            DEV=true
+          push: true
+          tags: ${{ env.BASE_IMAGE }}:${{ needs.tag.outputs.docker_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Set Docker image for tests
+        id: set-image
+        run: |
+          # Check if this is a fork PR or main repo
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            # Fork PR - use latest public image
+            DOCKER_IMAGE="${{ env.BASE_IMAGE }}:latest"
+            echo "✅ Fork PR: Using latest public image: $DOCKER_IMAGE"
+          else
+            # Main repo (push or PR from same repo) - use newly built tagged image
+            DOCKER_IMAGE="${{ env.BASE_IMAGE }}:${{ needs.tag.outputs.docker_tag }}"
+            echo "✅ Main repo: Using newly built tagged image: $DOCKER_IMAGE"
+          fi
+          echo "docker_image=$DOCKER_IMAGE" >> $GITHUB_OUTPUT
 
   tests:
-    needs: [image, tag]
+    needs: [image]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,14 +99,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull full Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          # Pull CI image that was built in build-image.yaml
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run Pytest in container
         run: |
@@ -48,14 +109,14 @@ jobs:
             -e HOME=/tmp \
             -e USER=$(id -un) \
             -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+            ${{ needs.image.outputs.docker_image }} \
             sh -c "pip install -e . && pytest --cov --cov-branch --cov-report=xml -p no:cacheprovider -m 'not heavy and not notebook' ./tests"
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: tue-bmd/zea
+          slug: ${{ env.MAIN_REPO }}
 
       - name: Run heavy Pytest (allowed to fail)
         continue-on-error: true
@@ -67,11 +128,11 @@ jobs:
           -e HOME=/tmp \
           -e USER=$(id -un) \
           -e LOGNAME=$(id -un) \
-          ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+          ${{ needs.image.outputs.docker_image }} \
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
   heavy-tests:
-    needs: [image, tag]
+    needs: [image]
     runs-on: self-hosted
     timeout-minutes: 100
     steps:
@@ -80,13 +141,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull full Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run heavy Pytest
         run: |
@@ -97,7 +151,7 @@ jobs:
           -e HOME=/tmp \
           -e USER=$(id -un) \
           -e LOGNAME=$(id -un) \
-          ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+          ${{ needs.image.outputs.docker_image }} \
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
       - name: Run notebook tests with Pytest
@@ -109,11 +163,11 @@ jobs:
             -e HOME=/tmp \
             -e USER=$(id -un) \
             -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+            ${{ needs.image.outputs.docker_image }} \
             sh -c "pip install -e .[dev] && pytest -s -m 'notebook'"
 
   test-docs-build:
-    needs: [image, tag]
+    needs: [image]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -121,14 +175,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull CI Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          # Pull CI image that was built in build-image.yaml
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Build documentation with Sphinx (fail on warnings)
         run: |
@@ -139,7 +185,7 @@ jobs:
             -e HOME=/tmp \
             -e USER=$(id -un) \
             -e LOGNAME=$(id -un) \
-            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+            ${{ needs.image.outputs.docker_image }} \
             sh -c "\
               sudo apt-get update && \
               sudo apt-get install -y pandoc && \
