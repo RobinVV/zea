@@ -19,10 +19,25 @@ jobs:
     uses: ./.github/workflows/build-image.yaml
     with:
       docker_tag: ${{ needs.tag.outputs.docker_tag }}
-    secrets: inherit
+
+  verify-image:
+    needs: [image, tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Docker image is available
+        run: |
+          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
+            echo "Image tag not set!" && exit 1
+          fi
+          # Verify the local image exists
+          if ! docker image inspect ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} > /dev/null 2>&1; then
+            echo "Local image not found! Build may have failed."
+            exit 1
+          fi
+          echo "Using local image: ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}"
 
   tests:
-    needs: [image, tag]
+    needs: [verify-image, tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,14 +45,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull full Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          # Pull CI image that was built in build-image.yaml
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run Pytest in container
         run: |
@@ -71,7 +78,7 @@ jobs:
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
   heavy-tests:
-    needs: [image, tag]
+    needs: [verify-image, tag]
     runs-on: self-hosted
     timeout-minutes: 100
     steps:
@@ -80,13 +87,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull full Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run heavy Pytest
         run: |
@@ -113,7 +113,7 @@ jobs:
             sh -c "pip install -e .[dev] && pytest -s -m 'notebook'"
 
   test-docs-build:
-    needs: [image, tag]
+    needs: [verify-image, tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -121,14 +121,6 @@ jobs:
 
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
-
-      - name: Pull CI Docker image
-        run: |
-          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
-            echo "Image tag not set!" && exit 1
-          fi
-          # Pull CI image that was built in build-image.yaml
-          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Build documentation with Sphinx (fail on warnings)
         run: |
