@@ -1,21 +1,19 @@
 name: Build CI Image
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      docker_tag:
+        description: "Docker tag to use for the image"
+        required: true
+        type: string
 
 env:
   REGISTRY: docker.io
   IMAGE_PREFIX: zeahub
 
 jobs:
-  tag:
-    uses: ./.github/workflows/set-tag.yaml
-
   build-image:
-    needs: [tag]
     runs-on: ubuntu-latest
     steps:
       - name: Free up disk space
@@ -51,6 +49,6 @@ jobs:
             INSTALL_TF=cpu
             DEV=true
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/all-cpu:${{ inputs.docker_tag }}
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/cache
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/cache,mode=max

@@ -1,14 +1,10 @@
 name: Tests
 
 on:
-  workflow_run:
-    workflows:
-      - Build CI Image
-    types:
-      - completed
+  pull_request:
+  push:
     branches:
       - main
-      - '**'  # matches all branches, including PR branches
 
 env:
   REGISTRY: docker.io
@@ -18,8 +14,15 @@ jobs:
   tag:
     uses: ./.github/workflows/set-tag.yaml
 
-  tests:
+  image:
     needs: [tag]
+    uses: ./.github/workflows/build-image.yaml
+    with:
+      docker_tag: ${{ needs.tag.outputs.docker_tag }}
+    secrets: inherit
+
+  tests:
+    needs: [image, tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,7 +71,7 @@ jobs:
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
   heavy-tests:
-    needs: [tag]
+    needs: [image, tag]
     runs-on: self-hosted
     timeout-minutes: 100
     steps:
@@ -108,3 +111,40 @@ jobs:
             -e LOGNAME=$(id -un) \
             ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
             sh -c "pip install -e .[dev] && pytest -s -m 'notebook'"
+
+  test-docs-build:
+    needs: [image, tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Git
+        run: git config --global safe.directory $GITHUB_WORKSPACE
+
+      - name: Pull CI Docker image
+        run: |
+          if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
+            echo "Image tag not set!" && exit 1
+          fi
+          # Pull CI image that was built in build-image.yaml
+          docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
+
+      - name: Build documentation with Sphinx (fail on warnings)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/zea" \
+            -w /zea/docs \
+            -u $(id -u):$(id -g) \
+            -e HOME=/tmp \
+            -e USER=$(id -un) \
+            -e LOGNAME=$(id -un) \
+            ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }} \
+            sh -c "\
+              sudo apt-get update && \
+              sudo apt-get install -y pandoc && \
+              pip install -e ..[docs] && \
+              export PATH=\"/tmp/.local/bin:\$PATH\" && \
+              make docs-clean && \
+              make docs-build SPHINXOPTS='-W --keep-going' \
+            "
