@@ -21,6 +21,13 @@ jobs:
     outputs:
       docker_image: ${{ steps.set-image.outputs.docker_image }}
     steps:
+      - name: Debug repository context
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Is main repo: ${{ github.repository == 'tue-bmd/zea' }}"
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Event name: ${{ github.event_name }}"
+
       - name: Free up disk space
         if: github.repository == 'tue-bmd/zea'
         run: |
