@@ -2,9 +2,10 @@ name: Docs
 
 on:
   workflow_run:
-    workflows: ["Build CI Image"]
-    types:
-      - completed
+      # CI image will only build on main branch pushes or pull requests
+      # thus so will this docs workflow
+      workflows: ["Build CI Image"]
+      types: ["completed"]
 
 env:
   REGISTRY: docker.io
@@ -12,7 +13,6 @@ env:
 
 jobs:
   tag:
-    if: github.event.workflow_run.conclusion == 'success'
     uses: ./.github/workflows/set-tag.yaml
 
   build-docs:
