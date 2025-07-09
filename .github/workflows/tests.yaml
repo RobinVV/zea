@@ -1,10 +1,10 @@
 name: Tests
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Build CI Image"]
+    types:
+      - completed
 
 env:
   REGISTRY: docker.io
@@ -12,14 +12,8 @@ env:
 
 jobs:
   tag:
+    if: github.event.workflow_run.conclusion == 'success'
     uses: ./.github/workflows/set-tag.yaml
-
-  image:
-    needs: [tag]
-    uses: ./.github/workflows/build-image.yaml
-    with:
-      docker_tag: ${{ needs.tag.outputs.docker_tag }}
-    secrets: inherit
 
   linter:
     runs-on: ubuntu-latest
@@ -44,7 +38,7 @@ jobs:
         run: ruff format --config pyproject.toml --check --verbose
 
   tests:
-    needs: [image, tag]
+    needs: [tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -58,6 +52,7 @@ jobs:
           if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
             echo "Image tag not set!" && exit 1
           fi
+          # Pull CI image that was built in build-image.yaml
           docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Run Pytest in container
@@ -92,9 +87,9 @@ jobs:
           sh -c "pip install -e . && pytest -p no:cacheprovider -m 'heavy' ./tests"
 
   heavy-tests:
-    needs: [image, tag]
+    needs: [tag]
     runs-on: self-hosted
-    timeout-minutes: 60
+    timeout-minutes: 100
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

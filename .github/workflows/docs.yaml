@@ -1,10 +1,10 @@
 name: Docs
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["Build CI Image"]
+    types:
+      - completed
 
 env:
   REGISTRY: docker.io
@@ -12,17 +12,11 @@ env:
 
 jobs:
   tag:
+    if: github.event.workflow_run.conclusion == 'success'
     uses: ./.github/workflows/set-tag.yaml
 
-  image:
-    needs: [tag]
-    uses: ./.github/workflows/build-image.yaml
-    with:
-      docker_tag: ${{ needs.tag.outputs.docker_tag }}
-    secrets: inherit
-
   build-docs:
-    needs: [image, tag]
+    needs: [tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -31,11 +25,12 @@ jobs:
       - name: Set up Git
         run: git config --global safe.directory $GITHUB_WORKSPACE
 
-      - name: Pull full Docker image
+      - name: Pull CI Docker image
         run: |
           if [ -z "${{ needs.tag.outputs.docker_tag }}" ]; then
             echo "Image tag not set!" && exit 1
           fi
+          # Pull CI image that was built in build-image.yaml
           docker pull ${{ env.IMAGE_PREFIX }}/all-cpu:${{ needs.tag.outputs.docker_tag }}
 
       - name: Build documentation with Sphinx (fail on warnings)
