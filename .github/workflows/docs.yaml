@@ -2,10 +2,13 @@ name: Docs
 
 on:
   workflow_run:
-      # CI image will only build on main branch pushes or pull requests
-      # thus so will this docs workflow
-      workflows: ["Build CI Image"]
-      types: ["completed"]
+    workflows:
+      - Build CI Image
+    types:
+      - completed
+    branches:
+      - main
+      - '**'  # matches all branches, including PR branches
 
 env:
   REGISTRY: docker.io
