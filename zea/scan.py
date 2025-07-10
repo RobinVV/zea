@@ -240,24 +240,31 @@ class Scan(Parameters):
                 "'cartesian' and 'polar'."
             )
 
-    @cache_with_dependencies("Nx")
+    @cache_with_dependencies("Nx", "grid_type")
     def Nr(self):
         """Number of azimuthal (r) pixels for polar grid. Defaults to Nx if not provided."""
         Nr = self._params.get("Nr")
         if Nr is not None:
             return Nr
+        if self.grid_type != "polar":
+            # For cartesian grid, Nr is not applicable
+            return None
         return self.Nx
 
     @cache_with_dependencies(
         "xlims",
         "wavelength",
         "pixels_per_wavelength",
+        "grid_type",
     )
     def Nx(self):
         """Number of lateral (x) pixels, set to prevent aliasing if not provided."""
         Nx = self._params.get("Nx")
         if Nx is not None:
             return Nx
+        if self.grid_type == "polar":
+            # For polar grid, Nx is not applicable
+            return None
 
         width = self.xlims[1] - self.xlims[0]
         min_Nx = int(np.ceil(width / (self.wavelength / self.pixels_per_wavelength)))

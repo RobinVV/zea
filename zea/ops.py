@@ -1194,12 +1194,19 @@ class PatchedGrid(Pipeline):
 
     def call_item(self, inputs):
         """Process data in patches."""
-        Nx = inputs["Nx"]
-        Nz = inputs["Nz"]
+        grid = inputs["grid"]
+        gridshape = grid.shape[:2]
         flatgrid = inputs.pop("flatgrid")
 
+        n_tx = inputs[self.key].shape[0]
+        n_pix = flatgrid.shape[0]
+        n_el = inputs[self.key].shape[2]
+        n_ch = inputs[self.key].shape[3]
+        inputs["rx_apo"] = ops.broadcast_to(inputs.get("rx_apo", 1.0), (n_tx, n_pix, n_el, n_ch))
+        inputs["rx_apo"] = ops.swapaxes(inputs["rx_apo"], 0, 1)
+
         # Define a list of keys to look up for patching
-        patch_keys = ["flat_pfield"]
+        patch_keys = ["flat_pfield", "rx_apo"]
 
         patch_arrays = {}
         for key in patch_keys:
@@ -1208,6 +1215,7 @@ class PatchedGrid(Pipeline):
 
         def patched_call(flatgrid, **patch_kwargs):
             patch_args = {k: v for k, v in patch_kwargs.items() if v is not None}
+            patch_args["rx_apo"] = ops.swapaxes(patch_args["rx_apo"], 0, 1)
             out = super(PatchedGrid, self).call(flatgrid=flatgrid, **patch_args, **inputs)
             return out[self.output_key]
 
@@ -1218,7 +1226,7 @@ class PatchedGrid(Pipeline):
             **patch_arrays,
             jit=bool(self.jit_options),
         )
-        return ops.reshape(out, (Nz, Nx, *ops.shape(out)[1:]))
+        return ops.reshape(out, (*gridshape, *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
@@ -1571,6 +1579,8 @@ class DelayAndSum(Operation):
 
         Args:
             data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
+            tx_apo (ops.Tensor): Transmit apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
 
         Returns:
             ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
@@ -1590,8 +1600,7 @@ class DelayAndSum(Operation):
         self,
         rx_apo=None,
         tx_apo=None,
-        Nz=None,
-        Nx=None,
+        grid=None,
         **kwargs,
     ):
         """Performs DAS beamforming on tof-corrected input.
@@ -1614,6 +1623,8 @@ class DelayAndSum(Operation):
             tx_apo = 1.0
 
         data = kwargs[self.key]
+        rx_apo = ops.broadcast_to(rx_apo, data.shape)
+        tx_apo = ops.broadcast_to(tx_apo, data.shape)
 
         if not self.with_batch_dim:
             beamformed_data = self.process_image(data, rx_apo, tx_apo)
@@ -1622,7 +1633,9 @@ class DelayAndSum(Operation):
             beamformed_data = ops.map(lambda data: self.process_image(data, rx_apo, tx_apo), data)
 
         if self.reshape_grid:
-            beamformed_data = reshape_axis(beamformed_data, (Nz, Nx), axis=int(self.with_batch_dim))
+            beamformed_data = reshape_axis(
+                beamformed_data, grid.shape[:2], axis=int(self.with_batch_dim)
+            )
 
         return {self.output_key: beamformed_data}
 
