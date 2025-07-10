@@ -1,5 +1,6 @@
 """Main beamforming functions for ultrasound imaging."""
 
+import keras
 import numpy as np
 from keras import ops
 
@@ -487,7 +488,7 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
     # The f-number is fnum = z/aperture = 1/(2 * tan(alpha))
     # Rearranging gives us alpha = arctan(1/(2 * fnum))
     # We can use this to compute the maximum angle alpha that is allowed
-    max_alpha = ops.arctan(1 / (2 * f_number))
+    max_alpha = ops.arctan(1 / (2 * f_number + keras.backend.epsilon()))
 
     normalized_angle = alpha / max_alpha
     mask = fnum_window_fn(normalized_angle)
