@@ -585,7 +585,7 @@ def pad_or_crop_extent(image, extent, target_extent):
 
     Args:
         image (np.ndarray): The input image to be padded and/or cropped.
-            Only 2D images are supported. Image shape must be (Nz, Nx).
+            Only 2D images are supported. Image shape must be (n_z, n_x).
         extent (tuple): The current extent of the image in the format
             (x_min, x_max, z_min, z_max).
         target_extent (tuple): The target extent to match in the format

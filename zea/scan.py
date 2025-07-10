@@ -49,7 +49,7 @@ Example Usage
 
     # Initialize Scan from a Probe's parameters
     probe = Probe.from_name("verasonics_l11_4v")
-    scan = Scan(**probe.get_parameters(), Nz=256)
+    scan = Scan(**probe.get_parameters(), n_z=256)
 
     # Or initialize from a Config object
     config = Config.from_hf("zeahub/configs", "config_picmus_rf.yaml", repo_type="dataset")
@@ -57,8 +57,8 @@ Example Usage
 
     # Or manually specify parameters
     scan = Scan(
-        Nx=128,
-        Nz=256,
+        n_x=128,
+        n_z=256,
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
         center_frequency=6.25e6,
@@ -69,7 +69,7 @@ Example Usage
     )
 
     # Access a derived property (computed lazily)
-    grid = scan.grid  # shape: (Nz, Nx, 3)
+    grid = scan.grid  # shape: (n_z, n_x, 3)
 
     # Select a subset of transmit events
     scan.set_transmits(3)  # Use 3 evenly spaced transmits
@@ -96,8 +96,8 @@ class Scan(Parameters):
     """Represents an ultrasound scan configuration with computed properties.
 
     Args:
-        Nx (int): Number of samples in the x-direction (lateral).
-        Nz (int): Number of samples in the z-direction (axial).
+        n_x (int): Number of pixels in the x-direction (lateral).
+        n_z (int): Number of pixels in the z-direction (axial).
         sound_speed (float, optional): Speed of sound in the medium in m/s.
             Defaults to 1540.0.
         sampling_frequency (float): Sampling frequency in Hz.
@@ -159,9 +159,8 @@ class Scan(Parameters):
 
     VALID_PARAMS = {
         # beamforming related parameters
-        "Nx": {"type": int},
-        "Nz": {"type": int},
-        "Nr": {"type": int},
+        "n_x": {"type": int},
+        "n_z": {"type": int},
         "xlims": {"type": (tuple, list)},
         "ylims": {"type": (tuple, list)},
         "zlims": {"type": (tuple, list)},
@@ -221,35 +220,24 @@ class Scan(Parameters):
     @cache_with_dependencies(
         "xlims",
         "zlims",
-        "Nx",
-        "Nz",
+        "n_x",
+        "n_z",
         "sound_speed",
         "center_frequency",
         "pixels_per_wavelength",
         "grid_type",
     )
     def grid(self):
-        """The beamforming grid of shape (Nz, Nx, 3)."""
+        """The beamforming grid of shape (n_z, n_x, 3)."""
         if self.grid_type == "polar":
-            return polar_pixel_grid(self.polar_limits, self.zlims, Nz=self.Nz, Nr=self.Nr)
+            return polar_pixel_grid(self.polar_limits, self.zlims, self.n_z, self.n_x)
         elif self.grid_type == "cartesian":
-            return cartesian_pixel_grid(self.xlims, self.zlims, Nz=self.Nz, Nx=self.Nx)
+            return cartesian_pixel_grid(self.xlims, self.zlims, n_z=self.n_z, n_x=self.n_x)
         else:
             raise ValueError(
                 f"Unsupported grid type: {self.grid_type}. Supported types are "
                 "'cartesian' and 'polar'."
             )
-
-    @cache_with_dependencies("Nx", "grid_type")
-    def Nr(self):
-        """Number of azimuthal (r) pixels for polar grid. Defaults to Nx if not provided."""
-        Nr = self._params.get("Nr")
-        if Nr is not None:
-            return Nr
-        if self.grid_type != "polar":
-            # For cartesian grid, Nr is not applicable
-            return None
-        return self.Nx
 
     @cache_with_dependencies(
         "xlims",
@@ -257,51 +245,63 @@ class Scan(Parameters):
         "pixels_per_wavelength",
         "grid_type",
     )
-    def Nx(self):
-        """Number of lateral (x) pixels, set to prevent aliasing if not provided."""
-        Nx = self._params.get("Nx")
-        if Nx is not None:
-            return Nx
-        if self.grid_type == "polar":
-            # For polar grid, Nx is not applicable
-            return None
+    def n_x(self):
+        """Number of lateral (x) pixels in the grid, set to prevent aliasing if not provided.
+        For a polar grid, this can be thought of as the number for rays in the azimuthal direction.
+        """
+        n_x = self._params.get("n_x")
+        if n_x is not None:
+            return n_x
 
         width = self.xlims[1] - self.xlims[0]
-        min_Nx = int(np.ceil(width / (self.wavelength / self.pixels_per_wavelength)))
-        return max(min_Nx, 1)
+        min_n_x = int(np.ceil(width / (self.wavelength / self.pixels_per_wavelength)))
+        return max(min_n_x, 1)
 
     @cache_with_dependencies(
         "zlims",
         "wavelength",
         "pixels_per_wavelength",
     )
-    def Nz(self):
-        """Number of axial (z) pixels, set to prevent aliasing if not provided."""
-        Nz = self._params.get("Nz")
-        if Nz is not None:
-            return Nz
+    def n_z(self):
+        """Number of axial (z) pixels in the grid, set to prevent aliasing if not provided."""
+        n_z = self._params.get("n_z")
+        if n_z is not None:
+            return n_z
 
         depth = self.zlims[1] - self.zlims[0]
-        min_Nz = int(np.ceil(depth / (self.wavelength / self.pixels_per_wavelength)))
-        return max(min_Nz, 1)
+        min_n_z = int(np.ceil(depth / (self.wavelength / self.pixels_per_wavelength)))
+        return max(min_n_z, 1)
 
     @cache_with_dependencies("sound_speed", "center_frequency")
     def wavelength(self):
         """Calculate the wavelength based on sound speed and center frequency."""
         return self.sound_speed / self.center_frequency
 
+    @cache_with_dependencies("zlims", "grid_type", "polar_limits", "probe_geometry")
+    def xlims(self):
+        """The x-limits of the beamforming grid [m]."""
+        xlims = self._params.get("xlims")
+        if xlims is None and self.grid_type == "polar":
+            radius = self.zlims.max()
+            xlims = (
+                radius * np.cos(-np.pi / 2 + self.polar_limits[0]),
+                radius * np.cos(-np.pi / 2 + self.polar_limits[1]),
+            )
+        elif xlims is None and self.grid_type == "cartesian":
+            xlims = (self.probe_geometry[0, 0], self.probe_geometry[-1, 0])
+        return xlims
+
     @cache_with_dependencies("sound_speed", "sampling_frequency", "n_ax")
-    def z_axis(self):
-        """The z-axis of the beamforming grid [m]."""
-        if self.zlims is None:
-            zlims = [0, self.sound_speed * self.n_ax / self.sampling_frequency / 2]
-        else:
-            zlims = self.zlims
-        return np.linspace(zlims[0], zlims[1], self.n_ax)
+    def zlims(self):
+        """The z-limits of the beamforming grid [m]."""
+        zlims = self._params.get("zlims")
+        if zlims is None:
+            return [0, self.sound_speed * self.n_ax / self.sampling_frequency / 2]
+        return zlims
 
     @cache_with_dependencies("grid")
     def flatgrid(self):
-        """The beamforming grid of shape (Nz*Nx, 3)."""
+        """The beamforming grid of shape (n_z*n_x, 3)."""
         return self.grid.reshape(-1, 3)
 
     @property
@@ -557,22 +557,22 @@ class Scan(Parameters):
             return self.polar_limits
         return value
 
-    @cache_with_dependencies("rho_range", "theta_range", "resolution", "Nz", "Nx")
+    @cache_with_dependencies("rho_range", "theta_range", "resolution", "n_z", "n_x")
     def coordinates_2d(self):
         """The coordinates for scan conversion."""
         coords, _ = compute_scan_convert_2d_coordinates(
-            (self.Nz, self.Nx),
+            (self.n_z, self.n_x),
             self.rho_range,
             self.theta_range,
             self.resolution,
         )
         return coords
 
-    @cache_with_dependencies("rho_range", "theta_range", "phi_range", "resolution", "Nz", "Nx")
+    @cache_with_dependencies("rho_range", "theta_range", "phi_range", "resolution", "n_z", "n_x")
     def coordinates_3d(self):
         """The coordinates for scan conversion."""
         coords, _ = compute_scan_convert_3d_coordinates(
-            (self.Nz, self.Nx),
+            (self.n_z, self.n_x),
             self.rho_range,
             self.theta_range,
             self.phi_range,

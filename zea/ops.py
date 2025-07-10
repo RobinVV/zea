@@ -1420,8 +1420,8 @@ class TOFCorrection(Operation):
         "f_number",
         "apply_lens_correction",
         "apply_phase_rotation",
-        "Nx",
-        "Nz",
+        "n_x",
+        "n_z",
     ]
 
     def __init__(self, apply_phase_rotation=True, **kwargs):
@@ -2073,6 +2073,7 @@ class Demodulate(Operation):
         return {
             self.output_key: iq_data_two_channel,
             "demodulation_frequency": demodulation_frequency,
+            "center_frequency": 0.0,  # TODO: right?
             "n_ch": 2,
         }
 

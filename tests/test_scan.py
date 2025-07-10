@@ -17,8 +17,8 @@ scan_args = {
     "demodulation_frequency": 0.0,
     "sound_speed": 1540.0,
     "n_ax": 3328,
-    "Nx": 64,
-    "Nz": 128,
+    "n_x": 64,
+    "n_z": 128,
     "pixels_per_wavelength": 4,
     "polar_angles": np.linspace(-np.pi / 2, np.pi / 2, 10),
     "azimuth_angles": np.linspace(-np.pi / 2, np.pi / 2, 10),
@@ -56,8 +56,8 @@ def test_initialization():
     assert scan.demodulation_frequency == scan_args["demodulation_frequency"]
     assert scan.sound_speed == scan_args["sound_speed"]
     assert scan.n_ax == scan_args["n_ax"]
-    assert scan.Nx == scan_args["Nx"]
-    assert scan.Nz == scan_args["Nz"]
+    assert scan.n_x == scan_args["n_x"]
+    assert scan.n_z == scan_args["n_z"]
     assert np.all(scan.polar_angles == scan_args["polar_angles"])
     assert np.all(scan.azimuth_angles == scan_args["azimuth_angles"])
     assert np.all(scan.t0_delays == scan_args["t0_delays"])

@@ -131,9 +131,9 @@ Parameters Reference
      - The file extension to use when saving the video (mp4, gif)
    * - ``scan``
      - The scan section contains the parameters pertaining to the reconstruction.
-   * - ``scan.Nx``
+   * - ``scan.n_x``
      - The number of pixels in the beamforming grid in the x-direction
-   * - ``scan.Nz``
+   * - ``scan.n_z``
      - The number of pixels in the beamforming grid in the z-direction
    * - ``scan.apply_lens_correction``
      - Set to true to apply lens correction in the time-of-flight calculation

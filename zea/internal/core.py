@@ -22,8 +22,8 @@ STATIC = [
     "f_number",
     "apply_lens_correction",
     "apply_phase_rotation",
-    "Nx",
-    "Nz",
+    "n_x",
+    "n_z",
     "fill_value",
     "n_ax",
 ]
