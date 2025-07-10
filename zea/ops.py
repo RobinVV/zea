@@ -2919,7 +2919,7 @@ def channels_to_complex(data):
 
 
 def hilbert(x, N: int = None, axis=-1):
-    """Manual implementation of the Hilbert transform function. Tje function
+    """Manual implementation of the Hilbert transform function. The function
     returns the analytical signal.
 
     Operated in the Fourier domain.
