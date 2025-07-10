@@ -6,8 +6,13 @@
 [![Documentation Status](https://readthedocs.org/projects/zea/badge/?version=latest)](https://zea.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/github/license/tue-bmd/zea)](https://github.com/tue-bmd/zea/blob/main/LICENSE)
 [![codecov](https://codecov.io/gh/tue-bmd/zea/branch/main/graph/badge.svg)](https://codecov.io/gh/tue-bmd/zea)
+[![GitHub stars](https://img.shields.io/github/stars/tue-bmd/zea?style=social)](https://github.com/tue-bmd/zea/stargazers)
 
-Welcome to the documentation for the `zea` package: *A Toolbox for Cognitive Ultrasound Imaging.*
+Welcome to the `zea` package: *A Toolbox for Cognitive Ultrasound Imaging.*
+
+- 📚 Full documentation: [zea.readthedocs.io](https://zea.readthedocs.io)
+- 🔬 Try hands-on examples (with Colab): [Examples & Tutorials](https://zea.readthedocs.io/en/latest/examples.html)
+- ⚙️ Installation guide: [Installation](https://zea.readthedocs.io/en/latest/installation.html)
 
 `zea` is a Python library that offers ultrasound signal processing, image reconstruction, and deep learning. Currently, `zea` offers:
 
