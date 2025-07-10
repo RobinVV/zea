@@ -89,7 +89,6 @@ from zea.display import scan_convert
 from zea.internal.checks import _assert_keys_and_axes
 from zea.internal.core import (
     DEFAULT_DYNAMIC_RANGE,
-    STATIC,
     DataTypes,
     ZEADecoderJSON,
     ZEAEncoderJSON,
@@ -170,20 +169,10 @@ class Operation(keras.Operation):
         self._trace_signatures()
 
         if jit_kwargs is None:
-            # TODO: set static_argnames only for operations that require it
+            jit_kwargs = {}
 
-            # Get global static parameters
-            static_params = list(STATIC)
-
-            # Add operation-specific static parameters
-            op_static = list(getattr(self.__class__, "STATIC_PARAMS", []))
-            if op_static:
-                static_params = list(set(static_params + op_static))
-
-            if keras.backend.backend() == "jax":
-                jit_kwargs = {"static_argnames": static_params}
-            else:
-                jit_kwargs = {}
+        if keras.backend.backend() == "jax" and self.static_params:
+            jit_kwargs |= {"static_argnames": self.static_params}
 
         self.jit_kwargs = jit_kwargs
 
@@ -195,6 +184,11 @@ class Operation(keras.Operation):
         # torch not being able to compile the function
         with log.set_level("ERROR"):
             self.set_jit(jit_compile)
+
+    @property
+    def static_params(self):
+        """Get the static parameters of the operation."""
+        return getattr(self.__class__, "STATIC_PARAMS", [])
 
     def set_jit(self, jit_compile: bool):
         """Set the JIT compilation flag and set the `_call` method accordingly."""
@@ -419,10 +413,11 @@ class Pipeline:
             log.warning("Pipeline validation is disabled, make sure to validate manually.")
 
         if jit_kwargs is None:
-            if keras.backend.backend() == "jax":
-                jit_kwargs = {"static_argnames": STATIC}
-            else:
-                jit_kwargs = {}
+            jit_kwargs = {}
+
+        if keras.backend.backend() == "jax" and self.static_params:
+            jit_kwargs = {"static_argnames": self.static_params}
+
         self.jit_kwargs = jit_kwargs
         self.jit_options = jit_options  # will handle the jit compilation
 
@@ -438,6 +433,14 @@ class Pipeline:
         for operation in self.operations:
             valid_keys.update(operation.valid_keys)
         return valid_keys
+
+    @property
+    def static_params(self) -> List[str]:
+        """Get a list of static parameters for the pipeline."""
+        static_params = []
+        for operation in self.operations:
+            static_params.extend(operation.static_params)
+        return list(set(static_params))
 
     @classmethod
     def from_default(cls, num_patches=100, baseband=False, pfield=False, **kwargs) -> "Pipeline":
@@ -531,6 +534,10 @@ class Pipeline:
                     f"Current list of all passed keys: {list(inputs.keys())}\n"
                     f"Valid keys for this pipeline: {self.valid_keys}"
                 ) from exc
+            except Exception as exc:
+                raise RuntimeError(
+                    f"[zea.Pipeline] Error in operation '{operation.__class__.__name__}': {exc}"
+                )
             inputs = outputs
         return outputs
 
@@ -904,7 +911,7 @@ class Pipeline:
             assert isinstance(probe, Probe), (
                 f"Expected an instance of `zea.probes.Probe`, got {type(probe)}"
             )
-            probe_dict = probe.to_tensor()
+            probe_dict = probe.to_tensor(skip=self.static_params)
 
         if scan is not None:
             assert isinstance(scan, Scan), (
@@ -913,13 +920,14 @@ class Pipeline:
             scan_dict = scan.to_tensor(
                 compute_missing=True,
                 compute_keys=self.valid_keys,
+                skip=self.static_params,
             )
 
         if config is not None:
             assert isinstance(config, Config), (
                 f"Expected an instance of `zea.config.Config`, got {type(config)}"
             )
-            config_dict.update(config.to_tensor())
+            config_dict.update(config.to_tensor(skip=self.static_params))
 
         # Convert all kwargs to tensors
         tensor_kwargs = {}
@@ -927,9 +935,11 @@ class Pipeline:
             try:
                 # TODO: maybe some logic of convert_to_tensor is needed
                 if isinstance(value, ZEAObject):
-                    tensor_kwargs[key] = value.to_tensor()
+                    tensor_kwargs[key] = value.to_tensor(skip=self.static_params)
                 elif value is None:
                     tensor_kwargs[key] = None
+                elif key in self.static_params:
+                    tensor_kwargs[key] = value
                 else:
                     tensor_kwargs[key] = ops.convert_to_tensor(value)
             except Exception as e:
@@ -950,8 +960,13 @@ class Pipeline:
         }
 
         # Dropping str inputs as they are not supported in jax.jit
-        # TODO: will this break any operations?
-        inputs.pop("probe_type", None)
+        for key, value in inputs.items():
+            if isinstance(value, str):
+                log.warning(
+                    f"Input '{key}' is a string, which is not supported in JAX. "
+                    "Please convert it to a tensor or remove it."
+                )
+                inputs.pop(key)
 
         return inputs
 

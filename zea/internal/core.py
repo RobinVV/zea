@@ -15,19 +15,6 @@ BASE_FLOAT_PRECISION = "float32"
 BASE_INT_PRECISION = "int32"
 DEFAULT_DYNAMIC_RANGE = (-60, 0)
 
-# TODO: make static more neat
-# These are global static attributes for all ops. Ops specific
-# static attributes should be defined in the respective ops class
-STATIC = [
-    "f_number",
-    "apply_lens_correction",
-    "apply_phase_rotation",
-    "n_x",
-    "n_z",
-    "fill_value",
-    "n_ax",
-]
-
 
 class DataTypes(enum.Enum):
     """Enum class for zea data types.
@@ -125,9 +112,9 @@ class Object:
     def __delitem__(self, key):
         delattr(self, key)
 
-    def to_tensor(self):
+    def to_tensor(self, skip=None):
         """Convert the attributes in the object to keras tensors"""
-        return object_to_tensor(self)
+        return object_to_tensor(self, skip=skip)
 
     @classmethod
     def safe_initialize(cls, **kwargs):
@@ -182,7 +169,7 @@ def _skip_to_tensor(value):
     return False
 
 
-def object_to_tensor(obj):
+def object_to_tensor(obj, skip=None):
     """Convert an object to a dictionary of tensors."""
     snapshot = {}
 
@@ -198,12 +185,12 @@ def object_to_tensor(obj):
             continue
 
         # Convert the value to a tensor
-        snapshot[key] = _to_tensor(key, value)
+        snapshot[key] = _to_tensor(key, value, skip=skip)
 
     return snapshot
 
 
-def dict_to_tensor(dictionary):
+def dict_to_tensor(dictionary, skip=None):
     """Convert an object to a dictionary of tensors."""
     snapshot = {}
 
@@ -219,13 +206,16 @@ def dict_to_tensor(dictionary):
             continue
 
         # Convert the value to a tensor
-        snapshot[key] = _to_tensor(key, value)
+        snapshot[key] = _to_tensor(key, value, skip=skip)
 
     return snapshot
 
 
-def _to_tensor(key, val):
-    if key in STATIC:
+def _to_tensor(key, val, skip=None):
+    if skip is None:
+        skip = []
+
+    if key in skip:
         return val
 
     if not isinstance(val, CONVERT_TO_KERAS_TYPES):

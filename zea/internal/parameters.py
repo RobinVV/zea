@@ -349,7 +349,7 @@ class Parameters(ZeaObject):
             failed.add(name)
             return False
 
-    def to_tensor(self, compute_missing=False, compute_keys=None):
+    def to_tensor(self, compute_missing=False, compute_keys=None, skip=None):
         """
         Convert all parameters (and optionally computed properties) to tensors.
 
@@ -357,8 +357,10 @@ class Parameters(ZeaObject):
             compute_missing (bool): If True, compute missing computed properties.
             compute_keys (list or None): If not None, only compute these
                 computed properties (by name).
+            skip (list or None): If not None, skip these parameters when converting to tensors and
+                keep them as is.
         """
-        tensor_dict = dict_to_tensor(self._params)
+        tensor_dict = dict_to_tensor(self._params, skip=skip)
 
         # Compute missing properties if requested
         if compute_missing:
@@ -377,12 +379,12 @@ class Parameters(ZeaObject):
                             log.warning(f"Could not compute '{name}': {str(e)}")
                 elif isinstance(attr, property):
                     val = getattr(self, name, None)
-                    tensor_dict[name] = _to_tensor(name, val)
+                    tensor_dict[name] = _to_tensor(name, val, skip=skip)
 
         # Always include all already computed properties
         for key in self._computed:
             val = getattr(self, key)
-            tensor_dict[key] = _to_tensor(key, val)
+            tensor_dict[key] = _to_tensor(key, val, skip=skip)
 
         return tensor_dict
 
