@@ -126,7 +126,6 @@ class Scan(Parameters):
         time_to_next_transmit (np.ndarray): Time between transmit events.
         pixels_per_wavelength (int, optional): Number of pixels per wavelength.
             Defaults to 4.
-        downsample (int, optional): Downsampling factor for the data. Defaults to 1.
         element_width (float, optional): Width of each transducer element in meters.
             Defaults to 0.2e-3.
         resolution (float, optional): Resolution for scan conversion in mm / pixel.
@@ -165,7 +164,6 @@ class Scan(Parameters):
         "ylims": {"type": (tuple, list)},
         "zlims": {"type": (tuple, list)},
         "pixels_per_wavelength": {"type": int, "default": 4},
-        "downsample": {"type": int, "default": 1},
         "pfield_kwargs": {"type": dict, "default": {}},
         "apply_lens_correction": {"type": bool, "default": False},
         "lens_sound_speed": {"type": (float, int)},
