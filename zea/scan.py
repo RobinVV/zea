@@ -301,6 +301,13 @@ class Scan(Parameters):
             return [0, self.sound_speed * self.n_ax / self.sampling_frequency / 2]
         return zlims
 
+    @cache_with_dependencies("xlims", "zlims")
+    def extent(self):
+        """The extent of the beamforming grid in the format (xmin, xmax, zmax, zmin).
+        Can be directly used with `plt.imshow(x, extent=scan.extent)` for visualization.
+        """
+        return np.array([self.xlims[0], self.xlims[1], self.zlims[1], self.zlims[0]])
+
     @cache_with_dependencies("grid")
     def flatgrid(self):
         """The beamforming grid of shape (n_z*n_x, 3)."""
