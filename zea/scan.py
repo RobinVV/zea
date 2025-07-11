@@ -279,16 +279,18 @@ class Scan(Parameters):
 
     @cache_with_dependencies("zlims", "grid_type", "polar_limits", "probe_geometry")
     def xlims(self):
-        """The x-limits of the beamforming grid [m]."""
+        """The x-limits of the beamforming grid [m]. If not explicitly set, it is computed based
+        on the polar limits and probe geometry.
+        """
         xlims = self._params.get("xlims")
-        if xlims is None and self.grid_type == "polar":
-            radius = self.zlims.max()
-            xlims = (
+        if xlims is None:
+            radius = max(self.zlims)
+            xlims_polar = (
                 radius * np.cos(-np.pi / 2 + self.polar_limits[0]),
                 radius * np.cos(-np.pi / 2 + self.polar_limits[1]),
             )
-        elif xlims is None and self.grid_type == "cartesian":
-            xlims = (self.probe_geometry[0, 0], self.probe_geometry[-1, 0])
+            xlims_plane = (self.probe_geometry[0, 0], self.probe_geometry[-1, 0])
+            xlims = min(xlims_polar[0], xlims_plane[0]), max(xlims_polar[1], xlims_plane[1])
         return xlims
 
     @cache_with_dependencies("sound_speed", "sampling_frequency", "n_ax")
