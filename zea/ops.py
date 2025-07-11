@@ -2030,6 +2030,18 @@ class LeeFilter(Operation):
             key=self.key,
         )
 
+    @property
+    def with_batch_dim(self):
+        """Get the with_batch_dim property of the LeeFilter operation."""
+        return self._with_batch_dim
+
+    @with_batch_dim.setter
+    def with_batch_dim(self, value):
+        """Set the with_batch_dim property of the LeeFilter operation."""
+        self._with_batch_dim = value
+        if hasattr(self, "gaussian_blur"):
+            self.gaussian_blur.with_batch_dim = value
+
     def call(self, **kwargs):
         data = kwargs[self.key]
 
