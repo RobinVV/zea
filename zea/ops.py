@@ -2875,19 +2875,21 @@ def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
         sampling_frequency (float): sample frequency.
         f (float): center frequency.
         bw (float): bandwidth in Hz.
+
     Raises:
-        AssertionError: if cutoff frequency (bw / 2) is not within (0, sampling_frequency / 2)
+        ValueError: if cutoff frequency (bw / 2) is not within (0, sampling_frequency / 2)
 
     Returns:
-        ndarray: fx LP filter
+        ndarray: Complex-valued low-pass filter
     """
-    assert (bw / 2 > 0) & (bw / 2 < sampling_frequency / 2), log.error(
-        "Cutoff frequency must be within (0, sampling_frequency / 2), "
-        f"got {bw / 2} Hz, must be within (0, {sampling_frequency / 2}) Hz"
-    )
-    t_qbp = np.arange(num_taps) / sampling_frequency
+    if not (0 < bw / 2 < sampling_frequency / 2):
+        raise ValueError(
+            f"Cutoff frequency must be within (0, sampling_frequency / 2), "
+            f"got {bw / 2} Hz, must be within (0, {sampling_frequency / 2}) Hz"
+        )
+    time_points = np.arange(num_taps) / sampling_frequency
     lpf = scipy.signal.firwin(num_taps, bw / 2, pass_zero=True, fs=sampling_frequency) * np.exp(
-        1j * 2 * np.pi * f * t_qbp
+        1j * 2 * np.pi * f * time_points
     )
     return lpf
 
