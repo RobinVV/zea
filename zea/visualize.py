@@ -654,5 +654,4 @@ def imshow(X, *args, scan=None, **kwargs):
     vmin = kwargs.pop("vmin", scan.dynamic_range[0] if scan is not None else None)
     vmax = kwargs.pop("vmax", scan.dynamic_range[1] if scan is not None else None)
 
-    with plt.style.context(DEFAULT_STYLE):
-        return plt.imshow(X, *args, **kwargs, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax)
+    return plt.imshow(X, *args, **kwargs, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax)
