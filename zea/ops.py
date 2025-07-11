@@ -2670,6 +2670,24 @@ class AnisotropicDiffusion(Operation):
         return result
 
 
+class ChannelsToComplex(Operation):
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        output = channels_to_complex(data)
+        return {self.output_key: output}
+
+
+class ComplexToChannels(Operation):
+    def __init__(self, axis=-1, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        output = complex_to_channels(data, axis=self.axis)
+        return {self.output_key: output}
+
+
 def demodulate_not_jitable(
     rf_data,
     sampling_frequency=None,
