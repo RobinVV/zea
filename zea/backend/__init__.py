@@ -111,6 +111,6 @@ def _jit_compile(func, jax=True, tensorflow=True, **kwargs):
             f"JIT compilation not currently supported for backend {backend}. "
             "Supported backends are 'tensorflow' and 'jax'."
         )
-        log.warning("Initialize zea.Pipeline with jit_compile=False to suppress this warning.")
+        log.warning("Initialize zea.Pipeline with jit_options=None to suppress this warning.")
         log.warning("Falling back to non-compiled mode.")
         return func
