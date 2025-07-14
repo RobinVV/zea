@@ -1589,20 +1589,16 @@ class DelayAndSum(Operation):
         )
         self.reshape_grid = reshape_grid
 
-    def process_image(self, data, rx_apo, tx_apo):
+    def process_image(self, data, rx_apo):
         """Performs DAS beamforming on tof-corrected input.
 
         Args:
             data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
             rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
-            tx_apo (ops.Tensor): Transmit apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
 
         Returns:
             ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
         """
-        # Apply tx_apo
-        data = tx_apo * data
-
         # Sum over the channels, i.e. DAS
         data = ops.sum(rx_apo * data, -2)
 
@@ -1614,7 +1610,6 @@ class DelayAndSum(Operation):
     def call(
         self,
         rx_apo=None,
-        tx_apo=None,
         grid=None,
         **kwargs,
     ):
@@ -1624,7 +1619,6 @@ class DelayAndSum(Operation):
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
                 `(n_tx, n_z*n_x, n_el, n_ch)` with optional batch dimension.
             rx_apo (ops.Tensor, optional): Receive apodization window. Defaults to 1.0.
-            tx_apo (ops.Tensor, optional): Transmit apodization window. Defaults to 1.0.
 
         Returns:
             dict: Dictionary containing beamformed_data of shape `(n_z*n_x, n_ch)`
@@ -1634,18 +1628,14 @@ class DelayAndSum(Operation):
         if rx_apo is None:
             rx_apo = 1.0
 
-        if tx_apo is None:
-            tx_apo = 1.0
-
         data = kwargs[self.key]
         rx_apo = ops.broadcast_to(rx_apo, data.shape)
-        tx_apo = ops.broadcast_to(tx_apo, data.shape)
 
         if not self.with_batch_dim:
-            beamformed_data = self.process_image(data, rx_apo, tx_apo)
+            beamformed_data = self.process_image(data, rx_apo)
         else:
             # Apply process_image to each item in the batch
-            beamformed_data = ops.map(lambda data: self.process_image(data, rx_apo, tx_apo), data)
+            beamformed_data = ops.map(lambda data: self.process_image(data, rx_apo), data)
 
         if self.reshape_grid:
             beamformed_data = reshape_axis(
