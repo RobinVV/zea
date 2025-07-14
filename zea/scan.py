@@ -106,7 +106,6 @@ class Scan(Parameters):
         n_tx (int): Number of transmit events in the dataset.
         n_ax (int): Number of axial samples in the received signal.
         n_ch (int, optional): Number of channels (1 for RF, 2 for IQ data).
-            Defaults to 1.
         xlims (tuple of float): Lateral (x) limits of the imaging region in
             meters (min, max).
         ylims (tuple of float, optional): Elevation (y) limits of the imaging
@@ -114,20 +113,23 @@ class Scan(Parameters):
         zlims (tuple of float): Axial (z) limits of the imaging region
             in meters (min, max).
         probe_geometry (np.ndarray): Element positions as array of shape (n_el, 3).
-        polar_angles (np.ndarray): Polar angles for each transmit event in radians.
-        azimuth_angles (np.ndarray): Azimuth angles for each transmit event in radians.
-        t0_delays (np.ndarray): Transmit delays in seconds for each event.
-        tx_apodizations (np.ndarray): Transmit apodizations for each event.
-        focus_distances (np.ndarray): Focus distances in meters for each event.
-        initial_times (np.ndarray): Initial times in seconds for each event.
+        polar_angles (np.ndarray): Polar angles for each transmit event in radians of shape (n_tx,).
+            These angles are often used in 2D imaging.
+        azimuth_angles (np.ndarray): Azimuth angles for each transmit event in radians
+            of shape (n_tx,). These angles are often used in 3D imaging.
+        t0_delays (np.ndarray): Transmit delays in seconds of
+            shape (n_tx, n_el), shifted such that the smallest delay is 0.
+        tx_apodizations (np.ndarray): Transmit apodizations of shape (n_tx, n_el).
+        focus_distances (np.ndarray): Focus distances in meters for each event of shape (n_tx,).
+        initial_times (np.ndarray): Initial times in seconds for each event of shape (n_tx,).
         bandwidth_percent (float, optional): Bandwidth as percentage of center
             frequency. Defaults to 200.0.
         demodulation_frequency (float, optional): Demodulation frequency in Hz.
-        time_to_next_transmit (np.ndarray): Time between transmit events.
+        time_to_next_transmit (np.ndarray): The time between subsequent
+            transmit events of shape (n_frames, n_tx).
         pixels_per_wavelength (int, optional): Number of pixels per wavelength.
             Defaults to 4.
         element_width (float, optional): Width of each transducer element in meters.
-            Defaults to 0.2e-3.
         resolution (float, optional): Resolution for scan conversion in mm / pixel.
             If None, it is calculated based on the input image.
         pfield_kwargs (dict, optional): Additional parameters for pressure field computation.
@@ -437,7 +439,8 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def polar_angles(self):
-        """The polar angles of transmits in radians."""
+        """Polar angles for each transmit event in radians of shape (n_tx,).
+        These angles are often used in 2D imaging."""
         value = self._params.get("polar_angles")
         if value is None:
             log.warning("No polar angles provided, using zeros")
@@ -458,7 +461,8 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def azimuth_angles(self):
-        """The azimuth angles of transmits in radians."""
+        """Azimuth angles for each transmit event in radians
+        of shape (n_tx,). These angles are often used in 3D imaging."""
         value = self._params.get("azimuth_angles")
         if value is None:
             log.warning("No azimuth angles provided, using zeros")
@@ -468,7 +472,8 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits", "n_el")
     def t0_delays(self):
-        """The transmit delays in seconds."""
+        """Transmit delays in seconds of
+        shape (n_tx, n_el), shifted such that the smallest delay is 0."""
         value = self._params.get("t0_delays")
         if value is None:
             log.warning("No transmit delays provided, using zeros")
@@ -478,7 +483,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def tx_apodizations(self):
-        """The transmit apodizations."""
+        """Transmit apodizations of shape (n_tx, n_el)."""
         value = self._params.get("tx_apodizations")
         if value is None:
             log.warning("No transmit apodizations provided, using ones")
@@ -488,7 +493,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def focus_distances(self):
-        """The focus distances in meters."""
+        """Focus distances in meters for each event of shape (n_tx,)."""
         value = self._params.get("focus_distances")
         if value is None:
             log.warning("No focus distances provided, using zeros")
@@ -498,7 +503,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def initial_times(self):
-        """The initial times in seconds."""
+        """Initial times in seconds for each event of shape (n_tx,)."""
         value = self._params.get("initial_times")
         if value is None:
             log.warning("No initial times provided, using zeros")
@@ -508,7 +513,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("selected_transmits")
     def time_to_next_transmit(self):
-        """Time between transmit events."""
+        """The time between subsequent transmit events of shape (n_frames, n_tx)."""
         value = self._params.get("time_to_next_transmit")
         if value is None:
             return None
