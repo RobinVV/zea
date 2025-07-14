@@ -59,7 +59,7 @@ def tof_correction(
     demodulation_frequency,
     fnum,
     angles,
-    vfocus,
+    focus_distances,
     apply_phase_rotation=False,
     apply_lens_correction=False,
     lens_thickness=1e-3,
@@ -85,7 +85,7 @@ def tof_correction(
         fnum (int, optional): Focus number. Defaults to 1.
         angles (ops.Tensor): The angles of the plane waves in radians of shape
             `(n_tx,)`
-        vfocus (ops.Tensor): The focus distance of shape `(n_tx,)`
+        focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
         apply_phase_rotation (bool, optional): Whether to apply phase rotation to
             time-of-flights. Defaults to False.
         apply_lens_correction (bool, optional): Whether to apply lens correction to
@@ -134,7 +134,7 @@ def tof_correction(
         sound_speed,
         n_tx,
         n_el,
-        vfocus,
+        focus_distances,
         angles,
         lens_thickness=lens_thickness,
         lens_sound_speed=lens_sound_speed,

@@ -1494,7 +1494,7 @@ class TOFCorrection(Operation):
             "flatgrid": flatgrid,
             "sound_speed": sound_speed,
             "angles": polar_angles,
-            "vfocus": focus_distances,
+            "focus_distances": focus_distances,
             "sampling_frequency": sampling_frequency,
             "fnum": f_number,
             "apply_phase_rotation": self.apply_phase_rotation,
