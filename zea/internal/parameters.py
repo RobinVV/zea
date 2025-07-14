@@ -12,10 +12,9 @@ import functools
 
 import numpy as np
 
-from zea import log
 from zea.internal.cache import serialize_elements
 from zea.internal.core import Object as ZeaObject
-from zea.internal.core import _to_tensor, dict_to_tensor
+from zea.internal.core import _to_tensor
 
 
 def cache_with_dependencies(*deps):
@@ -171,7 +170,7 @@ class Parameters(ZeaObject):
                         )
 
         self._params = {}
-        self._properties = self.get_properties()
+        self._properties_with_dependencies, self._properties = self.get_properties()
         self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
@@ -359,11 +358,15 @@ class Parameters(ZeaObject):
         """
         Get all properties of this class
         """
+        properties_with_dependencies = set()
         properties = set()
         for name, attr in self.__class__.__dict__.items():
-            if isinstance(attr, property) and hasattr(attr.fget, "_dependencies"):
-                properties.add(name)
-        return properties
+            if isinstance(attr, property):
+                if hasattr(attr.fget, "_dependencies"):
+                    properties_with_dependencies.add(name)
+                else:
+                    properties.add(name)
+        return properties_with_dependencies, properties
 
     def to_tensor(self, include="all", exclude=None, compute=True, skip_missing=True):
         """
@@ -384,8 +387,8 @@ class Parameters(ZeaObject):
 
         # Determine which keys to include
         param_keys = set(self._params.keys())
-        property_keys = set(self._properties) if compute else set(self._computed)
-        all_keys = param_keys | property_keys
+        property_keys = set(self._properties_with_dependencies) if compute else set(self._computed)
+        all_keys = param_keys | property_keys | set(self._properties)
 
         if include is not None and include != "all":
             keys = set(include) & all_keys

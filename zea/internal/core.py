@@ -203,27 +203,6 @@ def object_to_tensor(obj):
     return snapshot
 
 
-def dict_to_tensor(dictionary):
-    """Convert an object to a dictionary of tensors."""
-    snapshot = {}
-
-    for key in dictionary:
-        # Skip dunder/hidden methods
-        if key.startswith("_"):
-            continue
-
-        value = dictionary[key]
-
-        # Skip certain types
-        if _skip_to_tensor(value):
-            continue
-
-        # Convert the value to a tensor
-        snapshot[key] = _to_tensor(key, value)
-
-    return snapshot
-
-
 def _to_tensor(key, val):
     if key in STATIC:
         return val
