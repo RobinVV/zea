@@ -1185,16 +1185,17 @@ class PatchedGrid(Pipeline):
 
     def call_item(self, inputs):
         """Process data in patches."""
-        grid = inputs["grid"]
-        gridshape = grid.shape[:2]
+        n_x = inputs["n_x"]
+        n_z = inputs["n_z"]
         flatgrid = inputs.pop("flatgrid")
 
+        # TODO: maybe using n_tx and n_el from kwargs is better but these are tensors now
+        # and this is not supported in broadcast_to
         n_tx = inputs[self.key].shape[0]
         n_pix = flatgrid.shape[0]
         n_el = inputs[self.key].shape[2]
-        n_ch = inputs[self.key].shape[3]
-        inputs["rx_apo"] = ops.broadcast_to(inputs.get("rx_apo", 1.0), (n_tx, n_pix, n_el, n_ch))
-        inputs["rx_apo"] = ops.swapaxes(inputs["rx_apo"], 0, 1)
+        inputs["rx_apo"] = ops.broadcast_to(inputs.get("rx_apo", 1.0), (n_tx, n_pix, n_el))
+        inputs["rx_apo"] = ops.swapaxes(inputs["rx_apo"], 0, 1)  # put n_pix first
 
         # Define a list of keys to look up for patching
         patch_keys = ["flat_pfield", "rx_apo"]
@@ -1217,7 +1218,7 @@ class PatchedGrid(Pipeline):
             **patch_arrays,
             jit=bool(self.jit_options),
         )
-        return ops.reshape(out, (*gridshape, *ops.shape(out)[1:]))
+        return ops.reshape(out, (n_z, n_x, *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
@@ -1570,13 +1571,13 @@ class DelayAndSum(Operation):
 
         Args:
             data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
-            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el)`.
 
         Returns:
             ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
         """
         # Sum over the channels, i.e. DAS
-        data = ops.sum(rx_apo * data, -2)
+        data = ops.sum(rx_apo[..., None] * data, -2)
 
         # Sum over transmits, i.e. Compounding
         data = ops.sum(data, 0)
@@ -2039,7 +2040,10 @@ class LeeFilter(Operation):
 
 @ops_registry("demodulate")
 class Demodulate(Operation):
-    """Demodulates the input data to baseband."""
+    """Demodulates the input data to baseband. After this operation, the carrier frequency
+    is removed (0 Hz) and the data is in IQ format stored in two real valued channels. Note
+    that this operation does not change the `center_frequency` parameter, such that it still
+    represents the original carrier frequency of the input data and be used by later operations."""
 
     def __init__(self, axis=-3, **kwargs):
         super().__init__(
@@ -2066,7 +2070,6 @@ class Demodulate(Operation):
         return {
             self.output_key: iq_data_two_channel,
             "demodulation_frequency": demodulation_frequency,
-            "center_frequency": 0.0,  # TODO: right?
             "n_ch": 2,
         }
 

@@ -634,24 +634,3 @@ def pad_or_crop_extent(image, extent, target_extent):
         constant_values=0,
     )
     return image_padded
-
-
-def imshow(X, *args, scan=None, **kwargs):
-    """Display an image using matplotlib's imshow.
-
-    Will use zea's default style and set the extent (in mm), vmin, and vmax
-    based on the provided scan object if available.
-
-    Args:
-        X (np.ndarray): The image to display.
-        *args: Additional positional arguments for plt.imshow.
-        scan (zea.Scan, optional): A scan object containing metadata.
-            If provided, it will be used to set the extent, vmin, and vmax of the image.
-        **kwargs: Additional keyword arguments for plt.imshow.
-    """
-    extent = kwargs.pop("extent", scan.extent * 1e3 if scan is not None else None)
-    cmap = kwargs.pop("cmap", "gray" if X.ndim == 2 else plt.rcParams["image.cmap"])
-    vmin = kwargs.pop("vmin", scan.dynamic_range[0] if scan is not None else None)
-    vmax = kwargs.pop("vmax", scan.dynamic_range[1] if scan is not None else None)
-
-    return plt.imshow(X, *args, **kwargs, extent=extent, cmap=cmap, vmin=vmin, vmax=vmax)

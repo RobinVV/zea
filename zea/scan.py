@@ -96,8 +96,11 @@ class Scan(Parameters):
     """Represents an ultrasound scan configuration with computed properties.
 
     Args:
-        n_x (int): Number of pixels in the x-direction (lateral).
-        n_z (int): Number of pixels in the z-direction (axial).
+        n_x (int): Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in
+            the grid, set to prevent aliasing if not provided. For a polar grid, this can be
+            thought of as the number for rays in the polar direction.
+        n_z (int): Grid height in pixels. This is the number of axial (z) pixels in the grid,
+            set to prevent aliasing if not provided.
         sound_speed (float, optional): Speed of sound in the medium in m/s.
             Defaults to 1540.0.
         sampling_frequency (float): Sampling frequency in Hz.
@@ -246,8 +249,9 @@ class Scan(Parameters):
         "grid_type",
     )
     def n_x(self):
-        """Number of lateral (x) pixels in the grid, set to prevent aliasing if not provided.
-        For a polar grid, this can be thought of as the number for rays in the azimuthal direction.
+        """Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in the grid,
+        set to prevent aliasing if not provided. For a polar grid, this can be thought of as
+        the number for rays in the polar direction.
         """
         n_x = self._params.get("n_x")
         if n_x is not None:
@@ -263,7 +267,8 @@ class Scan(Parameters):
         "pixels_per_wavelength",
     )
     def n_z(self):
-        """Number of axial (z) pixels in the grid, set to prevent aliasing if not provided."""
+        """Grid height in pixels. This is the number of axial (z) pixels in the grid,
+        set to prevent aliasing if not provided."""
         n_z = self._params.get("n_z")
         if n_z is not None:
             return n_z
