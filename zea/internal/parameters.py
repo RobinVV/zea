@@ -368,9 +368,11 @@ class Parameters(ZeaObject):
                     properties.add(name)
         return properties_with_dependencies, properties
 
-    def to_tensor(self, include="all", exclude=None, compute=True, skip_missing=True):
+    def to_tensor(self, include=None, exclude=None, compute=True, skip_missing=True):
         """
         Convert parameters and computed properties to tensors.
+
+        Only one of `include` or `exclude` can be set.
 
         Args:
             include ("all", or list): Only include these parameter/property names.
@@ -382,6 +384,9 @@ class Parameters(ZeaObject):
             compute (bool): If True, compute properties that are not yet cached.
             skip_missing (bool): If True, skip parameters that are not set or missing.
         """
+        if include is None and exclude is None:
+            include = "all"
+
         if include is not None and exclude is not None:
             raise ValueError("Only one of 'include' or 'exclude' can be set.")
 
