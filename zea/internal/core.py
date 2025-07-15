@@ -8,7 +8,6 @@ from copy import deepcopy
 import keras
 import numpy as np
 
-from zea.internal.core import Object as ZEAObject
 from zea.utils import reduce_to_signature, update_dictionary
 
 CONVERT_TO_KERAS_TYPES = (np.ndarray, int, float, list, tuple, bool)
@@ -182,7 +181,7 @@ def dict_to_tensor(dictionary, keep_as_is=None):
         # Get the value from the dictionary
         value = dictionary[key]
 
-        if isinstance(value, ZEAObject):
+        if isinstance(value, Object):
             snapshot[key] = value.to_tensor(keep_as_is=keep_as_is)
 
         # Skip certain types
