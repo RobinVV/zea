@@ -422,13 +422,12 @@ class Pipeline:
         self.jit_kwargs = jit_kwargs
         self.jit_options = jit_options  # will handle the jit compilation
 
-    def needs(self, key):
+    def needs(self, key) -> bool:
         """Check if the pipeline needs a specific key."""
-        if key in self.valid_keys:
-            return True
+        return key in self.valid_keys
 
     @property
-    def valid_keys(self):
+    def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline."""
         valid_keys = set()
         for operation in self.operations:
@@ -1183,8 +1182,15 @@ class PatchedGrid(Pipeline):
         for operation in self.operations:
             operation.with_batch_dim = False
 
+    @property
+    def valid_keys(self) -> set:
+        """Get a set of valid keys for the pipeline."""
+        return super().valid_keys.union({"flatgrid", "flat_pfield", "n_x", "n_z", "rx_apo"})
+
     def call_item(self, inputs):
         """Process data in patches."""
+        # Extract necessary parameters
+        # make sure to add those as valid keys above!
         n_x = inputs["n_x"]
         n_z = inputs["n_z"]
         flatgrid = inputs.pop("flatgrid")
@@ -1571,13 +1577,13 @@ class DelayAndSum(Operation):
 
         Args:
             data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
-            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el)`.
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_pix, n_el, n_ch)`.
 
         Returns:
             ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
         """
         # Sum over the channels, i.e. DAS
-        data = ops.sum(rx_apo[..., None] * data, -2)
+        data = ops.sum(rx_apo * data, -2)
 
         # Sum over transmits, i.e. Compounding
         data = ops.sum(data, 0)
@@ -1595,7 +1601,8 @@ class DelayAndSum(Operation):
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
                 `(n_tx, n_z*n_x, n_el, n_ch)` with optional batch dimension.
-            rx_apo (ops.Tensor, optional): Receive apodization window. Defaults to 1.0.
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_z*n_x, n_el)`.
+                Defaults to 1.0.
 
         Returns:
             dict: Dictionary containing beamformed_data of shape `(n_z*n_x, n_ch)`
@@ -1606,7 +1613,7 @@ class DelayAndSum(Operation):
             rx_apo = 1.0
 
         data = kwargs[self.key]
-        rx_apo = ops.broadcast_to(rx_apo, data.shape)
+        rx_apo = ops.broadcast_to(rx_apo[..., None], data.shape)
 
         if not self.with_batch_dim:
             beamformed_data = self.process_image(data, rx_apo)
