@@ -12,10 +12,9 @@ import functools
 
 import numpy as np
 
-from zea import log
 from zea.internal.cache import serialize_elements
 from zea.internal.core import Object as ZeaObject
-from zea.internal.core import _to_tensor, dict_to_tensor
+from zea.internal.core import _to_tensor
 
 
 def cache_with_dependencies(*deps):
@@ -171,11 +170,16 @@ class Parameters(ZeaObject):
                         )
 
         self._params = {}
+        self._properties_with_dependencies, self._properties = self.get_properties()
         self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
         for k, v in kwargs.items():
             self._params[k] = v
+
+        # Tensor cache stores converted tensors for parameters and computed properties
+        # to avoid converting them multiple times if there are no changes.
+        self._tensor_cache = {}
 
     def __getattr__(self, item):
         # First check regular params
@@ -308,6 +312,7 @@ class Parameters(ZeaObject):
         self._cache.pop(key, None)
         self._computed.discard(key)
         self._dependency_versions.pop(key, None)
+        self._tensor_cache.pop(key, None)
 
     def _invalidate_dependents(self, changed_key):
         """
@@ -349,42 +354,67 @@ class Parameters(ZeaObject):
             failed.add(name)
             return False
 
-    def to_tensor(self, compute_missing=False, compute_keys=None, skip=None):
+    def get_properties(self):
         """
-        Convert all parameters (and optionally computed properties) to tensors.
+        Get all properties of this class
+        """
+        properties_with_dependencies = set()
+        properties = set()
+        for name, attr in self.__class__.__dict__.items():
+            if isinstance(attr, property):
+                if hasattr(attr.fget, "_dependencies"):
+                    properties_with_dependencies.add(name)
+                else:
+                    properties.add(name)
+        return properties_with_dependencies, properties
+
+    def to_tensor(self, include="all", exclude=None, compute=True, skip_missing=True):
+        """
+        Convert parameters and computed properties to tensors.
 
         Args:
-            compute_missing (bool): If True, compute missing computed properties.
-            compute_keys (list or None): If not None, only compute these
-                computed properties (by name).
-            skip (list or None): If not None, skip these parameters when converting to tensors and
-                keep them as is.
+            include ("all", or list): Only include these parameter/property names.
+                If "all", include all parameters and computed properties. Default is "all".
+            exclude (None or list): Exclude these parameter/property names.
+                If provided, these keys will be excluded from the output.
+
+                Only one of include or exclude can be set.
+            compute (bool): If True, compute properties that are not yet cached.
+            skip_missing (bool): If True, skip parameters that are not set or missing.
         """
-        tensor_dict = dict_to_tensor(self._params, skip=skip)
+        if include is not None and exclude is not None:
+            raise ValueError("Only one of 'include' or 'exclude' can be set.")
 
-        # Compute missing properties if requested
-        if compute_missing:
-            for name in dir(self.__class__):
-                if compute_keys is not None and name not in compute_keys:
+        # Determine which keys to include
+        param_keys = set(self._params.keys())
+        property_keys = set(self._properties_with_dependencies) if compute else set(self._computed)
+        all_keys = param_keys | property_keys | set(self._properties)
+
+        if include is not None and include != "all":
+            keys = set(include) & all_keys
+        else:
+            keys = set(all_keys)
+        if exclude is not None:
+            keys = keys - set(exclude)
+
+        tensor_dict = {}
+        # Convert parameters and computed properties to tensors
+        for key in keys:
+            # Get the value from params or computed properties
+            try:
+                val = getattr(self, key)
+            except AttributeError as e:
+                if skip_missing:
                     continue
-                attr = getattr(self.__class__, name)
-                if isinstance(attr, property) and hasattr(attr.fget, "_dependencies"):
-                    failed = set()
-                    if self._resolve_dependency_tree(name, failed):
-                        try:
-                            val = getattr(self, name)
-                            if val is not None:
-                                pass
-                        except Exception as e:
-                            log.warning(f"Could not compute '{name}': {str(e)}")
-                elif isinstance(attr, property):
-                    val = getattr(self, name, None)
-                    tensor_dict[name] = _to_tensor(name, val, skip=skip)
+                else:
+                    raise e
 
-        # Always include all already computed properties
-        for key in self._computed:
-            val = getattr(self, key)
-            tensor_dict[key] = _to_tensor(key, val, skip=skip)
+            if key in self._tensor_cache:
+                tensor_dict[key] = self._tensor_cache[key]
+            else:
+                tensor_val = _to_tensor(key, val)
+                tensor_dict[key] = tensor_val
+                self._tensor_cache[key] = tensor_val
 
         return tensor_dict
 

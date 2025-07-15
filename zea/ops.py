@@ -897,6 +897,12 @@ class Pipeline:
             probe: Probe object.
             scan: Scan object.
             config: Config object.
+            include (None, "all", or list): Only include these parameter/computed property names.
+                If None or "all", include all.
+            exclude (None or list): Exclude these parameter/computed property names.
+                If provided, these keys will be excluded from the output.
+                Only one of include or exclude can be set.
+
             **kwargs: Additional keyword arguments to be included in the inputs.
 
         Returns:
@@ -917,11 +923,7 @@ class Pipeline:
             assert isinstance(scan, Scan), (
                 f"Expected an instance of `zea.scan.Scan`, got {type(scan)}"
             )
-            scan_dict = scan.to_tensor(
-                compute_missing=True,
-                compute_keys=self.valid_keys,
-                skip=self.static_params,
-            )
+            scan_dict = scan.to_tensor(include=self.valid_keys)
 
         if config is not None:
             assert isinstance(config, Config), (
@@ -1791,13 +1793,13 @@ class Normalize(Operation):
                 of the input data will be computed. Defaults to None.
 
         Returns:
-            dict: Dictionary containing normalized data
+            dict: Dictionary containing normalized data, along with the computed
+                  or provided input range (minval and maxval).
         """
         data = kwargs[self.key]
 
         # If input_range is not provided, try to get it from kwargs
-        # This allows you to normalize based on the first frame in a sequence:
-        # Example: https://github.com/tue-bmd/ultrasound-toolbox/pull/662
+        # This allows you to normalize based on the first frame in a sequence and avoid flicker
         if self.input_range is None:
             maxval = kwargs.get("maxval", None)
             minval = kwargs.get("minval", None)
