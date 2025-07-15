@@ -92,6 +92,7 @@ from zea.internal.core import (
     DataTypes,
     ZEADecoderJSON,
     ZEAEncoderJSON,
+    dict_to_tensor,
 )
 from zea.internal.core import Object as ZEAObject
 from zea.internal.registry import ops_registry
@@ -910,45 +911,28 @@ class Pipeline:
         """
         # Initialize dictionaries for probe, scan, and config
         probe_dict, scan_dict, config_dict = {}, {}, {}
-        other_dicts = {}
 
         # Process args to extract Probe, Scan, and Config objects
         if probe is not None:
             assert isinstance(probe, Probe), (
                 f"Expected an instance of `zea.probes.Probe`, got {type(probe)}"
             )
-            probe_dict = probe.to_tensor(skip=self.static_params)
+            probe_dict = probe.to_tensor(keep_as_is=self.static_params)
 
         if scan is not None:
             assert isinstance(scan, Scan), (
                 f"Expected an instance of `zea.scan.Scan`, got {type(scan)}"
             )
-            scan_dict = scan.to_tensor(include=self.valid_keys)
+            scan_dict = scan.to_tensor(include=self.valid_keys, keep_as_is=self.static_params)
 
         if config is not None:
             assert isinstance(config, Config), (
                 f"Expected an instance of `zea.config.Config`, got {type(config)}"
             )
-            config_dict.update(config.to_tensor(skip=self.static_params))
+            config_dict.update(config.to_tensor(keep_as_is=self.static_params))
 
         # Convert all kwargs to tensors
-        tensor_kwargs = {}
-        for key, value in kwargs.items():
-            try:
-                # TODO: maybe some logic of convert_to_tensor is needed
-                if isinstance(value, ZEAObject):
-                    tensor_kwargs[key] = value.to_tensor(skip=self.static_params)
-                elif value is None:
-                    tensor_kwargs[key] = None
-                elif key in self.static_params:
-                    tensor_kwargs[key] = value
-                else:
-                    tensor_kwargs[key] = ops.convert_to_tensor(value)
-            except Exception as e:
-                raise ValueError(
-                    f"Error converting key '{key}' to tensor: {e}. "
-                    f"Please ensure all inputs are convertible to tensors."
-                ) from e
+        tensor_kwargs = dict_to_tensor(kwargs, keep_as_is=self.static_params)
 
         # combine probe, scan, config and kwargs
         # explicitly so we know which keys overwrite which
@@ -957,18 +941,8 @@ class Pipeline:
             **probe_dict,
             **scan_dict,
             **config_dict,
-            **other_dicts,
             **tensor_kwargs,
         }
-
-        # Dropping str inputs as they are not supported in jax.jit
-        for key, value in inputs.items():
-            if isinstance(value, str):
-                log.warning(
-                    f"Input '{key}' is a string, which is not supported in JAX. "
-                    "Please convert it to a tensor or remove it."
-                )
-                inputs.pop(key)
 
         return inputs
 

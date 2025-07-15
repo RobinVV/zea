@@ -8,6 +8,7 @@ from copy import deepcopy
 import keras
 import numpy as np
 
+from zea.internal.core import Object as ZEAObject
 from zea.utils import reduce_to_signature, update_dictionary
 
 CONVERT_TO_KERAS_TYPES = (np.ndarray, int, float, list, tuple, bool)
@@ -112,9 +113,9 @@ class Object:
     def __delitem__(self, key):
         delattr(self, key)
 
-    def to_tensor(self, skip=None):
+    def to_tensor(self, keep_as_is=None):
         """Convert the attributes in the object to keras tensors"""
-        return object_to_tensor(self, skip=skip)
+        return object_to_tensor(self, keep_as_is=keep_as_is)
 
     @classmethod
     def safe_initialize(cls, **kwargs):
@@ -169,7 +170,32 @@ def _skip_to_tensor(value):
     return False
 
 
-def object_to_tensor(obj, skip=None):
+def dict_to_tensor(dictionary, keep_as_is=None):
+    """Convert an object to a dictionary of tensors."""
+    snapshot = {}
+
+    for key in dictionary:
+        # Skip dunder/hidden methods
+        if key.startswith("_"):
+            continue
+
+        # Get the value from the dictionary
+        value = dictionary[key]
+
+        if isinstance(value, ZEAObject):
+            snapshot[key] = value.to_tensor(keep_as_is=keep_as_is)
+
+        # Skip certain types
+        if _skip_to_tensor(value):
+            continue
+
+        # Convert the value to a tensor
+        snapshot[key] = _to_tensor(key, value)
+
+    return snapshot
+
+
+def object_to_tensor(obj, keep_as_is=None):
     """Convert an object to a dictionary of tensors."""
     snapshot = {}
 
@@ -185,16 +211,16 @@ def object_to_tensor(obj, skip=None):
             continue
 
         # Convert the value to a tensor
-        snapshot[key] = _to_tensor(key, value, skip=skip)
+        snapshot[key] = _to_tensor(key, value, keep_as_is=keep_as_is)
 
     return snapshot
 
 
-def _to_tensor(key, val, skip=None):
-    if skip is None:
-        skip = []
+def _to_tensor(key, val, keep_as_is: list = None):
+    if keep_as_is is None:
+        keep_as_is = []
 
-    if key in skip:
+    if key in keep_as_is:
         return val
 
     if not isinstance(val, CONVERT_TO_KERAS_TYPES):

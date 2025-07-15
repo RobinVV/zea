@@ -368,7 +368,9 @@ class Parameters(ZeaObject):
                     properties.add(name)
         return properties_with_dependencies, properties
 
-    def to_tensor(self, include="all", exclude=None, compute=True, skip_missing=True):
+    def to_tensor(
+        self, include="all", exclude=None, compute=True, skip_missing=True, keep_as_is: list = None
+    ):
         """
         Convert parameters and computed properties to tensors.
 
@@ -381,6 +383,8 @@ class Parameters(ZeaObject):
                 Only one of include or exclude can be set.
             compute (bool): If True, compute properties that are not yet cached.
             skip_missing (bool): If True, skip parameters that are not set or missing.
+            keep_as_is (list): List of parameter/property names that should not be converted to
+                tensors, but included as-is in the output.
         """
         if include is not None and exclude is not None:
             raise ValueError("Only one of 'include' or 'exclude' can be set.")
@@ -412,7 +416,7 @@ class Parameters(ZeaObject):
             if key in self._tensor_cache:
                 tensor_dict[key] = self._tensor_cache[key]
             else:
-                tensor_val = _to_tensor(key, val)
+                tensor_val = _to_tensor(key, val, keep_as_is=keep_as_is)
                 tensor_dict[key] = tensor_val
                 self._tensor_cache[key] = tensor_val
 
