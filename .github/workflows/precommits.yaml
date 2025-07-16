@@ -24,6 +24,7 @@ jobs:
           pip install ruff pre-commit
 
       - name: Run pre-commit hooks
+        id: precommithooks
         run: |
           pre-commit run check-yaml --all-files
           pre-commit run check-merge-conflict --all-files
@@ -33,7 +34,7 @@ jobs:
         continue-on-error: true
 
       - name: Check pre-commit result
-        if: ${{ steps.pre-commit.outcome == 'failure' }}
+        if: ${{ steps.precommithooks.outcome == 'failure' }}
         run: |
           echo "pre-commit hooks failed; did you forget to set up the pre-commit hooks?"
           echo "see the contributing page for more info: https://zea.readthedocs.io/en/latest/contributing.html"
