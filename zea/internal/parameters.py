@@ -368,7 +368,7 @@ class Parameters(ZeaObject):
                     properties.add(name)
         return properties_with_dependencies, properties
 
-    def to_tensor(self, include=None, exclude=None, compute=True, skip_missing=True):
+    def to_tensor(self, include=None, exclude=None):
         """
         Convert parameters and computed properties to tensors.
 
@@ -379,10 +379,6 @@ class Parameters(ZeaObject):
                 If "all", include all parameters and computed properties. Default is "all".
             exclude (None or list): Exclude these parameter/property names.
                 If provided, these keys will be excluded from the output.
-
-                Only one of include or exclude can be set.
-            compute (bool): If True, compute properties that are not yet cached.
-            skip_missing (bool): If True, skip parameters that are not set or missing.
         """
         if include is None and exclude is None:
             include = "all"
@@ -392,11 +388,11 @@ class Parameters(ZeaObject):
 
         # Determine which keys to include
         param_keys = set(self._params.keys())
-        property_keys = set(self._properties_with_dependencies) if compute else set(self._computed)
+        property_keys = set(self._properties_with_dependencies)
         all_keys = param_keys | property_keys | set(self._properties)
 
         if include is not None and include != "all":
-            keys = set(include) & all_keys
+            keys = set(include).intersection(all_keys)
         else:
             keys = set(all_keys)
         if exclude is not None:
@@ -406,13 +402,7 @@ class Parameters(ZeaObject):
         # Convert parameters and computed properties to tensors
         for key in keys:
             # Get the value from params or computed properties
-            try:
-                val = getattr(self, key)
-            except AttributeError as e:
-                if skip_missing:
-                    continue
-                else:
-                    raise e
+            val = getattr(self, key)
 
             if key in self._tensor_cache:
                 tensor_dict[key] = self._tensor_cache[key]
