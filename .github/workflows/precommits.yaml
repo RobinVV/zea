@@ -36,6 +36,7 @@ jobs:
         if: ${{ steps.pre-commit.outcome == 'failure' }}
         run: |
           echo "pre-commit hooks failed; did you forget to set up the pre-commit hooks?"
+          echo "see the contributing page for more info: https://zea.readthedocs.io/en/latest/contributing.html"
           exit 1
 
 
