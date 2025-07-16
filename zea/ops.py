@@ -2303,21 +2303,21 @@ class Downsample(Operation):
         self.phase = phase
         self.axis = axis
 
-    def call(self, **kwargs):
+    def call(self, sampling_frequency=None, n_ax=None, **kwargs):
         data = kwargs[self.key]
         length = ops.shape(data)[self.axis]
         sample_idx = ops.arange(self.phase, length, self.factor)
         data_downsampled = ops.take(data, sample_idx, axis=self.axis)
 
+        output = {self.output_key: data_downsampled}
         # downsampling also affects the sampling frequency
-        if "sampling_frequency" in kwargs:
-            kwargs["sampling_frequency"] = kwargs["sampling_frequency"] / self.factor
-            kwargs["n_ax"] = kwargs["n_ax"] // self.factor
-        return {
-            self.output_key: data_downsampled,
-            "sampling_frequency": kwargs["sampling_frequency"],
-            "n_ax": kwargs["n_ax"],
-        }
+        if sampling_frequency is not None:
+            sampling_frequency = sampling_frequency / self.factor
+            output["sampling_frequency"] = sampling_frequency
+        if n_ax is not None:
+            n_ax = n_ax // self.factor
+            output["n_ax"] = n_ax
+        return output
 
 
 @ops_registry("branched_pipeline")
