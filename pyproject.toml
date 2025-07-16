@@ -44,7 +44,6 @@ dependencies = [
     "wget >=3.2",
     # can we make these optional or remove?
     "scikit-image >=0.23",
-     "faulty dep for testing with syntax error";
     "scikit-learn >=1.4",
 ]
 [project.optional-dependencies]
