@@ -2077,6 +2077,7 @@ class Demodulate(Operation):
         return {
             self.output_key: iq_data_two_channel,
             "demodulation_frequency": demodulation_frequency,
+            "center_frequency": 0.0,
             "n_ch": 2,
         }
 
@@ -2860,9 +2861,9 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
 
 
 def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
-    """Design low pass filter.
+    """Design complex low-pass filter.
 
-    LPF with num_taps points and cutoff at bw / 2
+    The filter is a low-pass FIR filter modulated to the center frequency.
 
     Args:
         num_taps (int): number of taps in filter.
@@ -2876,16 +2877,18 @@ def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
     Returns:
         ndarray: Complex-valued low-pass filter
     """
-    if not (0 < bw / 2 < sampling_frequency / 2):
+    cutoff = bw / 2
+    if not (0 < cutoff < sampling_frequency / 2):
         raise ValueError(
             f"Cutoff frequency must be within (0, sampling_frequency / 2), "
-            f"got {bw / 2} Hz, must be within (0, {sampling_frequency / 2}) Hz"
+            f"got {cutoff} Hz, must be within (0, {sampling_frequency / 2}) Hz"
         )
+    # Design real-valued low-pass filter
+    lpf = scipy.signal.firwin(num_taps, cutoff, pass_zero=True, fs=sampling_frequency)
+    # Modulate to center frequency to make it complex
     time_points = np.arange(num_taps) / sampling_frequency
-    lpf = scipy.signal.firwin(num_taps, bw / 2, pass_zero=True, fs=sampling_frequency) * np.exp(
-        1j * 2 * np.pi * f * time_points
-    )
-    return lpf
+    lpf_complex = lpf * np.exp(1j * 2 * np.pi * f * time_points)
+    return lpf_complex
 
 
 def complex_to_channels(complex_data, axis=-1):
