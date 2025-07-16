@@ -3898,13 +3898,6 @@ files = [
 [package.dependencies]
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
-[package.extras]
-basic = ["numpy"]
-dev = ["black (==24.8.0)", "mypy (==1.11.2)", "pre-commit", "pytest", "pytest-cov", "ruff (==0.6.3)", "types-requests"]
-docs = ["matplotlib", "numpy", "numpydoc", "pillow", "sphinx", "sphinx-copybutton", "sphinx-gallery", "sphinx_rtd_theme", "sphinxcontrib-jquery", "sphinxcontrib-napoleon"]
-gpl-license = ["pylibjpeg[libjpeg]"]
-pixeldata = ["numpy", "pillow", "pyjpegls", "pylibjpeg[openjpeg]", "pylibjpeg[rle]"]
-
 [[package]]
 name = "pygments"
 version = "2.19.1"
@@ -6298,4 +6291,4 @@ tests = ["cloudpickle", "ipykernel", "ipywidgets", "papermill", "pre-commit", "p
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "496b7bde0c3951083f88dcc23b7f4e861ea8dedffd16c80e83c883883bd2a1ec"
+content-hash = "67f7346487696821c7481971a2d505b0ee35320adf96d04697a3f56c5dff18ba"
