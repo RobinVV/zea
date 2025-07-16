@@ -2048,9 +2048,7 @@ class LeeFilter(Operation):
 @ops_registry("demodulate")
 class Demodulate(Operation):
     """Demodulates the input data to baseband. After this operation, the carrier frequency
-    is removed (0 Hz) and the data is in IQ format stored in two real valued channels. Note
-    that this operation does not change the `center_frequency` parameter, such that it still
-    represents the original carrier frequency of the input data and be used by later operations."""
+    is removed (0 Hz) and the data is in IQ format stored in two real valued channels."""
 
     def __init__(self, axis=-3, **kwargs):
         super().__init__(
