@@ -460,9 +460,9 @@ class Config(dict):
         local_path = hf_hub_download(repo_id, path, **kwargs)
         return _load_config_from_yaml(local_path, config_class=cls)
 
-    def to_tensor(self, skip=None):
+    def to_tensor(self, keep_as_is=None):
         """Convert the attributes in the object to keras tensors"""
-        return object_to_tensor(self, skip=skip)
+        return object_to_tensor(self, keep_as_is=keep_as_is)
 
 
 def check_config(config: Union[dict, Config], verbose: bool = False):
