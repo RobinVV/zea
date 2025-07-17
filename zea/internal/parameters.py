@@ -289,8 +289,6 @@ class Parameters(ZeaObject):
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)
 
-        self._invalidate_dependents(key)
-
     def _find_all_dependents(self, target, seen=None):
         """
         Find all computed properties that depend (directly or indirectly) on the target parameter.
@@ -318,6 +316,7 @@ class Parameters(ZeaObject):
         self._computed.discard(key)
         self._dependency_versions.pop(key, None)
         self._tensor_cache.pop(key, None)
+        self._invalidate_dependents(key)
 
     def _invalidate_dependents(self, changed_key):
         """

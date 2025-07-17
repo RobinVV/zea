@@ -1392,7 +1392,7 @@ class Simulate(Operation):
                 attenuation_coef=attenuation_coef,
                 tx_apodizations=tx_apodizations,
             ),
-            "n_ch": 1,
+            "n_ch": 1,  # Simulate always returns RF data (so single channel)
         }
 
 
