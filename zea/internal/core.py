@@ -198,12 +198,13 @@ def object_to_tensor(obj, keep_as_is=None):
     """Convert an object to a dictionary of tensors."""
     snapshot = {}
 
-    for key in dir(obj):
+    for key in dictionary:
         # Skip dunder/hidden methods
         if key.startswith("_"):
             continue
 
-        value = getattr(obj, key, None)
+        # Get the value from the dictionary
+        value = dictionary[key]
 
         # Skip certain types
         if _skip_to_tensor(value):

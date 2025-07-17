@@ -473,7 +473,7 @@ class Pipeline:
 
         # Optionally add patching
         if num_patches > 1:
-            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches)]
+            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
 
         # Add beamforming ops
         operations += beamforming
@@ -1184,7 +1184,8 @@ class PatchedGrid(Pipeline):
 
     @property
     def valid_keys(self) -> set:
-        """Get a set of valid keys for the pipeline."""
+        """Get a set of valid keys for the pipeline. Adds the parameters that PatchedGrid itself
+        operates on (even if not used by operations inside it)."""
         return super().valid_keys.union({"flatgrid", "flat_pfield", "n_x", "n_z", "rx_apo"})
 
     def call_item(self, inputs):
@@ -1406,6 +1407,7 @@ class Simulate(Operation):
                 attenuation_coef=attenuation_coef,
                 tx_apodizations=tx_apodizations,
             ),
+            "n_ch": 1,  # Simulate always returns RF data (so single channel)
         }
 
 
