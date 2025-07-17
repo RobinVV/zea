@@ -291,8 +291,6 @@ class Parameters(ZeaObject):
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)
 
-        self._invalidate_dependents(key)
-
     def _check_for_circular_dependencies(self, name, seen=None):
         """Check for circular dependencies in the dependency tree with a depth-first search."""
         if seen is None:
