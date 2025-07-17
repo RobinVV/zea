@@ -11,7 +11,7 @@ only on self-hosted runners. Run with:
 
 import os
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import time
 from pathlib import Path
@@ -27,22 +27,20 @@ NOTEBOOKS = list(NOTEBOOKS_DIR.rglob("*.ipynb"))
 # these overwrite the default parameters in the notebooks
 NOTEBOOK_PARAMETERS = {
     "diffusion_model_example.ipynb": {
-        "unconditional_samples": 2,
-        "unconditional_steps": 1,
-        "conditional_samples": 2,
-        "conditional_steps": 1,
+        "n_unconditional_samples": 2,
+        "n_unconditional_steps": 2,
+        "n_conditional_samples": 2,
+        "n_conditional_steps": 2,
     },
     "custom_models_example.ipynb": {
-        "xlims": (-0.01, 0.01),
-        "zlims": (0, 0.03),
-        "pixels_per_wavelength": 1,
-        "dynamic_range": (-50, 0),
+        "Nx": 10,
+        "Nz": 10,
     },
     "agent_example.ipynb": {
         "n_prior_samples": 2,
-        "unconditional_steps": 1,
-        "initial_conditonal_steps": 1,
-        "conditional_steps": 1,
+        "n_unconditional_steps": 2,
+        "n_initial_conditonal_steps": 1,
+        "n_conditional_steps": 2,
         "n_conditional_samples": 2,
     },
     "zea_sequence_example.ipynb": {
