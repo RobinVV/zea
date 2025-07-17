@@ -1392,6 +1392,7 @@ class Simulate(Operation):
                 attenuation_coef=attenuation_coef,
                 tx_apodizations=tx_apodizations,
             ),
+            "n_ch": 1,
         }
 
 

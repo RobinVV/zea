@@ -49,6 +49,10 @@ def cache_with_dependencies(*deps):
     return decorator
 
 
+class MissingDependencyError(AttributeError):
+    """Exception indicating that a dependency of an attribute was not met."""
+
+
 class Parameters(ZeaObject):
     """Base class for parameters with dependencies.
 
@@ -198,7 +202,7 @@ class Parameters(ZeaObject):
                 except Exception as e:
                     raise AttributeError(f"Error computing '{item}': {str(e)}")
             else:
-                raise AttributeError(
+                raise MissingDependencyError(
                     f"Cannot access '{item}' due to missing base dependencies: {sorted(failed)}"
                 )
         elif isinstance(cls_attr, property):
@@ -376,7 +380,8 @@ class Parameters(ZeaObject):
 
         Args:
             include ("all", or list): Only include these parameter/property names.
-                If "all", include all parameters and computed properties. Default is "all".
+                If "all", include all available parameters (i.e. their dependencies are met).
+                Default is "all".
             exclude (None or list): Exclude these parameter/property names.
                 If provided, these keys will be excluded from the output.
         """
@@ -402,7 +407,14 @@ class Parameters(ZeaObject):
         # Convert parameters and computed properties to tensors
         for key in keys:
             # Get the value from params or computed properties
-            val = getattr(self, key)
+            try:
+                val = getattr(self, key)
+            except MissingDependencyError as exc:
+                if include == "all":
+                    # If we are including all, we can skip this key
+                    continue
+                else:
+                    raise exc
 
             if key in self._tensor_cache:
                 tensor_dict[key] = self._tensor_cache[key]
