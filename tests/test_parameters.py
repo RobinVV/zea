@@ -20,6 +20,22 @@ import pytest
 from zea.internal.parameters import Parameters, cache_with_dependencies
 
 
+class DummyCircularParameters(Parameters):
+    """A simple test class with a circular dependency."""
+
+    VALID_PARAMS = {
+        "param1": {"type": int},
+    }
+
+    @cache_with_dependencies("param1", "computed2")
+    def computed1(self):
+        return self.computed2 + self.param1
+
+    @cache_with_dependencies("computed1")
+    def computed2(self):
+        return self.computed1
+
+
 class DummyParameters(Parameters):
     """A simple test class with parameters and computed properties.
 
@@ -105,6 +121,12 @@ class DummyParameters(Parameters):
 def dummy_params():
     """Fixture for a fresh DummyParameters instance with required params."""
     return DummyParameters(param1=5, param2=10, param3=1500.0, param4=5e6)
+
+
+def test_catch_circular_dependency():
+    """Test that circular dependencies raise an error."""
+    with pytest.raises(RuntimeError, match="Circular dependency detected"):
+        DummyCircularParameters(param1=5)
 
 
 def test_type_validation_on_init():
