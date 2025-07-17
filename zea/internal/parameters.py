@@ -27,10 +27,7 @@ def cache_with_dependencies(*deps):
         def wrapper(self: Parameters):
             failed = set()
             if not self._resolve_dependency_tree(func.__name__, failed):
-                raise AttributeError(
-                    f"Cannot access '{func.__name__}' due to missing base dependencies: "
-                    f"{sorted(failed)}"
-                )
+                raise MissingDependencyError(func.__name__, failed)
 
             if func.__name__ in self._cache:
                 # Check if dependencies changed
@@ -51,6 +48,12 @@ def cache_with_dependencies(*deps):
 
 class MissingDependencyError(AttributeError):
     """Exception indicating that a dependency of an attribute was not met."""
+
+    def __init__(self, attribute: str, missing_dependencies: set):
+        super().__init__(
+            f"Cannot access '{attribute}' due to missing dependencies: "
+            + f"{sorted(missing_dependencies)}"
+        )
 
 
 class Parameters(ZeaObject):
@@ -202,9 +205,7 @@ class Parameters(ZeaObject):
                 except Exception as e:
                     raise AttributeError(f"Error computing '{item}': {str(e)}")
             else:
-                raise MissingDependencyError(
-                    f"Cannot access '{item}' due to missing base dependencies: {sorted(failed)}"
-                )
+                raise MissingDependencyError(item, failed)
         elif isinstance(cls_attr, property):
             # If it's a property without dependencies, just return it
             try:
