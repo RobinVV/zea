@@ -394,7 +394,8 @@ class File(h5py.File):
             probe = Probe.from_name(self.probe_name)
 
             probe_geometry = probe_parameters.get("probe_geometry", None)
-            if not np.allclose(probe_geometry, probe.probe_geometry):
+            both_not_none = probe_geometry is not None and probe.probe_geometry is not None
+            if both_not_none and not np.allclose(probe_geometry, probe.probe_geometry):
                 probe.probe_geometry = probe_geometry
                 log.warning(
                     "The probe geometry in the data file does not "
