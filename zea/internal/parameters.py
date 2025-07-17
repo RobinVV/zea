@@ -25,11 +25,11 @@ def cache_with_dependencies(*deps):
 
         @functools.wraps(func)
         def wrapper(self: Parameters):
-            failed = set()
-            if not self._resolve_dependency_tree(func.__name__, failed):
+            missing_set = self._missing_dependencies(func.__name__)
+            if missing_set != set():
                 raise AttributeError(
                     f"Cannot access '{func.__name__}' due to missing base dependencies: "
-                    f"{sorted(failed)}"
+                    f"{sorted(missing_set)}"
                 )
 
             if func.__name__ in self._cache:
@@ -180,6 +180,8 @@ class Parameters(ZeaObject):
         # Tensor cache stores converted tensors for parameters and computed properties
         # to avoid converting them multiple times if there are no changes.
         self._tensor_cache = {}
+        for name in self.__class__.__dict__:
+            self._check_for_circular_dependencies(name)
 
     def __getattr__(self, item):
         # First check regular params
@@ -190,8 +192,8 @@ class Parameters(ZeaObject):
         cls_attr = getattr(type(self), item, None)
         if isinstance(cls_attr, property) and hasattr(cls_attr.fget, "_dependencies"):
             # Try to resolve dependencies
-            failed = set()
-            if self._resolve_dependency_tree(item, failed):
+            missing_set = self._missing_dependencies(item)
+            if missing_set == set():
                 # Use descriptor protocol directly
                 try:
                     return cls_attr.__get__(self, self.__class__)
@@ -199,7 +201,8 @@ class Parameters(ZeaObject):
                     raise AttributeError(f"Error computing '{item}': {str(e)}")
             else:
                 raise AttributeError(
-                    f"Cannot access '{item}' due to missing base dependencies: {sorted(failed)}"
+                    f"Cannot access '{item}' due to missing base dependencies: "
+                    f"{sorted(missing_set)}"
                 )
         elif isinstance(cls_attr, property):
             # If it's a property without dependencies, just return it
@@ -286,10 +289,24 @@ class Parameters(ZeaObject):
 
         self._invalidate_dependents(key)
 
+    def _check_for_circular_dependencies(self, name, seen=None):
+        """Check for circular dependencies in the dependency tree with a depth-first search."""
+        if seen is None:
+            seen = set()
+        if name in seen:
+            raise RuntimeError(f"Circular dependency detected for '{name}'")
+        seen = seen.copy()
+        seen.add(name)
+
+        cls_attr = getattr(self.__class__, name, None)
+        if isinstance(cls_attr, property) and hasattr(cls_attr.fget, "_dependencies"):
+            for dep in cls_attr.fget._dependencies:
+                self._check_for_circular_dependencies(dep, seen)
+
     def _find_all_dependents(self, target, seen=None):
         """
-        Find all computed properties that depend (directly or indirectly) on the target parameter.
-        Returns a set of property names that depend on the target.
+        Find all computed properties that depend (directly or indirectly) on the target parameter
+        with a global search. Returns a set of property names that depend on the target.
         """
         dependents = set()
         if seen is None:
@@ -326,33 +343,24 @@ class Parameters(ZeaObject):
         values = [self._params.get(dep, None) for dep in deps]
         return serialize_elements(values)
 
-    def _resolve_dependency_tree(self, name, failed=None):
-        if failed is None:
-            failed = set()
+    def _missing_dependencies(self, name) -> set:
+        missing_set = set()
 
         # Return immediately if already in params or cache
-        if name in self._params:
-            return True
-        if name in self._cache:
-            return True
+        if name in self._params or name in self._cache:
+            return missing_set
 
         cls_attr = getattr(self.__class__, name, None)
         if isinstance(cls_attr, property):
             func = cls_attr.fget
             if hasattr(func, "_dependencies"):
-                all_ok = True
                 for dep in func._dependencies:
-                    if not self._resolve_dependency_tree(dep, failed):
-                        all_ok = False
-                if all_ok:
-                    # Don't actually access the property here
-                    # Just mark that all dependencies are met
-                    return True
-                else:
-                    return False
+                    _missing_set = self._missing_dependencies(dep)
+                missing_set.intersection_update(_missing_set)
         else:
-            failed.add(name)
-            return False
+            missing_set.add(name)
+
+        return missing_set
 
     def get_properties(self):
         """
