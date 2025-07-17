@@ -9,6 +9,8 @@ See the Parameters class docstring for details on features and usage.
 """
 
 import functools
+import pickle
+from copy import deepcopy
 
 import numpy as np
 
@@ -190,33 +192,31 @@ class Parameters(ZeaObject):
         for name in self.__class__.__dict__:
             self._check_for_circular_dependencies(name)
 
+    def copy(self):
+        """Return a deep copy of the Parameters object."""
+        return self.__class__(**deepcopy(self._params))
+
+    @property
+    def serialized(self):
+        """Compute the checksum of the object only if not already done"""
+        if self._serialized is None:
+            self._serialized = pickle.dumps(self._params)
+        return self._serialized
+
     def __getattr__(self, item):
         # First check regular params
         if item in self._params:
             return self._params[item]
 
-        # Then check if it's a known property on the class with dependencies
-        cls_attr = getattr(type(self), item, None)
-        if isinstance(cls_attr, property) and hasattr(cls_attr.fget, "_dependencies"):
-            # Try to resolve dependencies
-            missing_set = self._missing_dependencies(item)
-            if missing_set == set():
-                # Use descriptor protocol directly
-                try:
-                    return cls_attr.__get__(self, self.__class__)
-                except Exception as e:
-                    raise AttributeError(f"Error computing '{item}': {str(e)}")
-            else:
-                raise MissingDependencyError(item, missing_set)
-        elif isinstance(cls_attr, property):
-            # If it's a property without dependencies, just return it
-            try:
-                return cls_attr.__get__(self, self.__class__)
-            except Exception as e:
-                raise AttributeError(f"Error accessing property '{item}': {str(e)}")
+        if item not in self._properties_with_dependencies and item not in self._properties:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
 
-        # Otherwise raise normal attribute error
-        raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{item}'")
+        missing_set = self._missing_dependencies(item)
+        if missing_set != set():
+            raise MissingDependencyError(item, missing_set)
+
+        cls_attr = getattr(type(self), item, None)
+        return cls_attr.__get__(self, self.__class__)
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
@@ -332,6 +332,7 @@ class Parameters(ZeaObject):
         self._computed.discard(key)
         self._dependency_versions.pop(key, None)
         self._tensor_cache.pop(key, None)
+        self._serialized = None  # see core object
         self._invalidate_dependents(key)
 
     def _invalidate_dependents(self, changed_key):
@@ -359,7 +360,7 @@ class Parameters(ZeaObject):
             if hasattr(func, "_dependencies"):
                 for dep in func._dependencies:
                     _missing_set = self._missing_dependencies(dep)
-                missing_set = missing_set.union(_missing_set)
+                    missing_set = missing_set.union(_missing_set)
         else:
             missing_set.add(name)
 

@@ -25,7 +25,6 @@ scan_args = {
     "t0_delays": np.repeat(np.linspace(0, 1e-6, 10)[..., None], 10, axis=-1),
     "tx_apodizations": np.ones((10, 10)),
     "focus_distances": np.ones(10) * 0.04,
-    "downsample": 1,
     "initial_times": np.zeros((10,)),
 }
 
@@ -39,6 +38,16 @@ def test_scan_compare():
 
     assert scan == scan2
     assert scan != scan3
+
+
+def test_scan_copy():
+    """Test copying of Scan objects."""
+    scan = Scan(**scan_args)
+    scan_copy = scan.copy()
+
+    assert scan == scan_copy
+    scan.n_tx = 20
+    assert scan != scan_copy
 
 
 def test_initialization():

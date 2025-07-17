@@ -196,7 +196,7 @@ def test_missing_dependency_error_message():
     assert "param1" in msg and "param2" in msg
 
 
-def test_to_tensor_includes_all(dummy_params: Parameters):
+def test_to_tensor_includes_all(dummy_params: DummyParameters):
     """Test that to_tensor includes all parameters and computed properties."""
     tensors = dummy_params.to_tensor()
     # Should include all direct params and computed1, computed2, computed3
