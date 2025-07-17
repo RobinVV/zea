@@ -359,7 +359,7 @@ class Parameters(ZeaObject):
             if hasattr(func, "_dependencies"):
                 for dep in func._dependencies:
                     _missing_set = self._missing_dependencies(dep)
-                missing_set.intersection_update(_missing_set)
+                missing_set = missing_set.union(_missing_set)
         else:
             missing_set.add(name)
 
