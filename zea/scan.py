@@ -448,8 +448,7 @@ class Scan(Parameters):
         These angles are often used in 2D imaging."""
         value = self._params.get("polar_angles")
         if value is None:
-            log.warning("No polar angles provided, using zeros")
-            value = np.zeros(self.n_tx_total)
+            return None
 
         return value[self.selected_transmits]
 
