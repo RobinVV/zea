@@ -9,6 +9,7 @@ See the Parameters class docstring for details on features and usage.
 """
 
 import functools
+import inspect
 import pickle
 from copy import deepcopy
 
@@ -157,7 +158,7 @@ class Parameters(ZeaObject):
         self._validate_params(**kwargs)
 
         self._params = {}
-        self._properties_with_dependencies, self._properties = self.get_properties()
+        self._properties = self.get_properties()
         self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
@@ -172,21 +173,22 @@ class Parameters(ZeaObject):
         for name in self.__class__.__dict__:
             self._check_for_circular_dependencies(name)
 
-    def _validate_params(self, **params):
+    @classmethod
+    def _validate_params(cls, **params):
         """Validate parameters against the VALID_PARAMS definition."""
         for param, value in params.items():
-            if param not in self.VALID_PARAMS:
+            if param not in cls.VALID_PARAMS:
                 raise ValueError(
                     f"Invalid parameter: {param}. "
-                    f"Valid parameters are: {list(self.VALID_PARAMS.keys())}"
+                    f"Valid parameters are: {list(cls.VALID_PARAMS.keys())}"
                 )
-            expected_type = self.VALID_PARAMS[param]["type"]
+            expected_type = cls.VALID_PARAMS[param]["type"]
             if (
                 expected_type is not None
                 and value is not None
                 and not isinstance(value, expected_type)
             ):
-                allowed = self._human_readable_type(expected_type)
+                allowed = cls._human_readable_type(expected_type)
                 raise TypeError(
                     f"Parameter '{param}' expected type {allowed}, got {type(value).__name__}"
                 )
@@ -209,23 +211,56 @@ class Parameters(ZeaObject):
             self._serialized = pickle.dumps(self._params)
         return self._serialized
 
+    @classmethod
+    def _is_property_with_dependencies(cls, name):
+        """Check if a class attribute is a property with dependencies."""
+        attr = getattr(cls, name, None)
+        return isinstance(attr, property) and hasattr(attr.fget, "_dependencies")
+
+    @classmethod
+    def _get_dependencies(cls, name):
+        """Get the dependencies of a computed property."""
+        if not cls._is_property_with_dependencies(name):
+            raise AttributeError(f"'{name}' is not a computed property with dependencies.")
+        return getattr(cls, name).fget._dependencies
+
+    @classmethod
+    def _find_leaf_params(cls, name, seen=None):
+        if seen is None:
+            seen = set()
+        if name in seen:
+            return set()
+        seen.add(name)
+        # If the name is a property with dependencies, find its leaf parameters
+        if cls._is_property_with_dependencies(name):
+            leaves = set()
+            for dep in cls._get_dependencies(name):
+                leaves |= cls._find_leaf_params(dep, seen)  # union
+            return leaves
+        # If it's a regular parameter, return it as a leaf
+        elif name in cls.VALID_PARAMS:
+            return {name}
+        else:
+            raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
+
     def __getattr__(self, item):
         # First check regular params
         if item in self._params:
             return self._params[item]
 
         # Check if it's a property
-        if item not in self._properties_with_dependencies and item not in self._properties:
+        if item not in self._properties:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
 
         self._assert_dependencies_met(item)
 
-        cls_attr = getattr(type(self), item, None)
+        # Return property value
+        cls_attr = getattr(self.__class__, item, None)
         return cls_attr.__get__(self, self.__class__)
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
-        class_attr = getattr(type(self), key, None)
+        class_attr = getattr(self.__class__, key, None)
         if callable(class_attr):
             raise AttributeError(
                 f"Cannot assign to method '{key}'. "
@@ -234,50 +269,27 @@ class Parameters(ZeaObject):
             )
 
         if key.startswith("_"):
-            super().__setattr__(key, value)
-            return
+            return super().__setattr__(key, value)
 
-        cls_attr = getattr(self.__class__, key, None)
-        # Allow setting if it's a valid parameter, even if it's also a computed property
-        if (
-            isinstance(cls_attr, property)
-            and hasattr(cls_attr.fget, "_dependencies")
-            and key not in self.VALID_PARAMS
-        ):
-            # Only block if not a leaf parameter
-            def find_leaf_params(name, seen=None):
-                if seen is None:
-                    seen = set()
-                if name in seen:
-                    return set()
-                seen.add(name)
-                attr = getattr(self.__class__, name, None)
-                if isinstance(attr, property) and hasattr(attr.fget, "_dependencies"):
-                    leaves = set()
-                    for dep in attr.fget._dependencies:
-                        leaves |= find_leaf_params(dep, seen)
-                    return leaves
-                else:
-                    if name in self.VALID_PARAMS:
-                        return {name}
-                    return set()
-
-            leaf_params = sorted(find_leaf_params(key))
+        # Give clear error message on assignment to computed properties
+        if self._is_property_with_dependencies(key) and key not in self.VALID_PARAMS:
+            leaf_params = sorted(self._find_leaf_params(key))
             raise AttributeError(
                 f"Cannot set computed property '{key}'. Only leaf parameters can be set. "
                 f"To change '{key}', set one or more of its leaf parameters: {leaf_params}"
             )
 
-        # Validate parameter
+        # Validate new value
         self._validate_params(key=value)
 
-        # Set the parameter and invalidate dependencies
+        # Set the parameter
         self._params[key] = value
 
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)
 
-    def _check_for_circular_dependencies(self, name, seen=None):
+    @classmethod
+    def _check_for_circular_dependencies(cls, name, seen=None):
         """Check for circular dependencies in the dependency tree with a depth-first search."""
         if seen is None:
             seen = set()
@@ -286,10 +298,9 @@ class Parameters(ZeaObject):
         seen = seen.copy()
         seen.add(name)
 
-        cls_attr = getattr(self.__class__, name, None)
-        if isinstance(cls_attr, property) and hasattr(cls_attr.fget, "_dependencies"):
-            for dep in cls_attr.fget._dependencies:
-                self._check_for_circular_dependencies(dep, seen)
+        if cls._is_property_with_dependencies(name):
+            for dep in cls._get_dependencies(name):
+                cls._check_for_circular_dependencies(dep, seen)
 
     def _find_all_dependents(self, target, seen=None):
         """
@@ -303,10 +314,8 @@ class Parameters(ZeaObject):
             return dependents
         seen.add(target)
         for name in self.__class__.__dict__:
-            attr = getattr(self.__class__, name, None)
-            if isinstance(attr, property) and hasattr(attr.fget, "_dependencies"):
-                deps = attr.fget._dependencies
-                if target in deps:
+            if self._is_property_with_dependencies(name):
+                if target in self._get_dependencies(name):
                     dependents.add(name)
                     # Recursively add dependents of this property
                     dependents |= self._find_all_dependents(name, seen)
@@ -346,31 +355,18 @@ class Parameters(ZeaObject):
         if name in self._params or name in self._cache:
             return missing_set
 
-        cls_attr = getattr(self.__class__, name, None)
-        if isinstance(cls_attr, property):
-            func = cls_attr.fget
-            if hasattr(func, "_dependencies"):
-                for dep in func._dependencies:
-                    _missing_set = self._find_missing_dependencies(dep)
-                    missing_set = missing_set.union(_missing_set)
+        if self._is_property_with_dependencies(name):
+            for dep in self._get_dependencies(name):
+                missing_set |= self._find_missing_dependencies(dep)  # union
         else:
             missing_set.add(name)
 
         return missing_set
 
-    def get_properties(self):
-        """
-        Get all properties of this class
-        """
-        properties_with_dependencies = set()
-        properties = set()
-        for name, attr in self.__class__.__dict__.items():
-            if isinstance(attr, property):
-                if hasattr(attr.fget, "_dependencies"):
-                    properties_with_dependencies.add(name)
-                else:
-                    properties.add(name)
-        return properties_with_dependencies, properties
+    @classmethod
+    def get_properties(cls):
+        """Get all properties of the class, including those with dependencies."""
+        return [name for name, value in inspect.getmembers(cls) if isinstance(value, property)]
 
     def to_tensor(self, include=None, exclude=None, keep_as_is: list = None):
         """
@@ -395,8 +391,8 @@ class Parameters(ZeaObject):
 
         # Determine which keys to include
         param_keys = set(self._params.keys())
-        property_keys = set(self._properties_with_dependencies)
-        all_keys = param_keys | property_keys | set(self._properties)
+        property_keys = set(self._properties)
+        all_keys = param_keys | property_keys
 
         if include is not None and include != "all":
             keys = set(include).intersection(all_keys)
