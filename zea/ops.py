@@ -626,11 +626,12 @@ class Pipeline:
     @property
     def with_batch_dim(self):
         """Get the with_batch_dim property of the pipeline."""
-        return self.operations[0].with_batch_dim
+        return self._with_batch_dim
 
     @with_batch_dim.setter
     def with_batch_dim(self, value):
         """Set the with_batch_dim property of the pipeline."""
+        self._with_batch_dim = value
         for operation in self.operations:
             operation.with_batch_dim = value
 
@@ -1172,13 +1173,13 @@ class PatchedGrid(Pipeline):
     @property
     def with_batch_dim(self):
         """Get the with_batch_dim property of the pipeline."""
-        return self.pipeline_batched
+        return self._with_batch_dim
 
     @with_batch_dim.setter
     def with_batch_dim(self, value):
         """Set the with_batch_dim property of the pipeline.
         The class handles the batching so the operations have to be set to False."""
-        self.pipeline_batched = value
+        self._with_batch_dim = value
         for operation in self.operations:
             operation.with_batch_dim = False
 
@@ -1229,7 +1230,7 @@ class PatchedGrid(Pipeline):
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
-        if self.pipeline_batched:
+        if self._with_batch_dim:
             input_data = inputs.pop(self.key)
             output = ops.map(
                 lambda x: self.call_item({self.key: x, **inputs}),
