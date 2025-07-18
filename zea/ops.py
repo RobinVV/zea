@@ -1186,7 +1186,7 @@ class PatchedGrid(Pipeline):
     def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline. Adds the parameters that PatchedGrid itself
         operates on (even if not used by operations inside it)."""
-        return super().valid_keys.union({"flatgrid", "flat_pfield", "n_x", "n_z", "rx_apo"})
+        return super().valid_keys.union({"flatgrid", "n_x", "n_z"})
 
     def call_item(self, inputs):
         """Process data in patches."""
