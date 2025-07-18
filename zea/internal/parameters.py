@@ -27,9 +27,7 @@ def cache_with_dependencies(*deps):
 
         @functools.wraps(func)
         def wrapper(self: Parameters):
-            missing_set = self._missing_dependencies(func.__name__)
-            if missing_set != set():
-                raise MissingDependencyError(func.__name__, missing_set)
+            self._assert_dependencies_met(func.__name__)
 
             if func.__name__ in self._cache:
                 # Check if dependencies changed
@@ -169,10 +167,13 @@ class Parameters(ZeaObject):
         # Tensor cache stores converted tensors for parameters and computed properties
         # to avoid converting them multiple times if there are no changes.
         self._tensor_cache = {}
+
+        # Check if the definition of the class has circular dependencies
         for name in self.__class__.__dict__:
             self._check_for_circular_dependencies(name)
 
     def _validate_params(self, **params):
+        """Validate parameters against the VALID_PARAMS definition."""
         for param, value in params.items():
             if param not in self.VALID_PARAMS:
                 raise ValueError(
@@ -192,6 +193,7 @@ class Parameters(ZeaObject):
 
     @staticmethod
     def _human_readable_type(type):
+        """Convert a type or tuple of types to a human-readable string."""
         return (
             type.__name__ if not isinstance(type, tuple) else ", ".join([t.__name__ for t in type])
         )
@@ -212,12 +214,11 @@ class Parameters(ZeaObject):
         if item in self._params:
             return self._params[item]
 
+        # Check if it's a property
         if item not in self._properties_with_dependencies and item not in self._properties:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
 
-        missing_set = self._missing_dependencies(item)
-        if missing_set != set():
-            raise MissingDependencyError(item, missing_set)
+        self._assert_dependencies_met(item)
 
         cls_attr = getattr(type(self), item, None)
         return cls_attr.__get__(self, self.__class__)
@@ -332,7 +333,13 @@ class Parameters(ZeaObject):
         values = [self._params.get(dep, None) for dep in deps]
         return serialize_elements(values)
 
-    def _missing_dependencies(self, name) -> set:
+    def _assert_dependencies_met(self, name):
+        """Assert that all dependencies for a computed property are met."""
+        missing_set = self._find_missing_dependencies(name)
+        if missing_set:
+            raise MissingDependencyError(name, missing_set)
+
+    def _find_missing_dependencies(self, name) -> set:
         missing_set = set()
 
         # Return immediately if already in params or cache
@@ -344,7 +351,7 @@ class Parameters(ZeaObject):
             func = cls_attr.fget
             if hasattr(func, "_dependencies"):
                 for dep in func._dependencies:
-                    _missing_set = self._missing_dependencies(dep)
+                    _missing_set = self._find_missing_dependencies(dep)
                     missing_set = missing_set.union(_missing_set)
         else:
             missing_set.add(name)
