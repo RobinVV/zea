@@ -138,10 +138,10 @@ class Probe(Object):
 
         return probe_class(**kwargs)
 
-    def to_tensor(self):
+    def to_tensor(self, keep_as_is=None):
         """Convert the attributes in the object to tensors."""
         # TODO: merge this with Parameters.to_tensor()
-        return dict_to_tensor(self.get_parameters())
+        return dict_to_tensor(self.get_parameters(), keep_as_is=keep_as_is)
 
 
 @probe_registry(name="verasonics_l11_4v")
