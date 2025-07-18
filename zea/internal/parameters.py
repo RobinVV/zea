@@ -155,7 +155,8 @@ class Parameters(ZeaObject):
                 kwargs[param] = config["default"]
 
         # Validate parameter types
-        self._validate_params(**kwargs)
+        for key, value in kwargs.items():
+            self._validate_parameter(key, value)
 
         self._params = {}
         self._properties = self.get_properties()
@@ -174,24 +175,18 @@ class Parameters(ZeaObject):
             self._check_for_circular_dependencies(name)
 
     @classmethod
-    def _validate_params(cls, **params):
-        """Validate parameters against the VALID_PARAMS definition."""
-        for param, value in params.items():
-            if param not in cls.VALID_PARAMS:
-                raise ValueError(
-                    f"Invalid parameter: {param}. "
-                    f"Valid parameters are: {list(cls.VALID_PARAMS.keys())}"
-                )
-            expected_type = cls.VALID_PARAMS[param]["type"]
-            if (
-                expected_type is not None
-                and value is not None
-                and not isinstance(value, expected_type)
-            ):
-                allowed = cls._human_readable_type(expected_type)
-                raise TypeError(
-                    f"Parameter '{param}' expected type {allowed}, got {type(value).__name__}"
-                )
+    def _validate_parameter(cls, key, value):
+        """Validate parameter against the VALID_PARAMS definition."""
+        if key not in cls.VALID_PARAMS:
+            raise ValueError(
+                f"Invalid parameter: {key}. Valid parameters are: {list(cls.VALID_PARAMS.keys())}"
+            )
+        expected_type = cls.VALID_PARAMS[key]["type"]
+        if expected_type is not None and value is not None and not isinstance(value, expected_type):
+            allowed = cls._human_readable_type(expected_type)
+            raise TypeError(
+                f"Parameter '{key}' expected type {allowed}, got {type(value).__name__}"
+            )
 
     @staticmethod
     def _human_readable_type(type):
@@ -281,7 +276,7 @@ class Parameters(ZeaObject):
             )
 
         # Validate new value
-        self._validate_params(key=value)
+        self._validate_parameter(key, value)
 
         # Set the parameter
         self._params[key] = value
