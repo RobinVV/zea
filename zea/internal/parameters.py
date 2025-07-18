@@ -268,6 +268,7 @@ class Parameters(ZeaObject):
                 f"To use it, call it as a function, e.g.: '{self.__class__.__name__}.{key}(...)'"
             )
 
+        # Allow setting private attributes
         if key.startswith("_"):
             return super().__setattr__(key, value)
 
@@ -287,6 +288,14 @@ class Parameters(ZeaObject):
 
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)
+
+    def __delattr__(self, name):
+        # Allow deletion of parameters, but not properties
+        if name in self._params:
+            del self._params[name]
+            self._invalidate(name)
+        elif name in self.VALID_PARAMS:
+            raise AttributeError(f"Cannot delete parameter '{name}' because it is not set.")
 
     @classmethod
     def _check_for_circular_dependencies(cls, name, seen=None):
