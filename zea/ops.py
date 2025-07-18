@@ -99,7 +99,7 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import patched_map, resample, reshape_axis
+from zea.tensor_ops import batched_map, patched_map, resample, reshape_axis
 from zea.utils import deep_compare, map_negative_indices, translate
 
 
@@ -1604,25 +1604,27 @@ class DelayAndSum(Operation):
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
                 `(n_tx, n_z*n_x, n_el, n_ch)` with optional batch dimension.
-            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_z*n_x, n_el)`.
-                Defaults to 1.0.
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_z*n_x, n_el)` with
+                optional batch dimension. Defaults to 1.0.
 
         Returns:
             dict: Dictionary containing beamformed_data of shape `(n_z*n_x, n_ch)`
                 when reshape_grid is False or `(n_z, n_x, n_ch)` when reshape_grid is True,
                 with optional batch dimension.
         """
-        if rx_apo is None:
-            rx_apo = 1.0
-
         data = kwargs[self.key]
+
+        if rx_apo is None:
+            rx_apo = ops.ones(1, dtype=ops.dtype(data))
         rx_apo = ops.broadcast_to(rx_apo[..., None], data.shape)
 
         if not self.with_batch_dim:
             beamformed_data = self.process_image(data, rx_apo)
         else:
             # Apply process_image to each item in the batch
-            beamformed_data = ops.map(lambda data: self.process_image(data, rx_apo), data)
+            beamformed_data = batched_map(
+                lambda data, rx_apo: self.process_image(data, rx_apo), data, rx_apo=rx_apo
+            )
 
         if self.reshape_grid:
             beamformed_data = reshape_axis(

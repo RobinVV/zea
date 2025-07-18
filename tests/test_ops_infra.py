@@ -716,6 +716,8 @@ def test_default_ultrasound_pipeline(
         scatterer_magnitudes=ultrasound_scatterers["magnitudes"],
     )
 
+    parameters = patched_pipeline.prepare_parameters(ultrasound_probe, ultrasound_scan)
+
     output_patched = patched_pipeline(
         **parameters,
         scatterer_positions=ultrasound_scatterers["positions"],
