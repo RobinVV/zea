@@ -1363,7 +1363,7 @@ class Simulate(Operation):
     """Simulate RF data."""
 
     # Define operation-specific static parameters
-    STATIC_PARAMS = ["n_ax"]
+    STATIC_PARAMS = ["n_ax", "apply_lens_correction"]
 
     def __init__(self, **kwargs):
         super().__init__(
