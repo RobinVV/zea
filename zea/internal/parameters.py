@@ -156,27 +156,7 @@ class Parameters(ZeaObject):
                 kwargs[param] = config["default"]
 
         # Validate parameter types
-        for param, value in kwargs.items():
-            if param not in self.VALID_PARAMS:
-                raise ValueError(
-                    f"Invalid parameter: {param}. "
-                    f"Valid parameters are: {list(self.VALID_PARAMS.keys())}"
-                )
-            expected_type = self.VALID_PARAMS[param]["type"]
-            if expected_type is not None and value is not None:
-                if isinstance(expected_type, tuple):
-                    if not isinstance(value, expected_type):
-                        allowed = ", ".join([t.__name__ for t in expected_type])
-                        raise TypeError(
-                            f"Parameter '{param}' expected type {allowed}, "
-                            f"got {type(value).__name__}"
-                        )
-                else:
-                    if not isinstance(value, expected_type):
-                        raise TypeError(
-                            f"Parameter '{param}' expected type {expected_type.__name__}, "
-                            f"got {type(value).__name__}"
-                        )
+        self._validate_params(**kwargs)
 
         self._params = {}
         self._properties_with_dependencies, self._properties = self.get_properties()
@@ -191,6 +171,30 @@ class Parameters(ZeaObject):
         self._tensor_cache = {}
         for name in self.__class__.__dict__:
             self._check_for_circular_dependencies(name)
+
+    def _validate_params(self, **params):
+        for param, value in params.items():
+            if param not in self.VALID_PARAMS:
+                raise ValueError(
+                    f"Invalid parameter: {param}. "
+                    f"Valid parameters are: {list(self.VALID_PARAMS.keys())}"
+                )
+            expected_type = self.VALID_PARAMS[param]["type"]
+            if (
+                expected_type is not None
+                and value is not None
+                and not isinstance(value, expected_type)
+            ):
+                allowed = self._human_readable_type(expected_type)
+                raise TypeError(
+                    f"Parameter '{param}' expected type {allowed}, got {type(value).__name__}"
+                )
+
+    @staticmethod
+    def _human_readable_type(type):
+        return (
+            type.__name__ if not isinstance(type, tuple) else ", ".join([t.__name__ for t in type])
+        )
 
     def copy(self):
         """Return a deep copy of the Parameters object."""
@@ -263,27 +267,8 @@ class Parameters(ZeaObject):
                 f"To change '{key}', set one or more of its leaf parameters: {leaf_params}"
             )
 
-        # Validate that parameter is in VALID_PARAMS
-        if key not in self.VALID_PARAMS:
-            raise ValueError(
-                f"Invalid parameter: {key}. Valid parameters are: {list(self.VALID_PARAMS.keys())}"
-            )
-
-        # Validate parameter type
-        expected_type = self.VALID_PARAMS[key]["type"]
-        if expected_type is not None and value is not None:
-            if isinstance(expected_type, tuple):
-                if not isinstance(value, expected_type):
-                    allowed = ", ".join([t.__name__ for t in expected_type])
-                    raise TypeError(
-                        f"Parameter '{key}' expected type {allowed}, got {type(value).__name__}"
-                    )
-            else:
-                if not isinstance(value, expected_type):
-                    raise TypeError(
-                        f"Parameter '{key}' expected type {expected_type.__name__}, "
-                        f"got {type(value).__name__}"
-                    )
+        # Validate parameter
+        self._validate_params(key=value)
 
         # Set the parameter and invalidate dependencies
         self._params[key] = value
