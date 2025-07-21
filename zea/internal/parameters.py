@@ -396,12 +396,12 @@ class Parameters(ZeaObject):
         property_keys = set(self._properties_with_dependencies)
         all_keys = param_keys | property_keys | set(self._properties)
 
-        if include is not None and include != "all":
+        if include == "all":
+            keys = all_keys
+        elif include is not None:
             keys = set(include).intersection(all_keys)
-        else:
-            keys = set(all_keys)
-        if exclude is not None:
-            keys = keys - set(exclude)
+        elif exclude is not None:
+            keys = all_keys - set(exclude)
 
         tensor_dict = {}
         # Convert parameters and computed properties to tensors
@@ -410,7 +410,7 @@ class Parameters(ZeaObject):
             try:
                 val = getattr(self, key)
             except MissingDependencyError as exc:
-                if include == "all":
+                if include == "all" or exclude is not None:
                     # If we are including all, we can skip this key
                     continue
                 else:
