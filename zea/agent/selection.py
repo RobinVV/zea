@@ -92,6 +92,7 @@ class GreedyEntropy(LinesActionModel):
         mean: float = 0,
         std_dev: float = 1,
         num_lines_to_update: int = 5,
+        entropy_sigma: float = 1.0,
     ):
         """Initialize the GreedyEntropy action selection model.
 
@@ -124,7 +125,7 @@ class GreedyEntropy(LinesActionModel):
             self.num_lines_to_update,
         )
         self.upside_down_gaussian = upside_down_gaussian(points_to_evaluate)
-        self.entropy_sigma = 1
+        self.entropy_sigma = entropy_sigma
 
     @staticmethod
     def compute_pairwise_pixel_gaussian_error(
@@ -157,15 +158,18 @@ class GreedyEntropy(LinesActionModel):
         # This way we can just sum across the height axis and get the entropy
         # for each pixel in a given line
         batch_size, n_particles, _, height, _ = gaussian_error_per_pixel_i_j.shape
-        gaussian_error_per_pixel_stacked = ops.reshape(
-            gaussian_error_per_pixel_i_j,
-            [
-                batch_size,
-                n_particles,
-                n_particles,
-                height * stack_n_cols,
-                n_possible_actions,
-            ],
+        gaussian_error_per_pixel_stacked = ops.transpose(
+            ops.reshape(
+                ops.transpose(gaussian_error_per_pixel_i_j, (0, 1, 2, 4, 3)),
+                [
+                    batch_size,
+                    n_particles,
+                    n_particles,
+                    n_possible_actions,
+                    height * stack_n_cols,
+                ],
+            ),
+            (0, 1, 2, 4, 3),
         )
         # [n_particles, n_particles, batch, height, width]
         return gaussian_error_per_pixel_stacked
