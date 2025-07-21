@@ -328,7 +328,7 @@ def patched_map(f, xs, patches: int, jit=True, **batch_kwargs):
     assert patches > 0, "Number of patches must be greater than 0."
 
     if patches == 1:
-        return f(xs)
+        return f(xs, **batch_kwargs)
     else:
         length = ops.shape(xs)[0]
         batch_size = np.ceil(length / patches).astype(int)
