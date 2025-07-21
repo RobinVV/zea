@@ -102,6 +102,29 @@ def test_greedy_entropy():
     assert np.count_nonzero(first_row) == n_actions
     assert np.count_nonzero(selected_lines[0]) == n_actions
 
+    # Test that the algorithm hasn't changed by comparing to a correct hard-coded value
+    h, w = 64, 64
+    rand_img_1 = np.random.rand(h, w, 1).astype(np.float32)
+    rand_img_2 = np.random.rand(h, w, 1).astype(np.float32)
+
+    # manually make lines 2 and 3 very correlated
+    rand_img_1[:, 2] = rand_img_1[:, 3]
+    rand_img_2[:, 2] = rand_img_2[:, 3]
+
+    particles = np.stack([rand_img_1, rand_img_2], axis=0)
+    particles = np.expand_dims(particles, axis=0)
+    particles = np.squeeze(particles, axis=-1)
+
+    n_actions = 1
+    agent = selection.GreedyEntropy(n_actions, w, h, w)
+    selected_lines, mask = agent.sample(particles)
+    
+    correct_line_index = 17
+    correct_selected_lines = [False]*64
+    correct_selected_lines[correct_line_index] = True
+    correct_selected_lines = [correct_selected_lines]
+    assert np.all(selected_lines == correct_selected_lines)
+
 
 def test_covariance_sampling_lines():
     """Test CovarianceSamplingLines action selection."""
