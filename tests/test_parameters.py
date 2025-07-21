@@ -217,6 +217,20 @@ def test_to_tensor_includes_all(dummy_params: DummyParameters):
     )
 
 
+def test_to_tensor_excludes(dummy_params: Parameters):
+    """Test that to_tensor excludes specified keys."""
+    # Exclude computed1 and param2
+    tensors = dummy_params.to_tensor(exclude=["computed1", "param2"])
+    assert "computed1" not in tensors
+    assert "param2" not in tensors
+    # Should still include other params and computed properties
+    for key in ["param1", "param3", "param4", "computed2", "computed3"]:
+        assert key in tensors
+
+    # Exclude a non-existent key, should not raise error
+    dummy_params.to_tensor(exclude=["non_existent"])
+
+
 def test_to_tensor_partial_computed_subset(dummy_params):
     """Test that to_tensor only computes the requested subset."""
     # Access no computed properties yet
