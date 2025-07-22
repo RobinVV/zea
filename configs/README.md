@@ -1,3 +1,12 @@
+
+---
+pretty_name: "zea configs"
+tags:
+  - ultrasound
+  - configuration
+  - zea
+---
+
 # zea Configuration Files
 
 This repository contains configuration files for [zea](https://github.com/tue-bmd/zea), a toolbox for cognitive ultrasound imaging.
