@@ -432,9 +432,14 @@ class CovarianceSamplingLines(LinesActionModel):
                 generation. Defaults to None.
 
         Returns:
-            Tensor: The mask of shape (batch_size, img_size, img_size)
+            Tuple[Tensor, Tensor]:
+                - Newly selected lines as k-hot vectors, shaped (batch_size, n_possible_actions)
+                - Masks of shape (batch_size, img_height, img_width)
         """
         batch_size, n_particles, rows, _ = ops.shape(particles)
+
+        # [batch_size, rows, cols, n_particles]
+        particles = ops.transpose(particles, (0, 2, 3, 1))
 
         # [batch_size, rows * stack_n_cols, n_possible_actions, n_particles]
         shape = [
@@ -445,7 +450,7 @@ class CovarianceSamplingLines(LinesActionModel):
         ]
         particles = ops.reshape(particles, shape)
 
-        # [batch_size, rows, n_possible_actions, n_possible_actions]
+        # [batch_size, rows * stack_n_cols, n_possible_actions, n_possible_actions]
         cov_matrix = tensor_ops.batch_cov(particles)
 
         # Sum over the row dimension [batch_size, n_possible_actions, n_possible_actions]
