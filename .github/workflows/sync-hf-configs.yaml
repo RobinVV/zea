@@ -38,9 +38,14 @@ jobs:
           import os
           from huggingface_hub import HfApi, create_repo
 
-
           # Initialize HF API
-          api = HfApi(token=os.environ["HF_TOKEN"])
+          print("[HF SYNC] Starting Hugging Face sync workflow...")
+          hf_token = os.environ.get("HF_TOKEN")
+          if not hf_token:
+              print("[HF SYNC][ERROR] HF_TOKEN is not set!")
+              exit(1)
+          api = HfApi(token=hf_token)
+
           repo_id = "zeahub/configs"
 
           # Ensure repo exists
@@ -58,11 +63,7 @@ jobs:
 
           # Create branch if it does not exist (except for main)
           if revision != "main":
-              try:
-                  api.create_branch(repo_id=repo_id, branch=revision, repo_type="dataset", exist_ok=True)
-              except Exception as e:
-                  print(f"Warning: Could not create branch {revision} (may already exist): {e}")
-
+              api.create_branch(repo_id=repo_id, branch=revision, repo_type="dataset", exist_ok=True)
 
           # Determine revision and commit message
           if "${{ github.event_name }}" == "release":
@@ -74,7 +75,7 @@ jobs:
               short_sha = "${{ github.sha }}"[:7]
               commit_message = f"Sync configs from branch {branch} (commit: {short_sha})"
 
-          # Upload configs folder (includes README.md automatically)
+          # Upload configs folder
           api.upload_folder(
               folder_path="configs",
               repo_id=repo_id,
