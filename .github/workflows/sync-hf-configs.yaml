@@ -3,13 +3,9 @@ name: Sync Configs to Hugging Face
 on:
   push:
     branches:
-      - main
+      - "**" # switch back to main after testing
     paths:
       - 'configs/**'
-  # Tests on pull requests we will remove this after testing
-  pull_request:
-    branches:
-      - '*'
   release:
     types: [published]
 
