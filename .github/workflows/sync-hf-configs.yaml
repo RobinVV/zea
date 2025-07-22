@@ -2,14 +2,12 @@ name: Sync Configs to Hugging Face
 
 on:
   push:
+    # switch to main after testing this workflow
     branches:
-      - main
+      - '**'
+      # - main
     paths:
       - 'configs/**'
-  # Tests on pull requests we will remove this after testing
-  pull_request:
-    branches:
-      - '*'
   release:
     types: [published]
 
