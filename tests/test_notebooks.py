@@ -53,6 +53,9 @@ NOTEBOOK_PARAMETERS = {
     "zea_data_example.ipynb": {
         "config_picmus_iq": f"{CONFIG_DIR}/config_picmus_iq.yaml",
     },
+    "zea_local_data.ipynb": {
+        "config_picmus_rf": f"{CONFIG_DIR}/config_picmus_rf.yaml",
+    },
     # Add more notebooks and their parameters here as needed
     # "other_notebook.ipynb": {
     #     "param1": value1,
