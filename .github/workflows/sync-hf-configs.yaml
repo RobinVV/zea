@@ -2,12 +2,14 @@ name: Sync Configs to Hugging Face
 
 on:
   push:
-    # switch to main after testing this workflow
     branches:
-      - '**'
-      # - main
+      - main
     paths:
       - 'configs/**'
+  # Tests on pull requests we will remove this after testing
+  pull_request:
+    branches:
+      - '*'
   release:
     types: [published]
 
@@ -49,7 +51,7 @@ jobs:
               revision = "${{ github.event.release.tag_name }}"
               commit_message = f"Sync configs for release {revision}"
           else:
-              branch = os.environ.get("GITHUB_REF", "refs/heads/main").split("/")[-1]
+              branch = os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF", "refs/heads/main").split("/")[-1]
               revision = branch
               short_sha = "${{ github.sha }}"[:7]
               commit_message = f"Sync configs from branch {branch} (commit: {short_sha})"
