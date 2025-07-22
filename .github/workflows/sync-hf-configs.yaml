@@ -75,8 +75,11 @@ jobs:
               short_sha = "${{ github.sha }}"[:7]
               commit_message = f"Sync configs from branch {branch} (commit: {short_sha})"
 
+          print(f"[HF SYNC] Syncing configs to {repo_id} at revision {revision}...")
+          print(f"[HF SYNC] Commit message: {commit_message}")
+
           # Upload configs folder
-          api.upload_folder(
+          commitinfo = api.upload_folder(
               folder_path="configs",
               repo_id=repo_id,
               repo_type="dataset",
@@ -84,6 +87,8 @@ jobs:
               revision=revision,
               create_pr=False
           )
+
+          print(f"[HF SYNC] Commit info: {commitinfo}")
 
           print(f"✅ Configs synced to: https://huggingface.co/datasets/{repo_id}")
           if "${{ github.event_name }}" == "release":
