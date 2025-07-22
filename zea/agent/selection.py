@@ -105,6 +105,8 @@ class GreedyEntropy(LinesActionModel):
             std_dev (float, optional): The standard deviation of the RBF. Defaults to 1.
             num_lines_to_update (int, optional): The number of lines around the selected line
                 to update. Must be odd.
+            entropy_sigma (float, optional): The standard deviation of the Gaussian
+                Mixture components used to approximate the posterior.
         """
         super().__init__(n_actions, n_possible_actions, img_width, img_height)
 
