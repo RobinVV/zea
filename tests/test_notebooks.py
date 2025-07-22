@@ -33,8 +33,8 @@ NOTEBOOK_PARAMETERS = {
         "n_conditional_steps": 2,
     },
     "custom_models_example.ipynb": {
-        "Nx": 10,
-        "Nz": 10,
+        "n_x": 10,
+        "n_z": 10,
     },
     "agent_example.ipynb": {
         "n_prior_samples": 2,
