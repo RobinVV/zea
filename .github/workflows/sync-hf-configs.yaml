@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - "**" # switch back to main after testing
-    paths:
-      - 'configs/**'
+    # paths:
+    #   - 'configs/**'
   release:
     types: [published]
 
