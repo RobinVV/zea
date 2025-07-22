@@ -3,9 +3,9 @@ name: Sync Configs to Hugging Face
 on:
   push:
     branches:
-      - "**" # switch back to main after testing
-    # paths:
-    #   - 'configs/**'
+      - "main"
+    paths:
+      - 'configs/**'
   release:
     types: [published]
 
