@@ -51,6 +51,11 @@ jobs:
           # Ensure repo exists
           create_repo(repo_id=repo_id, repo_type="dataset", exist_ok=True)
 
+          print("[HF SYNC] Listing configs/ directory contents:")
+          for root, dirs, files in os.walk("configs"):
+              for name in files:
+                  print(os.path.join(root, name))
+
           # Determine revision and commit message
           if "${{ github.event_name }}" == "release":
               revision = "${{ github.event.release.tag_name }}"
