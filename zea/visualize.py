@@ -324,7 +324,7 @@ def plot_biplanes(
         if slice_z is not None:
             slice_z = int(slice_z * resolution)
 
-    # volume is n_z, n_x, n_y -> n_x, n_y, n_z
+    # volume is grid_size_z, grid_size_x, n_y -> grid_size_x, n_y, grid_size_z
     volume = np.transpose(volume, (1, 2, 0))
     volume = np.flip(volume, axis=2)  # Flip the z-axis
 
@@ -587,7 +587,7 @@ def pad_or_crop_extent(image, extent, target_extent):
 
     Args:
         image (np.ndarray): The input image to be padded and/or cropped.
-            Only 2D images are supported. Image shape must be (n_z, n_x).
+            Only 2D images are supported. Image shape must be (grid_size_z, grid_size_x).
         extent (tuple): The current extent of the image in the format
             (x_min, x_max, z_min, z_max).
         target_extent (tuple): The target extent to match in the format

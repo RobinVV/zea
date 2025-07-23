@@ -49,7 +49,7 @@ Example Usage
 
     # Initialize Scan from a Probe's parameters
     probe = Probe.from_name("verasonics_l11_4v")
-    scan = Scan(**probe.get_parameters(), n_z=256)
+    scan = Scan(**probe.get_parameters(), grid_size_z=256)
 
     # Or initialize from a Config object
     config = Config.from_hf("zeahub/configs", "config_picmus_rf.yaml", repo_type="dataset")
@@ -57,8 +57,8 @@ Example Usage
 
     # Or manually specify parameters
     scan = Scan(
-        n_x=128,
-        n_z=256,
+        grid_size_x=128,
+        grid_size_z=256,
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
         center_frequency=6.25e6,
@@ -69,7 +69,7 @@ Example Usage
     )
 
     # Access a derived property (computed lazily)
-    grid = scan.grid  # shape: (n_z, n_x, 3)
+    grid = scan.grid  # shape: (grid_size_z, grid_size_x, 3)
 
     # Select a subset of transmit events
     scan.set_transmits(3)  # Use 3 evenly spaced transmits
@@ -96,10 +96,10 @@ class Scan(Parameters):
     """Represents an ultrasound scan configuration with computed properties.
 
     Args:
-        n_x (int): Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in
+        grid_size_x (int): Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in
             the grid, set to prevent aliasing if not provided. For a polar grid, this can be
             thought of as the number for rays in the polar direction.
-        n_z (int): Grid height in pixels. This is the number of axial (z) pixels in the grid,
+        grid_size_z (int): Grid height in pixels. This is the number of axial (z) pixels in the grid,
             set to prevent aliasing if not provided.
         sound_speed (float, optional): Speed of sound in the medium in m/s.
             Defaults to 1540.0.
@@ -163,8 +163,8 @@ class Scan(Parameters):
 
     VALID_PARAMS = {
         # beamforming related parameters
-        "n_x": {"type": int},
-        "n_z": {"type": int},
+        "grid_size_x": {"type": int},
+        "grid_size_z": {"type": int},
         "xlims": {"type": (tuple, list)},
         "ylims": {"type": (tuple, list)},
         "zlims": {"type": (tuple, list)},
@@ -223,19 +223,23 @@ class Scan(Parameters):
     @cache_with_dependencies(
         "xlims",
         "zlims",
-        "n_x",
-        "n_z",
+        "grid_size_x",
+        "grid_size_z",
         "sound_speed",
         "center_frequency",
         "pixels_per_wavelength",
         "grid_type",
     )
     def grid(self):
-        """The beamforming grid of shape (n_z, n_x, 3)."""
+        """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
-            return polar_pixel_grid(self.polar_limits, self.zlims, self.n_z, self.n_x)
+            return polar_pixel_grid(
+                self.polar_limits, self.zlims, self.grid_size_z, self.grid_size_x
+            )
         elif self.grid_type == "cartesian":
-            return cartesian_pixel_grid(self.xlims, self.zlims, n_z=self.n_z, n_x=self.n_x)
+            return cartesian_pixel_grid(
+                self.xlims, self.zlims, grid_size_z=self.grid_size_z, grid_size_x=self.grid_size_x
+            )
         else:
             raise ValueError(
                 f"Unsupported grid type: {self.grid_type}. Supported types are "
@@ -248,34 +252,34 @@ class Scan(Parameters):
         "pixels_per_wavelength",
         "grid_type",
     )
-    def n_x(self):
+    def grid_size_x(self):
         """Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in the grid,
         set to prevent aliasing if not provided. For a polar grid, this can be thought of as
         the number for rays in the polar direction.
         """
-        n_x = self._params.get("n_x")
-        if n_x is not None:
-            return n_x
+        grid_size_x = self._params.get("grid_size_x")
+        if grid_size_x is not None:
+            return grid_size_x
 
         width = self.xlims[1] - self.xlims[0]
-        min_n_x = int(np.ceil(width / (self.wavelength / self.pixels_per_wavelength)))
-        return max(min_n_x, 1)
+        min_grid_size_x = int(np.ceil(width / (self.wavelength / self.pixels_per_wavelength)))
+        return max(min_grid_size_x, 1)
 
     @cache_with_dependencies(
         "zlims",
         "wavelength",
         "pixels_per_wavelength",
     )
-    def n_z(self):
+    def grid_size_z(self):
         """Grid height in pixels. This is the number of axial (z) pixels in the grid,
         set to prevent aliasing if not provided."""
-        n_z = self._params.get("n_z")
-        if n_z is not None:
-            return n_z
+        grid_size_z = self._params.get("grid_size_z")
+        if grid_size_z is not None:
+            return grid_size_z
 
         depth = self.zlims[1] - self.zlims[0]
-        min_n_z = int(np.ceil(depth / (self.wavelength / self.pixels_per_wavelength)))
-        return max(min_n_z, 1)
+        min_grid_size_z = int(np.ceil(depth / (self.wavelength / self.pixels_per_wavelength)))
+        return max(min_grid_size_z, 1)
 
     @cache_with_dependencies("sound_speed", "center_frequency")
     def wavelength(self):
@@ -315,7 +319,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("grid")
     def flatgrid(self):
-        """The beamforming grid of shape (n_z*n_x, 3)."""
+        """The beamforming grid of shape (grid_size_z*grid_size_x, 3)."""
         return self.grid.reshape(-1, 3)
 
     @property
@@ -573,22 +577,24 @@ class Scan(Parameters):
             return self.polar_limits
         return value
 
-    @cache_with_dependencies("rho_range", "theta_range", "resolution", "n_z", "n_x")
+    @cache_with_dependencies("rho_range", "theta_range", "resolution", "grid_size_z", "grid_size_x")
     def coordinates_2d(self):
         """The coordinates for scan conversion."""
         coords, _ = compute_scan_convert_2d_coordinates(
-            (self.n_z, self.n_x),
+            (self.grid_size_z, self.grid_size_x),
             self.rho_range,
             self.theta_range,
             self.resolution,
         )
         return coords
 
-    @cache_with_dependencies("rho_range", "theta_range", "phi_range", "resolution", "n_z", "n_x")
+    @cache_with_dependencies(
+        "rho_range", "theta_range", "phi_range", "resolution", "grid_size_z", "grid_size_x"
+    )
     def coordinates_3d(self):
         """The coordinates for scan conversion."""
         coords, _ = compute_scan_convert_3d_coordinates(
-            (self.n_z, self.n_x),
+            (self.grid_size_z, self.grid_size_x),
             self.rho_range,
             self.theta_range,
             self.phi_range,

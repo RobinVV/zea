@@ -43,8 +43,8 @@ class DummyParameters(Parameters):
     dependencies between properties.
 
     Args:
-        param1: First parameter (equivalent to n_x in the original)
-        param2: Second parameter (equivalent to n_z in the original)
+        param1: First parameter (equivalent to grid_size_x in the original)
+        param2: Second parameter (equivalent to grid_size_z in the original)
         param3: Third parameter with default value (like sound_speed)
         param4: Fourth parameter (like sampling_frequency)
         param5: Optional fifth parameter

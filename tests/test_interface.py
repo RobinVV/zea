@@ -22,4 +22,4 @@ def test_interface_initialization():
     data = interface.get_data()
     assert data is not None
     assert isinstance(data, np.ndarray), "Data is not a numpy array"
-    assert len(data.shape) == 2, "Data must be 2d (n_z, n_x)"
+    assert len(data.shape) == 2, "Data must be 2d (grid_size_z, grid_size_x)"

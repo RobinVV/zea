@@ -35,8 +35,8 @@ NOTEBOOK_PARAMETERS = {
         "n_conditional_steps": 2,
     },
     "custom_models_example.ipynb": {
-        "n_x": 10,
-        "n_z": 10,
+        "grid_size_x": 10,
+        "grid_size_z": 10,
     },
     "agent_example.ipynb": {
         "n_prior_samples": 2,

@@ -1187,14 +1187,14 @@ class PatchedGrid(Pipeline):
     def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline. Adds the parameters that PatchedGrid itself
         operates on (even if not used by operations inside it)."""
-        return super().valid_keys.union({"flatgrid", "n_x", "n_z"})
+        return super().valid_keys.union({"flatgrid", "grid_size_x", "grid_size_z"})
 
     def call_item(self, inputs):
         """Process data in patches."""
         # Extract necessary parameters
         # make sure to add those as valid keys above!
-        n_x = inputs["n_x"]
-        n_z = inputs["n_z"]
+        grid_size_x = inputs["grid_size_x"]
+        grid_size_z = inputs["grid_size_z"]
         flatgrid = inputs.pop("flatgrid")
 
         # TODO: maybe using n_tx and n_el from kwargs is better but these are tensors now
@@ -1226,7 +1226,7 @@ class PatchedGrid(Pipeline):
             **patch_arrays,
             jit=bool(self.jit_options),
         )
-        return ops.reshape(out, (n_z, n_x, *ops.shape(out)[1:]))
+        return ops.reshape(out, (grid_size_z, grid_size_x, *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
@@ -1421,8 +1421,8 @@ class TOFCorrection(Operation):
         "f_number",
         "apply_lens_correction",
         "apply_phase_rotation",
-        "n_x",
-        "n_z",
+        "grid_size_x",
+        "grid_size_z",
     ]
 
     def __init__(self, apply_phase_rotation=True, **kwargs):
@@ -1603,13 +1603,13 @@ class DelayAndSum(Operation):
 
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
-                `(n_tx, n_z*n_x, n_el, n_ch)` with optional batch dimension.
-            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, n_z*n_x, n_el)` with
+                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, grid_size_z*grid_size_x, n_el)` with
                 optional batch dimension. Defaults to 1.0.
 
         Returns:
-            dict: Dictionary containing beamformed_data of shape `(n_z*n_x, n_ch)`
-                when reshape_grid is False or `(n_z, n_x, n_ch)` when reshape_grid is True,
+            dict: Dictionary containing beamformed_data of shape `(grid_size_z*grid_size_x, n_ch)`
+                when reshape_grid is False or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
                 with optional batch dimension.
         """
         data = kwargs[self.key]
@@ -1653,9 +1653,9 @@ class EnvelopeDetect(Operation):
     def call(self, **kwargs):
         """
         Args:
-            - data (Tensor): The beamformed data of shape (..., n_z, n_x, n_ch).
+            - data (Tensor): The beamformed data of shape (..., grid_size_z, grid_size_x, n_ch).
         Returns:
-            - envelope_data (Tensor): The envelope detected data of shape (..., n_z, n_x).
+            - envelope_data (Tensor): The envelope detected data of shape (..., grid_size_z, grid_size_x).
         """
         data = kwargs[self.key]
 
