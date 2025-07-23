@@ -57,5 +57,6 @@ def test_pfield():
     pfield = scan.pfield
 
     assert pfield.shape == (n_tx, scan.grid_size_z, scan.grid_size_x), (
-        f"Expected pfield shape {(n_tx, scan.grid_size_z, scan.grid_size_x)}, but got {pfield.shape}"
+        f"Expected pfield shape {(n_tx, scan.grid_size_z, scan.grid_size_x)}, "
+        f"but got {pfield.shape}"
     )

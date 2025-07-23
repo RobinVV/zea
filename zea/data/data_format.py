@@ -126,7 +126,8 @@ def validate_input_data(raw_data, aligned_data, envelope_data, beamformed_data, 
             shape (n_frames, grid_size_z, grid_size_x).
         beamformed_data (np.ndarray): The beamformed data of the ultrasound measurement of
             shape (n_frames, grid_size_z, grid_size_x).
-        image (np.ndarray): The ultrasound images to be saved of shape (n_frames, grid_size_z, grid_size_x).
+        image (np.ndarray): The ultrasound images to be saved
+            of shape (n_frames, grid_size_z, grid_size_x).
         image_sc (np.ndarray): The scan converted ultrasound images to be saved
             of shape (n_frames, output_size_z, output_size_x).
     """
@@ -549,7 +550,8 @@ def generate_zea_dataset(
             shape (n_frames, grid_size_z, grid_size_x).
         beamformed_data (np.ndarray): The beamformed data of the ultrasound measurement of
             shape (n_frames, grid_size_z, grid_size_x, n_ch).
-        image (np.ndarray): The ultrasound images to be saved of shape (n_frames, grid_size_z, grid_size_x).
+        image (np.ndarray): The ultrasound images to be saved
+            of shape (n_frames, grid_size_z, grid_size_x).
         image_sc (np.ndarray): The scan converted ultrasound images to be saved
             of shape (n_frames, output_size_z, output_size_x).
         probe_geometry (np.ndarray): The probe geometry of shape (n_el, 3).

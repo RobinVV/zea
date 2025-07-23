@@ -1604,12 +1604,14 @@ class DelayAndSum(Operation):
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
                 `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
-            rx_apo (ops.Tensor): Receive apodization window of shape `(n_tx, grid_size_z*grid_size_x, n_el)` with
-                optional batch dimension. Defaults to 1.0.
+            rx_apo (ops.Tensor): Receive apodization window
+                of shape `(n_tx, grid_size_z*grid_size_x, n_el)`
+                with optional batch dimension. Defaults to 1.0.
 
         Returns:
-            dict: Dictionary containing beamformed_data of shape `(grid_size_z*grid_size_x, n_ch)`
-                when reshape_grid is False or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
+            dict: Dictionary containing beamformed_data
+                of shape `(grid_size_z*grid_size_x, n_ch)` when reshape_grid is False
+                or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
                 with optional batch dimension.
         """
         data = kwargs[self.key]
@@ -1655,7 +1657,8 @@ class EnvelopeDetect(Operation):
         Args:
             - data (Tensor): The beamformed data of shape (..., grid_size_z, grid_size_x, n_ch).
         Returns:
-            - envelope_data (Tensor): The envelope detected data of shape (..., grid_size_z, grid_size_x).
+            - envelope_data (Tensor): The envelope detected data
+                of shape (..., grid_size_z, grid_size_x).
         """
         data = kwargs[self.key]
 

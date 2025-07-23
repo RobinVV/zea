@@ -96,11 +96,11 @@ class Scan(Parameters):
     """Represents an ultrasound scan configuration with computed properties.
 
     Args:
-        grid_size_x (int): Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in
-            the grid, set to prevent aliasing if not provided. For a polar grid, this can be
-            thought of as the number for rays in the polar direction.
-        grid_size_z (int): Grid height in pixels. This is the number of axial (z) pixels in the grid,
-            set to prevent aliasing if not provided.
+        grid_size_x (int): Grid width in pixels. For a cartesian grid, this is the lateral (x)
+            pixels in the grid, set to prevent aliasing if not provided. For a polar grid, this can
+            be thought of as the number for rays in the polar direction.
+        grid_size_z (int): Grid height in pixels. This is the number of axial (z) pixels in the
+            grid, set to prevent aliasing if not provided.
         sound_speed (float, optional): Speed of sound in the medium in m/s.
             Defaults to 1540.0.
         sampling_frequency (float): Sampling frequency in Hz.

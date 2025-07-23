@@ -19,14 +19,14 @@ def check_for_aliasing(scan):
     if width / scan.grid_size_x > wvln / 2:
         log.warning(
             f"width/grid_size_x = {width / scan.grid_size_x:.7f} < wavelength/2 = {wvln / 2}. "
-            f"Consider either increasing scan.grid_size_x to {int(np.ceil(width / (wvln / 2)))} or more, "
-            "or increasing scan.pixels_per_wavelength to 2 or more."
+            f"Consider either increasing scan.grid_size_x to {int(np.ceil(width / (wvln / 2)))} "
+            "or more, or increasing scan.pixels_per_wavelength to 2 or more."
         )
     if depth / scan.grid_size_z > wvln / 2:
         log.warning(
             f"depth/grid_size_z = {depth / scan.grid_size_z:.7f} < wavelength/2 = {wvln / 2:.7f}. "
-            f"Consider either increasing scan.grid_size_z to {int(np.ceil(depth / (wvln / 2)))} or more, "
-            "or increasing scan.pixels_per_wavelength to 2 or more."
+            f"Consider either increasing scan.grid_size_z to {int(np.ceil(depth / (wvln / 2)))} "
+            "or more, or increasing scan.pixels_per_wavelength to 2 or more."
         )
 
 

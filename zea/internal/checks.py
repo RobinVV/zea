@@ -163,11 +163,13 @@ def _check_beamformed_data(data=None, shape=None, with_batch_dim=None):
 
     if not with_batch_dim:
         assert len(shape) == 3, (
-            f"beamformed data must be 3D, with expected shape [grid_size_z, grid_size_x, n_ch], got {shape}"
+            f"beamformed data must be 3D, with expected shape [grid_size_z, grid_size_x, n_ch]"
+            f", got {shape}"
         )
     else:
         assert len(shape) == 4, (
-            f"beamformed data must be 4D, with expected shape [n_fr, grid_size_z, grid_size_x, n_ch], got {shape}"
+            f"beamformed data must be 4D, with expected shape "
+            f"[n_fr, grid_size_z, grid_size_x, n_ch], got {shape}"
         )
     assert shape[-1] in [1, 2], (
         "beamformed data must have 1 or 2 channels, for RF or IQ data respectively, "
@@ -207,7 +209,8 @@ def _check_envelope_data(data=None, shape=None, with_batch_dim=None):
         )
     else:
         assert len(shape) == 3, (
-            f"envelope data must be 3D, with expected shape [n_fr, grid_size_z, grid_size_x], got {shape}"
+            f"envelope data must be 3D, with expected shape [n_fr, grid_size_z, grid_size_x]"
+            f", got {shape}"
         )
 
 
@@ -243,7 +246,8 @@ def _check_image(data=None, shape=None, with_batch_dim=None):
         )
     else:
         assert len(shape) == 3, (
-            f"image data must be 3D, with expected shape [n_fr, grid_size_z, grid_size_x], got {shape}"
+            f"image data must be 3D, with expected shape [n_fr, grid_size_z, grid_size_x]"
+            f", got {shape}"
         )
 
 
@@ -279,7 +283,8 @@ def _check_image_sc(data=None, shape=None, with_batch_dim=None):
         )
     else:
         assert len(shape) == 3, (
-            f"image data must be 3D, with expected shape [n_fr, grid_size_z, grid_size_x], got {shape}"
+            f"image data must be 3D, with expected shape [n_frames, grid_size_z, grid_size_x], "
+            f"got {shape}"
         )
 
 
