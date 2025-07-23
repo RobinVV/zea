@@ -19,6 +19,8 @@ from pathlib import Path
 import papermill as pm
 import pytest
 
+CONFIG_DIR = Path("configs")
+
 # Automatically discover notebooks
 NOTEBOOKS_DIR = Path("docs/source/notebooks")
 NOTEBOOKS = list(NOTEBOOKS_DIR.rglob("*.ipynb"))
@@ -47,6 +49,12 @@ NOTEBOOK_PARAMETERS = {
         "n_frames": 15,
         "n_tx": 1,
         "n_tx_total": 3,
+    },
+    "zea_data_example.ipynb": {
+        "config_picmus_iq": f"{CONFIG_DIR}/config_picmus_iq.yaml",
+    },
+    "zea_local_data.ipynb": {
+        "config_picmus_rf": f"{CONFIG_DIR}/config_picmus_rf.yaml",
     },
     # Add more notebooks and their parameters here as needed
     # "other_notebook.ipynb": {
