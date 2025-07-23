@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-from huggingface_hub import list_repo_files
 from schema import SchemaError
 
 from zea.config import Config, check_config
