@@ -67,7 +67,7 @@ def test_probe_from_file(tmp_path):
         probe = f.probe()
         assert np.allclose(probe.probe_geometry, new_geometry)
         # probe name from file is always generic
-        assert probe_registry.get_name(probe) == "generic"
+        assert probe_registry.get_name(probe) == f.probe_name
 
     # Use a probe name that is not registered
     unknown_probe_name = "unknown_probe_xyz"

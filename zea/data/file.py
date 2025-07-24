@@ -388,7 +388,7 @@ class File(h5py.File):
             Probe: The probe object.
         """
         probe_parameters_file = self.get_probe_parameters(event)
-        return Probe(**probe_parameters_file)
+        return Probe.from_parameters(self.probe_name, probe_parameters_file)
 
     def recursively_load_dict_contents_from_group(self, path: str, squeeze: bool = False) -> dict:
         """Load dict from contents of group
