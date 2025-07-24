@@ -137,7 +137,7 @@ class RegisterDecorator:
                 if issubclass(cls, registered_class):
                     return name
             else:  # cls is an instance
-                if isinstance(cls, registered_class):
+                if type(cls) is registered_class:
                     return name
         raise KeyError(f"Class or instance {cls} not registered.")
 
