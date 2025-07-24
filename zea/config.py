@@ -480,9 +480,9 @@ class Config(dict):
         """Load config object from yaml file."""
         return cls.from_path(path, **kwargs)
 
-    def to_tensor(self):
+    def to_tensor(self, keep_as_is=None):
         """Convert the attributes in the object to keras tensors"""
-        return dict_to_tensor(self.serialize())
+        return dict_to_tensor(self.serialize(), keep_as_is=keep_as_is)
 
 
 def check_config(config: Union[dict, Config], verbose: bool = False):
