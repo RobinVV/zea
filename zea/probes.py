@@ -117,7 +117,7 @@ class Probe(Object):
         }
 
     @classmethod
-    def from_parameters(cls, probe_name, parameters):
+    def from_parameters(cls, probe_name: str, parameters: dict):
         """Instantiate a probe by name, overriding with parameters from file."""
         if probe_name in probe_registry:
             probe = probe_registry[probe_name]()  # instantiate with class defaults
