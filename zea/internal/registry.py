@@ -137,11 +137,17 @@ class RegisterDecorator:
         if not isinstance(cls, type):
             cls = type(cls)
 
+        # First check if the class is directly
+        for name, registered_class in self.registry.items():
+            if cls is registered_class:
+                return name
+
+        # If not found, check if the class is a subclass of any registered class
         for name, registered_class in self.registry.items():
             if issubclass(cls, registered_class):
                 return name
 
-        raise KeyError(f"Class or instance {cls} not registered.")
+        raise KeyError(f"Class {cls} not registered.")
 
     def get_additional_registries(self):
         """Returns a list of the names of the additional registries."""

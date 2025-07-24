@@ -366,9 +366,7 @@ class File(h5py.File):
         """
         file_scan_parameters = self.get_parameters(event)
 
-        probe_parameters = reduce_to_signature(
-            Probe.from_name("generic").__init__, file_scan_parameters
-        )
+        probe_parameters = reduce_to_signature(Probe.__init__, file_scan_parameters)
         return probe_parameters
 
     def probe(self, event=None) -> Probe:
