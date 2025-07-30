@@ -2090,7 +2090,7 @@ class Demodulate(Operation):
 
 @ops_registry("lambda")
 class Lambda(Operation):
-    """Use any funcion as an operation."""
+    """Use any function as an operation."""
 
     def __init__(self, func, func_kwargs=None, **kwargs):
         super().__init__(**kwargs)
