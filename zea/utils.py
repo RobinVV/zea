@@ -15,6 +15,8 @@ import numpy as np
 import yaml
 from keras import ops
 from PIL import Image
+from rich.console import Console
+from rich.table import Table
 
 from zea import log
 
@@ -662,3 +664,30 @@ class FunctionTimer:
             yaml.dump(cropped_timings, f, default_flow_style=False)
 
         self.last_append = len(self.timings[func_name])
+
+    def print(self, drop_first: bool | int = False):
+        """Print timing statistics for all recorded functions using a rich Table."""
+
+        table = Table(title="Function Timing Statistics")
+        table.add_column("Function", style="cyan", no_wrap=True)
+        table.add_column("Mean", style="green")
+        table.add_column("Median", style="green")
+        table.add_column("Std Dev", style="green")
+        table.add_column("Min", style="yellow")
+        table.add_column("Max", style="yellow")
+        table.add_column("Count", style="magenta")
+
+        for func_name in self.timings.keys():
+            stats = self.get_stats(func_name, drop_first=drop_first)
+            table.add_row(
+                func_name,
+                f"{stats['mean']:.6f}",
+                f"{stats['median']:.6f}",
+                f"{stats['std_dev']:.6f}",
+                f"{stats['min']:.6f}",
+                f"{stats['max']:.6f}",
+                str(stats["count"]),
+            )
+
+        console = Console()
+        console.print(table)
