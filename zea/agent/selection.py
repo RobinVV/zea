@@ -155,7 +155,9 @@ class GreedyEntropy(LinesActionModel):
         # TODO: I think we only need to compute the lower triangular
         # of this matrix, since it's symmetric
         squared_l2_error_matrices = (particles[:, :, None, ...] - particles[:, None, :, ...]) ** 2
-        gaussian_error_per_pixel_i_j = ops.exp((squared_l2_error_matrices) / (2 * entropy_sigma**2))
+        gaussian_error_per_pixel_i_j = ops.exp(
+            -(squared_l2_error_matrices) / (2 * entropy_sigma**2)
+        )
         # Vertically stack all columns corresponding with the same line
         # This way we can just sum across the height axis and get the entropy
         # for each pixel in a given line
@@ -176,7 +178,7 @@ class GreedyEntropy(LinesActionModel):
         # [n_particles, n_particles, batch, height, width]
         return gaussian_error_per_pixel_stacked
 
-    def compute_gmm_entropy_per_line(self, particles):
+    def compute_pixelwise_entropy(self, particles):
         """Compute the entropy for each line using a Gaussian Mixture Model.
 
         This function computes the entropy for each line using a Gaussian Mixture Model
@@ -195,14 +197,14 @@ class GreedyEntropy(LinesActionModel):
             self.n_possible_actions,
             self.entropy_sigma,
         )
-        gaussian_error_per_line = ops.sum(gaussian_error_per_pixel_stacked, axis=3)
         # sum out first dimension of (n_particles x n_particles) error matrix
-        # [n_particles, batch, n_possible_actions]
-        entropy_per_line_i = ops.sum(gaussian_error_per_line, axis=1)
+        # [n_particles, batch, height, width]
+        pixelwise_entropy_sum_j = ops.sum(gaussian_error_per_pixel_stacked, axis=1)
+        log_pixelwise_entropy_sum_j = ops.log(pixelwise_entropy_sum_j)
         # sum out second dimension of (n_particles x n_particles) error matrix
-        # [batch, n_possible_actions]
-        entropy_per_line = ops.sum(entropy_per_line_i, axis=1)
-        return entropy_per_line
+        # [batch, height, width]
+        pixelwise_entropy = ops.sum(log_pixelwise_entropy_sum_j, axis=1)
+        return pixelwise_entropy
 
     def select_line_and_reweight_entropy(self, entropy_per_line):
         """Select the line with maximum entropy and reweight the entropies.
@@ -260,17 +262,19 @@ class GreedyEntropy(LinesActionModel):
             particles (Tensor): Particles of shape (batch_size, n_particles, height, width)
 
         Returns:
-           Tuple[Tensor, Tensor]:
+            Tuple[Tensor, Tensor]:
                 - Newly selected lines as k-hot vectors, shaped (batch_size, n_possible_actions)
-                - Masks of shape (batch_size, img_height, img_width)
+            - Masks of shape (batch_size, img_height, img_width)
         """
-        entropy_per_line = self.compute_gmm_entropy_per_line(particles)
+
+        pixelwise_entropy = self.compute_pixelwise_entropy(particles)
+        linewise_entropy = ops.sum(pixelwise_entropy, axis=1)
 
         # Greedily select best line, reweight entropies, and repeat
         all_selected_lines = []
         for _ in range(self.n_actions):
-            max_entropy_line, entropy_per_line = ops.vectorized_map(
-                self.select_line_and_reweight_entropy, entropy_per_line
+            max_entropy_line, linewise_entropy = ops.vectorized_map(
+                self.select_line_and_reweight_entropy, linewise_entropy
             )
             all_selected_lines.append(max_entropy_line)
 
