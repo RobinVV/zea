@@ -191,7 +191,7 @@ class GreedyEntropy(LinesActionModel):
             Tensor: batch of entropies per pixel, of shape (batch, height, width)
         """
         n_particles = ops.shape(particles)[1]
-        gaussian_error_per_pixel_stacked = GreedyEntropy.compute_pairwise_pixel_gaussian_error(
+        gaussian_error_per_pixel_stacked = self.compute_pairwise_pixel_gaussian_error(
             particles,
             self.stack_n_cols,
             self.n_possible_actions,
