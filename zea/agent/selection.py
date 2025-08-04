@@ -191,6 +191,7 @@ class GreedyEntropy(LinesActionModel):
         Returns:
             Tensor: batch of entropies per line, of shape (batch, n_possible_actions)
         """
+        n_particles = ops.shape(particles)[1]
         gaussian_error_per_pixel_stacked = GreedyEntropy.compute_pairwise_pixel_gaussian_error(
             particles,
             self.stack_n_cols,
@@ -199,11 +200,13 @@ class GreedyEntropy(LinesActionModel):
         )
         # sum out first dimension of (n_particles x n_particles) error matrix
         # [n_particles, batch, height, width]
-        pixelwise_entropy_sum_j = ops.sum(gaussian_error_per_pixel_stacked, axis=1)
+        pixelwise_entropy_sum_j = ops.sum(
+            (1 / n_particles) * gaussian_error_per_pixel_stacked, axis=1
+        )
         log_pixelwise_entropy_sum_j = ops.log(pixelwise_entropy_sum_j)
         # sum out second dimension of (n_particles x n_particles) error matrix
         # [batch, height, width]
-        pixelwise_entropy = ops.sum(log_pixelwise_entropy_sum_j, axis=1)
+        pixelwise_entropy = -ops.sum((1 / n_particles) * log_pixelwise_entropy_sum_j, axis=1)
         return pixelwise_entropy
 
     def select_line_and_reweight_entropy(self, entropy_per_line):
