@@ -119,7 +119,7 @@ def test_greedy_entropy():
     agent = selection.GreedyEntropy(n_actions, w, h, w)
     selected_lines, mask = agent.sample(particles)
 
-    correct_line_index = 15
+    correct_line_index = 17
     correct_selected_lines = [False] * 64
     correct_selected_lines[correct_line_index] = True
     correct_selected_lines = [correct_selected_lines]
