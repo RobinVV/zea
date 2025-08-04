@@ -179,17 +179,16 @@ class GreedyEntropy(LinesActionModel):
         return gaussian_error_per_pixel_stacked
 
     def compute_pixelwise_entropy(self, particles):
-        """Compute the entropy for each line using a Gaussian Mixture Model.
-
+        """
         This function computes the entropy for each line using a Gaussian Mixture Model
         approximation of the posterior distribution.
-        For more details see Section 4 here: https://arxiv.org/abs/2406.14388
+        For more details see Section VI. B here: https://arxiv.org/pdf/2410.13310
 
         Args:
             particles (Tensor): Particles of shape (batch_size, n_particles, height, width)
 
         Returns:
-            Tensor: batch of entropies per line, of shape (batch, n_possible_actions)
+            Tensor: batch of entropies per pixel, of shape (batch, height, width)
         """
         n_particles = ops.shape(particles)[1]
         gaussian_error_per_pixel_stacked = GreedyEntropy.compute_pairwise_pixel_gaussian_error(
