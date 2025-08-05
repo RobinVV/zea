@@ -128,14 +128,14 @@ def test_existing_path(tmp_hdf5_path):
 def test_only_waveforms_one_way(tmp_hdf5_path):
     """Tests if passing only waveforms_one_way works correctly."""
     parameters = DATASET_PARAMETERS.copy()
-    parameters["waveforms_one_way"] = None  # Set one waveform to None
+    parameters["waveforms_one_way"] = None
     generate_zea_dataset(path=tmp_hdf5_path, **parameters)
 
 
 def test_only_waveforms_two_way(tmp_hdf5_path):
     """Tests if passing only waveforms_two_way works correctly."""
     parameters = DATASET_PARAMETERS.copy()
-    parameters["waveforms_two_way"] = None  # Set one waveform to None
+    parameters["waveforms_two_way"] = None
     generate_zea_dataset(path=tmp_hdf5_path, **parameters)
 
 
