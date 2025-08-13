@@ -15,8 +15,6 @@ import numpy as np
 import yaml
 from keras import ops
 from PIL import Image
-from rich.console import Console
-from rich.table import Table
 
 from zea import log
 
@@ -666,28 +664,32 @@ class FunctionTimer:
         self.last_append = len(self.timings[func_name])
 
     def print(self, drop_first: bool | int = False):
-        """Print timing statistics for all recorded functions using a rich Table."""
+        """Print timing statistics for all recorded functions using formatted output."""
 
-        table = Table(title="Function Timing Statistics")
-        table.add_column("Function", style="cyan", no_wrap=True)
-        table.add_column("Mean", style="green")
-        table.add_column("Median", style="green")
-        table.add_column("Std Dev", style="green")
-        table.add_column("Min", style="yellow")
-        table.add_column("Max", style="yellow")
-        table.add_column("Count", style="magenta")
+        # Print title
+        print(log.bold("Function Timing Statistics"))
+        header = (
+            f"{log.cyan('Function'):<30} {log.green('Mean'):<22} "
+            f"{log.green('Median'):<22} {log.green('Std Dev'):<22} "
+            f"{log.yellow('Min'):<22} {log.yellow('Max'):<22} {log.magenta('Count'):<18}"
+        )
+        length = len(log.remove_color_escape_codes(header))
+        print("=" * length)
 
+        # Print header
+        print(header)
+        print("-" * length)
+
+        # Print data rows
         for func_name in self.timings.keys():
             stats = self.get_stats(func_name, drop_first=drop_first)
-            table.add_row(
-                func_name,
-                f"{stats['mean']:.6f}",
-                f"{stats['median']:.6f}",
-                f"{stats['std_dev']:.6f}",
-                f"{stats['min']:.6f}",
-                f"{stats['max']:.6f}",
-                str(stats["count"]),
+            row = (
+                f"{log.cyan(func_name):<30} "
+                f"{log.green(f'{stats["mean"]:.6f}'):<22} "
+                f"{log.green(f'{stats["median"]:.6f}'):<22} "
+                f"{log.green(f'{stats["std_dev"]:.6f}'):<22} "
+                f"{log.yellow(f'{stats["min"]:.6f}'):<22} "
+                f"{log.yellow(f'{stats["max"]:.6f}'):<22} "
+                f"{log.magenta(str(stats['count'])):<18}"
             )
-
-        console = Console()
-        console.print(table)
+            print(row)
