@@ -685,11 +685,11 @@ class FunctionTimer:
             stats = self.get_stats(func_name, drop_first=drop_first)
             row = (
                 f"{log.cyan(func_name):<30} "
-                f"{log.green(f'{stats["mean"]:.6f}'):<22} "
-                f"{log.green(f'{stats["median"]:.6f}'):<22} "
-                f"{log.green(f'{stats["std_dev"]:.6f}'):<22} "
-                f"{log.yellow(f'{stats["min"]:.6f}'):<22} "
-                f"{log.yellow(f'{stats["max"]:.6f}'):<22} "
+                f"{log.green(log.number_to_str(stats['mean'], 6)):<22} "
+                f"{log.green(log.number_to_str(stats['median'], 6)):<22} "
+                f"{log.green(log.number_to_str(stats['std_dev'], 6)):<22} "
+                f"{log.yellow(log.number_to_str(stats['min'], 6)):<22} "
+                f"{log.yellow(log.number_to_str(stats['max'], 6)):<22} "
                 f"{log.magenta(str(stats['count'])):<18}"
             )
             print(row)
