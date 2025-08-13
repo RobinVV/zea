@@ -525,15 +525,13 @@ class Pipeline:
     def timed_call(self, **inputs):
         """Process input data through the pipeline."""
 
-        for operation in [
-            self.timer(operation, name=operation.__class__.__name__)
-            for operation in self._pipeline_layers
-        ]:
+        for op in self._pipeline_layers:
+            timed_op = self.timer(op, name=op.__class__.__name__)
             try:
-                outputs = operation(**inputs)
+                outputs = timed_op(**inputs)
             except KeyError as exc:
                 raise KeyError(
-                    f"[zea.Pipeline] Operation '{operation.__class__.__name__}' "
+                    f"[zea.Pipeline] Operation '{op.__class__.__name__}' "
                     f"requires input key '{exc.args[0]}', "
                     "but it was not provided in the inputs.\n"
                     "Check whether the objects (such as `zea.Scan`) passed to "
@@ -543,8 +541,8 @@ class Pipeline:
                 ) from exc
             except Exception as exc:
                 raise RuntimeError(
-                    f"[zea.Pipeline] Error in operation '{operation.__class__.__name__}': {exc}"
-                )
+                    f"[zea.Pipeline] Error in operation '{op.__class__.__name__}': {exc}"
+                ) from exc
             inputs = outputs
         return outputs
 
