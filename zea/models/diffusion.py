@@ -233,7 +233,8 @@ class DiffusionModel(DeepGenerativeModel):
                 `(batch_size, n_samples, *input_shape)`.
 
         """
-        shape = ops.shape(measurements)
+        batch_size = ops.shape(measurements)[0]
+        shape = (batch_size, n_samples, *self.input_shape)
 
         def _tile_with_sample_dim(tensor):
             """Tile the tensor with an additional sample dimension."""
@@ -250,7 +251,7 @@ class DiffusionModel(DeepGenerativeModel):
         seed1, seed2 = split_seed(seed, 2)
 
         initial_noise = keras.random.normal(
-            shape=ops.shape(measurements),
+            shape=(batch_size * n_samples, *self.input_shape),
             seed=seed1,
         )
 
@@ -262,9 +263,9 @@ class DiffusionModel(DeepGenerativeModel):
             initial_step=initial_step,
             seed=seed2,
             **kwargs,
-        )
-        # returns: (batch_size, n_samples, *input_shape)
-        return ops.reshape(out, (shape[0], n_samples, *shape[1:]))
+        )  # ( batch_size * n_samples, *self.input_shape)
+
+        return ops.reshape(out, shape)  # (batch_size, n_samples, *input_shape)
 
     def log_likelihood(self, data, **kwargs):
         """Approximate log-likelihood of the data under the model.
