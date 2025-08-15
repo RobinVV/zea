@@ -1376,20 +1376,6 @@ class Mean(Operation):
         return kwargs
 
 
-@ops_registry("transpose")
-class Transpose(Operation):
-    """Transpose the input data along the specified axes."""
-
-    def __init__(self, axes, **kwargs):
-        super().__init__(**kwargs)
-        self.axes = axes
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        transposed_data = ops.transpose(data, axes=self.axes)
-        return {self.output_key: transposed_data}
-
-
 @ops_registry("simulate_rf")
 class Simulate(Operation):
     """Simulate RF data."""
@@ -1576,19 +1562,6 @@ class PfieldWeighting(Operation):
         weighted_data = data * pfield_expanded
 
         return {self.output_key: weighted_data}
-
-
-@ops_registry("sum")
-class Sum(Operation):
-    """Sum data along a specific axis."""
-
-    def __init__(self, axis, **kwargs):
-        super().__init__(**kwargs)
-        self.axis = axis
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        return {self.output_key: ops.sum(data, axis=self.axis)}
 
 
 @ops_registry("delay_and_sum")
@@ -2155,21 +2128,6 @@ class Lambda(Operation):
     def call(self, **kwargs):
         data = kwargs[self.key]
         data = self.func(data)
-        return {self.output_key: data}
-
-
-@ops_registry("clip")
-class Clip(Operation):
-    """Clip the input data to a given range."""
-
-    def __init__(self, min_value=None, max_value=None, **kwargs):
-        super().__init__(**kwargs)
-        self.min_value = min_value
-        self.max_value = max_value
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        data = ops.clip(data, self.min_value, self.max_value)
         return {self.output_key: data}
 
 

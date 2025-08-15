@@ -11,8 +11,9 @@ op = Squeeze(axis=1)
 
 import inspect
 
-from keras import ops
+import keras
 
+from zea.internal.registry import ops_registry
 from zea.ops import Lambda
 
 
@@ -66,11 +67,12 @@ def _make_operation_class(name, func):
     )
 
 
-_funcs = _unary_functions_from_namespace(ops, "x")
-_funcs += _unary_functions_from_namespace(ops.image, "images")
-_funcs += _unary_functions_from_namespace(ops.linalg, "x")
+_funcs = _unary_functions_from_namespace(keras.ops, "x")
+_funcs += _unary_functions_from_namespace(keras.ops.image, "images")
 
 for name, func in _funcs:
     cls = _make_operation_class(name, func)
     # Assign to module globals for direct access, e.g., zea.keras.Squeeze
     globals()[cls.__name__] = cls
+    # Register the class in ops_registry using keras.ops name
+    ops_registry("keras." + name)(cls)
