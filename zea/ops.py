@@ -2124,10 +2124,33 @@ class Demodulate(Operation):
 class Lambda(Operation):
     """Use any function as an operation."""
 
-    def __init__(self, func, func_kwargs=None, **kwargs):
-        super().__init__(**kwargs)
-        func_kwargs = func_kwargs or {}
+    def __init__(self, func, **kwargs):
+        # Split kwargs into kwargs for partial and __init__
+        op_kwargs = {k: v for k, v in kwargs.items() if k not in func.__code__.co_varnames}
+        func_kwargs = {k: v for k, v in kwargs.items() if k in func.__code__.co_varnames}
+        Lambda._check_if_unary(func, **func_kwargs)
+
+        super().__init__(**op_kwargs)
         self.func = partial(func, **func_kwargs)
+
+    @staticmethod
+    def _check_if_unary(func, **kwargs):
+        """Checks if the kwargs are sufficient to call the function as a unary operation."""
+        sig = inspect.signature(func)
+        # Remove arguments that are already provided in func_kwargs
+        params = list(sig.parameters.values())
+        remaining = [p for p in params if p.name not in kwargs]
+        # Count required positional arguments (excluding self/cls)
+        required_positional = [
+            p
+            for p in remaining
+            if p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(required_positional) != 1:
+            raise ValueError(
+                f"Partial of {func.__name__} must be callable with exactly one required "
+                f"positional argument, we still need: {required_positional}."
+            )
 
     def call(self, **kwargs):
         data = kwargs[self.key]
