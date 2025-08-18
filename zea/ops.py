@@ -1296,7 +1296,7 @@ class Identity(Operation):
 
     def call(self, **kwargs) -> Dict:
         """Returns the input as is."""
-        return kwargs
+        return {}
 
 
 @ops_registry("merge")
