@@ -3099,6 +3099,6 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     iq_data_signal_complex = analytical_signal * ops.exp(phasor_exponent)
 
     # Split the complex signal into two channels
-    iq_data_two_channel = complex_to_channels(iq_data_signal_complex[..., 0])
+    iq_data_two_channel = complex_to_channels(ops.squeeze(iq_data_signal_complex, axis=-1))
 
     return iq_data_two_channel
