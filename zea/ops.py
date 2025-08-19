@@ -419,7 +419,7 @@ class Pipeline:
         if jit_kwargs is None:
             jit_kwargs = {}
 
-        if keras.backend.backend() == "jax" and self.static_params:
+        if keras.backend.backend() == "jax" and self.static_params != []:
             jit_kwargs = {"static_argnames": self.static_params}
 
         self.jit_kwargs = jit_kwargs
@@ -501,17 +501,18 @@ class Pipeline:
         )
 
     def prepend(self, operation: Operation):
-        """Prepend an operation to the pipeline."""
+        """Prepend an operation to the pipeline. This is not an in-place operation!"""
         self._pipeline_layers.insert(0, operation)
-        self.copy()
+        return self.copy()
 
     def append(self, operation: Operation):
-        """Append an operation to the pipeline."""
+        """Append an operation to the pipeline. This is not an in-place operation!"""
         self._pipeline_layers.append(operation)
-        self.copy()
+        return self.copy()
 
     def insert(self, index: int, operation: Operation):
-        """Insert an operation at a specific index in the pipeline."""
+        """Insert an operation at a specific index in the pipeline.
+        This is not an in-place operation!"""
         if index < 0 or index > len(self._pipeline_layers):
             raise IndexError("Index out of bounds for inserting operation.")
         self._pipeline_layers.insert(index, operation)
