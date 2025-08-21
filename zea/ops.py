@@ -1509,29 +1509,29 @@ class TOFCorrection(Operation):
 
         raw_data = kwargs[self.key]
 
-        kwargs = {
+        tof_kwargs = {
             "flatgrid": flatgrid,
-            "sound_speed": sound_speed,
-            "angles": polar_angles,
-            "focus_distances": focus_distances,
-            "sampling_frequency": sampling_frequency,
-            "fnum": f_number,
-            "apply_phase_rotation": self.apply_phase_rotation,
-            "demodulation_frequency": demodulation_frequency,
             "t0_delays": t0_delays,
             "tx_apodizations": tx_apodizations,
-            "initial_times": initial_times,
+            "sound_speed": sound_speed,
             "probe_geometry": probe_geometry,
+            "initial_times": initial_times,
+            "sampling_frequency": sampling_frequency,
+            "demodulation_frequency": demodulation_frequency,
+            "f_number": f_number,
+            "polar_angles": polar_angles,
+            "focus_distances": focus_distances,
+            "apply_phase_rotation": self.apply_phase_rotation,
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,
         }
 
         if not self.with_batch_dim:
-            tof_corrected = tof_correction(raw_data, **kwargs)
+            tof_corrected = tof_correction(raw_data, **tof_kwargs)
         else:
             tof_corrected = ops.map(
-                lambda data: tof_correction(data, **kwargs),
+                lambda data: tof_correction(data, **tof_kwargs),
                 raw_data,
             )
 
