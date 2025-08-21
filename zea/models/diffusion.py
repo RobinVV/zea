@@ -828,8 +828,7 @@ class DPS(DiffusionGuidance):
 
         Args:
             noisy_images: Noisy images.
-            measurement: Target measurement.
-            operator: Forward operator.
+            measurements: Target measurement.
             noise_rates: Current noise rates.
             signal_rates: Current signal rates.
             omega: Weight for the measurement error.
@@ -855,8 +854,7 @@ class DPS(DiffusionGuidance):
         Returns a function with the following signature:
             (
                 noisy_images,
-                measurement,
-                operator,
+                measurements,
                 noise_rates,
                 signal_rates,
                 omega,
