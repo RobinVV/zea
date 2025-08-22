@@ -284,7 +284,7 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
 
     Returns:
         ops.Tensor: The samples received by each transducer element corresponding to the
-            reflections of each pixel in the image of shape `(n_el, n_pix, n_ch)`.
+            reflections of each pixel in the image of shape `(n_pix, n_el, n_ch)`.
     """
 
     # Add a dummy channel dimension to the delays tensor to ensure it has the
@@ -314,7 +314,7 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
 
     # Gather pixel values
     # Here we extract for each transducer element the sample containing the
-    # reflection from each pixel. These are of shape `(n_el, n_pix, n_ch)`.
+    # reflection from each pixel. These are of shape `(n_pix, n_el, n_ch)`.
     data0 = ops.take_along_axis(data, d0, 0)
     data1 = ops.take_along_axis(data, d1, 0)
 
