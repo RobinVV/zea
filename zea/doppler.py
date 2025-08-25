@@ -1,0 +1,65 @@
+"""Doppler functions for processing I/Q ultrasound data."""
+
+import jax.numpy as jnp
+import numpy as np
+from keras import ops
+
+
+def iq2doppler(
+    data,
+    center_frequency,
+    pulse_repetition_frequency,
+    sound_speed,
+    hamming_size=None,
+    lag=1,
+):
+    """Compute Doppler from packet of I/Q Data.
+
+    Args:
+        data (ndarray): I/Q complex data of shape (grid_size_z, grid_size_x, n_frames).
+            n_frames corresponds to the ensemble length used to compute
+            the Doppler signal.
+        center_frequency (float): Center frequency of the ultrasound probe in Hz.
+        pulse_repetition_frequency (float): Pulse repetition frequency in Hz.
+        sound_speed (float): Speed of sound in the medium in m/s.
+        hamming_size (int or tuple, optional): Size of the Hamming window to apply
+            for spatial averaging. If None, no window is applied.
+            If an integer, it is applied to both dimensions. If a tuple, it should
+            contain two integers for the row and column dimensions.
+        lag (int, optional): Lag for the auto-correlation computation.
+            Defaults to 1, meaning Doppler is computed from the current frame
+            and the next frame.
+
+    Returns:
+        doppler_velocities (ndarray): Doppler velocity map of shape (grid_size_z, grid_size_x).
+
+    """
+    assert data.ndim == 3, "Data must be a 3-D array"
+    assert isinstance(lag, int) and lag >= 0, "Lag must be a positive integer"
+    assert data.shape[-1] > lag, "Data must have more frames than the lag"
+
+    if hamming_size is None:
+        hamming_size = np.array([1, 1])
+    elif np.isscalar(hamming_size):
+        hamming_size = np.array([hamming_size, hamming_size])
+    assert hamming_size.all() > 0 and np.all(hamming_size == np.round(hamming_size)), (
+        "hamming_size must contain integers > 0"
+    )
+
+    # Auto-correlation method
+    iq1 = data[:, :, : data.shape[-1] - lag]
+    iq2 = data[:, :, lag:]
+    autocorr = ops.sum(iq1 * ops.conj(iq2), axis=2)  # Ensemble auto-correlation
+
+    # Spatial weighted average
+    if hamming_size[0] != 1 and hamming_size[1] != 1:
+        h_row = np.hamming(hamming_size[0])
+        h_col = np.hamming(hamming_size[1])
+        autocorr = jnp.apply_along_axis(lambda x: ops.correlate(x, h_row, mode="same"), 0, autocorr)
+        autocorr = jnp.apply_along_axis(lambda x: ops.correlate(x, h_col, mode="same"), 1, autocorr)
+
+    # Doppler velocity
+    nyquist_velocities = sound_speed * pulse_repetition_frequency / (4 * center_frequency * lag)
+    doppler_velocities = -nyquist_velocities * ops.imag(ops.log(autocorr)) / np.pi
+
+    return doppler_velocities
