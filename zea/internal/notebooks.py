@@ -30,4 +30,5 @@ def animate_images(images, scan, interval=100, cmap="gray", default_mode="reflec
         interval=interval,
     )
     plt.close(fig)
-    return HTML(ani.to_jshtml(fps=1000 // interval, embed_frames=True, default_mode=default_mode))
+    fps = max(1, 1000 // interval)
+    return HTML(ani.to_jshtml(fps=fps, embed_frames=True, default_mode=default_mode))
