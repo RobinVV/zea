@@ -843,7 +843,7 @@ def main():
 
         filestem = Path(file.parent / f"{file.stem}_{title}_annotations.gif")
         np.save(filestem.with_suffix(".npy"), interpolated_masks)
-        print(f"Succesfully saved interpolated masks to {filestem.with_suffix('.npy')}")
+        print(f"Succesfully saved interpolated masks to {log.yellow(filestem.with_suffix('.npy'))}")
 
         fps = ask_save_animation_with_fps()
 
@@ -856,7 +856,7 @@ def main():
         )
         filename = filestem.with_suffix(".gif")
         ani.save(filename, writer="pillow")
-        print(f"Succesfully saved animation as {filename}")
+        print(f"Succesfully saved animation as {log.yellow(filename)}")
 
 
 if __name__ == "__main__":
