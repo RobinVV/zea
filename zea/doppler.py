@@ -72,7 +72,7 @@ def iq2doppler(
         autocorr = apply_along_axis(lambda x: correlate(x, h_col, mode="same"), 1, autocorr)
 
     # Doppler velocity
-    nyquist_velocities = sound_speed * pulse_repetition_frequency / (4 * center_frequency * lag)
+    nyquist_velocity = sound_speed * pulse_repetition_frequency / (4 * center_frequency * lag)
     phase = ops.arctan2(ops.imag(autocorr), ops.real(autocorr))
-    doppler_velocities = -nyquist_velocities * phase / np.pi
+    doppler_velocities = -nyquist_velocity * phase / np.pi
     return doppler_velocities
