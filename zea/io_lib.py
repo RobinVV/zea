@@ -14,7 +14,7 @@ import imageio
 import numpy as np
 import tqdm
 import yaml
-from PIL import Image
+from PIL import Image, ImageSequence
 
 from zea import log
 from zea.data.file import File
@@ -24,86 +24,100 @@ _SUPPORTED_IMG_TYPES = [".jpg", ".png", ".JPEG", ".PNG", ".jpeg"]
 _SUPPORTED_ZEA_TYPES = [".hdf5", ".h5"]
 
 
-def load_video(filename):
+def load_video(filename, mode="L"):
     """Load a video file and return a numpy array of frames.
 
     Supported file types: avi, mp4, gif.
 
     Args:
         filename (str): The path to the video file.
+        mode (str, optional): Color mode: "L" (grayscale), "RGB", or "BGR".
+            Defaults to "L".
 
     Returns:
-        numpy.ndarray: A numpy array of frames.
+        numpy.ndarray: Array of frames (num_frames, H, W) or (num_frames, H, W, C)
+
     Raises:
-        ValueError: If the file extension is not supported.
+        ValueError: If the file extension or mode is not supported.
     """
-    try:
-        import cv2
-    except ImportError as exc:
-        raise ImportError(
-            "OpenCV is required for video loading. "
-            "Please install it with 'pip install opencv-python' or "
-            "'pip install opencv-python-headless'."
-        ) from exc
+    ext = Path(filename).suffix.lower()
+    if ext not in _SUPPORTED_VID_TYPES:
+        raise ValueError(f"Unsupported file extension: {ext}")
 
-    filename = Path(filename)
-    assert Path(filename).exists(), f"File {filename} does not exist"
-    extension = filename.suffix
-    assert extension in _SUPPORTED_VID_TYPES, f"File extension {extension} not supported"
+    if mode not in {"L", "RGB", "BGR"}:
+        raise ValueError(f"Unsupported mode: {mode}")
 
-    if extension in [".avi", ".mp4"]:
-        cap = cv2.VideoCapture(filename)
-        frames = []
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frames.append(frame)
-        cap.release()
-    elif extension == ".gif":
-        frames = imageio.mimread(filename)
-    else:
-        raise ValueError("Unsupported file extension")
-    frames = [cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) for frame in frames]
-    return np.array(frames)
+    frames = []
+
+    if ext == ".gif":
+        with Image.open(filename) as im:
+            for frame in ImageSequence.Iterator(im):
+                frames.append(_convert_image_mode(frame, mode=mode))
+    else:  # .mp4, .avi
+        reader = imageio.get_reader(filename)
+        for frame in reader:
+            img = Image.fromarray(frame)
+            frames.append(_convert_image_mode(img, mode=mode))
+        reader.close()
+
+    return np.stack(frames, axis=0)
 
 
-def load_image(filename, grayscale=True, color_order="RGB"):
+def load_image(filename, mode="L"):
     """Load an image file and return a numpy array.
 
     Supported file types: jpg, png.
 
     Args:
         filename (str): The path to the image file.
-        grayscale (bool, optional): Whether to convert the image to grayscale. Defaults to True.
-        color_order (str, optional): The desired color channel ordering. Defaults to 'RGB'.
+        mode (str, optional): Color mode: "L" (grayscale), "RGB", or "BGR".
+            Defaults to "L".
 
     Returns:
         numpy.ndarray: A numpy array of the image.
 
     Raises:
-        ValueError: If the file extension is not supported.
+        ValueError: If the file extension or mode is not supported.
     """
     filename = Path(filename)
     assert filename.exists(), f"File {filename} does not exist"
-    extension = filename.suffix
-    assert extension in _SUPPORTED_IMG_TYPES, f"File extension {extension} not supported"
+    extension = filename.suffix.lower()
+    allowed_exts = {ext.lower() for ext in _SUPPORTED_IMG_TYPES}
+    assert extension in allowed_exts, f"File extension {extension} not supported"
 
-    img = Image.open(filename)
+    if mode not in {"L", "RGB", "BGR"}:
+        raise ValueError(f"Unsupported mode: {mode}")
 
-    if grayscale:
+    with Image.open(filename) as img:
+        return _convert_image_mode(img, mode=mode)
+
+
+def _rgb_to_bgr(array):
+    """Convert an RGB image array to BGR.
+
+    Args:
+        array (ndarray): Input RGB image array.
+
+    Returns:
+        ndarray: Converted BGR image array.
+    """
+    return array[..., ::-1]
+
+
+def _convert_image_mode(img, mode="L"):
+    """Convert a PIL Image to the specified mode and return as numpy array."""
+    if mode not in {"L", "RGB", "BGR"}:
+        raise ValueError(f"Unsupported mode: {mode}")
+    if mode == "L":
         img = img.convert("L")
-        image = np.array(img)
-        return image
-
-    img = img.convert("RGB")
-    image = np.array(img)
-    if color_order == "BGR":
-        image = image[..., ::-1]
-    elif color_order != "RGB":
-        raise ValueError(f"Unsupported color order: {color_order}")
-
-    return image
+        arr = np.array(img)
+    elif mode == "RGB":
+        img = img.convert("RGB")
+        arr = np.array(img)
+    elif mode == "BGR":
+        img = img.convert("RGB")
+        arr = _rgb_to_bgr(np.array(img))
+    return arr
 
 
 def search_file_tree(
