@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from IPython.display import HTML
 from matplotlib import animation
 
 
-def animate_images(images, scan, interval=100, cmap="gray", default_mode="reflect"):
+def animate_images(images, path, scan, interval=100, cmap="gray"):
     """Helper function to animate a list of images."""
     if interval <= 0:
         raise ValueError("interval must be a positive integer (milliseconds).")
@@ -35,4 +34,5 @@ def animate_images(images, scan, interval=100, cmap="gray", default_mode="reflec
     )
     plt.close(fig)
     fps = max(1, 1000 // interval)
-    return HTML(ani.to_jshtml(fps=fps, embed_frames=True, default_mode=default_mode))
+
+    ani.save(path, writer="imagemagick", fps=fps)
