@@ -250,10 +250,13 @@ def add_shape_from_mask(ax, mask, **kwargs):
     Returns:
         plt.ax: matplotlib axis with shape added
     """
-    # Create a Path patch
-    contours = measure.find_contours(mask, 0.5)
+    # Pad mask to ensure edge contours are found
+    padded_mask = np.pad(mask, pad_width=1, mode="constant", constant_values=0)
+    contours = measure.find_contours(padded_mask, 0.5)
     patches = []
     for contour in contours:
+        # Remove padding offset
+        contour -= 1
         path = pltPath(contour[:, ::-1])
         patch = PathPatch(path, **kwargs)
         patches.append(ax.add_patch(patch))
