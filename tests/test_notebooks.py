@@ -56,7 +56,7 @@ NOTEBOOK_PARAMETERS = {
     "zea_local_data.ipynb": {
         "config_picmus_rf": f"{CONFIG_DIR}/config_picmus_rf.yaml",
     },
-    "doppler.ipynb": {
+    "doppler_example.ipynb": {
         "n_frames": 3,
         "n_transmits": 2,
     },
