@@ -45,7 +45,8 @@ def iq2doppler(
 
     """
     assert data.ndim == 3, "Data must be a 3-D array"
-    assert isinstance(lag, int) and lag >= 0, "Lag must be a positive integer"
+    if not (isinstance(lag, int) and lag >= 1):
+        raise ValueError("lag must be an integer >= 1")
     assert data.shape[-1] > lag, "Data must have more frames than the lag"
 
     if hamming_size is None:
