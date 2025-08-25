@@ -50,12 +50,14 @@ def iq2doppler(
     assert data.shape[-1] > lag, "Data must have more frames than the lag"
 
     if hamming_size is None:
-        hamming_size = np.array([1, 1])
+        hamming_size = np.array([1, 1], dtype=int)
     elif np.isscalar(hamming_size):
-        hamming_size = np.array([hamming_size, hamming_size])
-    assert hamming_size.all() > 0 and np.all(hamming_size == np.round(hamming_size)), (
-        "hamming_size must contain integers > 0"
-    )
+        hamming_size = np.array([int(hamming_size), int(hamming_size)], dtype=int)
+    else:
+        assert len(hamming_size) == 2, "hamming_size must be an integer or a tuple of two integers"
+        hamming_size = np.array(hamming_size, dtype=int)
+    if not np.all(hamming_size > 0):
+        raise ValueError("hamming_size must contain integers > 0")
 
     # Auto-correlation method
     iq1 = data[:, :, : data.shape[-1] - lag]
