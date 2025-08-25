@@ -84,30 +84,23 @@ def load_image(filename, grayscale=True, color_order="RGB"):
     Raises:
         ValueError: If the file extension is not supported.
     """
-    try:
-        import cv2
-    except ImportError as exc:
-        raise ImportError(
-            "OpenCV is required for image loading. "
-            "Please install it with 'pip install opencv-python' or "
-            "'pip install opencv-python-headless'."
-        ) from exc
-
     filename = Path(filename)
-    assert Path(filename).exists(), f"File {filename} does not exist"
+    assert filename.exists(), f"File {filename} does not exist"
     extension = filename.suffix
     assert extension in _SUPPORTED_IMG_TYPES, f"File extension {extension} not supported"
 
-    image = cv2.imread(str(filename))
+    img = Image.open(filename)
 
-    if grayscale and len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    if grayscale:
+        img = img.convert("L")
+        image = np.array(img)
+        return image
 
+    img = img.convert("RGB")
+    image = np.array(img)
     if color_order == "BGR":
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    elif color_order == "RGB":
-        pass
-    else:
+        image = image[..., ::-1]
+    elif color_order != "RGB":
         raise ValueError(f"Unsupported color order: {color_order}")
 
     return image
@@ -267,7 +260,7 @@ def search_file_tree(
     return dataset_info
 
 
-def matplotlib_figure_to_numpy(fig):
+def matplotlib_figure_to_numpy(fig, **kwargs):
     """Convert matplotlib figure to numpy array.
 
     Args:
@@ -278,7 +271,7 @@ def matplotlib_figure_to_numpy(fig):
 
     """
     buf = BytesIO()
-    fig.savefig(buf, format="png")
+    fig.savefig(buf, format="png", bbox_inches="tight", **kwargs)
     buf.seek(0)
     image = Image.open(buf).convert("RGB")
     image = np.array(image)[..., :3]
