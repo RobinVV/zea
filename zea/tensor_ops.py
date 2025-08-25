@@ -1270,6 +1270,14 @@ def L2(x):
     return ops.sqrt(ops.sum(x**2))
 
 
+def L1(x):
+    """L1 norm of a tensor.
+
+    Implementation of L1 norm: https://mathworld.wolfram.com/L1-Norm.html
+    """
+    return ops.sum(ops.abs(x))
+
+
 def linear_sum_assignment(cost):
     """Greedy linear sum assignment.
 
