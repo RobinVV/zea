@@ -1450,7 +1450,7 @@ def correlate(x, y, mode="full"):
     if mode == "same":
         # Return output of length max(M, N)
         target_len = ops.maximum(x_len, y_len)
-        start = ops.ceil((full_length - target_len) / 2)
+        start = ops.floor((full_length - target_len) / 2)
         start = ops.cast(start, "int32")
         end = start + target_len
         complex_tensor = complex_tensor[start:end]
