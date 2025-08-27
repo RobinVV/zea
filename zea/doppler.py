@@ -1,20 +1,12 @@
 """Doppler functions for processing I/Q ultrasound data."""
 
-import keras
 import numpy as np
 from keras import ops
 
-if keras.backend.backend() == "jax":
-    import jax.numpy as jnp
-
-    apply_along_axis = jnp.apply_along_axis
-    correlate = ops.correlate
-else:
-    apply_along_axis = np.apply_along_axis
-    correlate = np.correlate
+from zea import tensor_ops
 
 
-def iq2doppler(
+def color_doppler(
     data,
     center_frequency,
     pulse_repetition_frequency,
@@ -22,10 +14,10 @@ def iq2doppler(
     hamming_size=None,
     lag=1,
 ):
-    """Compute Doppler from packet of I/Q Data.
+    """Compute Color Doppler from packet of I/Q Data.
 
     Args:
-        data (ndarray): I/Q complex data of shape (grid_size_z, grid_size_x, n_frames).
+        data (ndarray): I/Q complex data of shape (n_frames, grid_size_z, grid_size_x).
             n_frames corresponds to the ensemble length used to compute
             the Doppler signal.
         center_frequency (float): Center frequency of the ultrasound probe in Hz.
@@ -47,7 +39,8 @@ def iq2doppler(
     assert data.ndim == 3, "Data must be a 3-D array"
     if not (isinstance(lag, int) and lag >= 1):
         raise ValueError("lag must be an integer >= 1")
-    assert data.shape[-1] > lag, "Data must have more frames than the lag"
+    n_frames = data.shape[0]
+    assert n_frames > lag, "Data must have more frames than the lag"
 
     if hamming_size is None:
         hamming_size = np.array([1, 1], dtype=int)
@@ -60,16 +53,20 @@ def iq2doppler(
         raise ValueError("hamming_size must contain integers > 0")
 
     # Auto-correlation method
-    iq1 = data[:, :, : data.shape[-1] - lag]
-    iq2 = data[:, :, lag:]
-    autocorr = ops.sum(iq1 * ops.conj(iq2), axis=2)  # Ensemble auto-correlation
+    iq1 = data[: n_frames - lag]
+    iq2 = data[lag:]
+    autocorr = ops.sum(iq1 * ops.conj(iq2), axis=0)  # Ensemble auto-correlation
 
     # Spatial weighted average
     if hamming_size[0] != 1 and hamming_size[1] != 1:
         h_row = np.hamming(hamming_size[0])
         h_col = np.hamming(hamming_size[1])
-        autocorr = apply_along_axis(lambda x: correlate(x, h_row, mode="same"), 0, autocorr)
-        autocorr = apply_along_axis(lambda x: correlate(x, h_col, mode="same"), 1, autocorr)
+        autocorr = tensor_ops.apply_along_axis(
+            lambda x: tensor_ops.correlate(x, h_row, mode="same"), 0, autocorr
+        )
+        autocorr = tensor_ops.apply_along_axis(
+            lambda x: tensor_ops.correlate(x, h_col, mode="same"), 1, autocorr
+        )
 
     # Doppler velocity
     nyquist_velocity = sound_speed * pulse_repetition_frequency / (4 * center_frequency * lag)
