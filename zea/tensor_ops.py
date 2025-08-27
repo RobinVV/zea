@@ -1,6 +1,5 @@
 """Basic tensor operations implemented with the multi-backend ``keras.ops``."""
 
-import math
 from typing import Tuple, Union
 
 import keras
@@ -1451,13 +1450,15 @@ def correlate(x, y, mode="full"):
     if mode == "same":
         # Return output of length max(M, N)
         target_len = ops.maximum(x_len, y_len)
-        start = math.ceil((full_length - target_len) / 2)
+        start = ops.ceil((full_length - target_len) / 2)
+        start = ops.cast(start, "int32")
         end = start + target_len
         complex_tensor = complex_tensor[start:end]
     elif mode == "valid":
         # Return output of length max(M, N) - min(M, N) + 1
         target_len = ops.maximum(x_len, y_len) - ops.minimum(x_len, y_len) + 1
-        start = math.ceil((full_length - target_len) / 2)
+        start = ops.ceil((full_length - target_len) / 2)
+        start = ops.cast(start, "int32")
         end = start + target_len
         complex_tensor = complex_tensor[start:end]
     # For "full" mode, use the entire result (no slicing needed)
