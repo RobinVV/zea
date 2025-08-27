@@ -104,9 +104,6 @@ def test_load_image_basic(temp_image):
     assert arr.shape == (32, 32)
     arr_rgb = load_image(temp_image, mode="RGB")
     assert arr_rgb.shape == (32, 32, 3)
-    arr_bgr = load_image(temp_image, mode="BGR")
-    assert arr_bgr.shape == (32, 32, 3)
-    assert not np.array_equal(arr_rgb, arr_bgr)
 
 
 def test_load_video_gif(temp_gif):
@@ -123,6 +120,3 @@ def test_load_video_mp4(temp_mp4):
     assert arr.shape[1:] == (16, 16)
     arr_rgb = load_video(temp_mp4, mode="RGB")
     assert arr_rgb.shape == (5, 16, 16, 3)
-    arr_bgr = load_video(temp_mp4, mode="BGR")
-    assert arr_bgr.shape == (5, 16, 16, 3)
-    assert not np.array_equal(arr_rgb, arr_bgr)

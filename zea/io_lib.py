@@ -31,7 +31,7 @@ def load_video(filename, mode="L"):
 
     Args:
         filename (str): The path to the video file.
-        mode (str, optional): Color mode: "L" (grayscale), "RGB", or "BGR".
+        mode (str, optional): Color mode: "L" (grayscale) or "RGB".
             Defaults to "L".
 
     Returns:
@@ -44,7 +44,7 @@ def load_video(filename, mode="L"):
     if ext not in _SUPPORTED_VID_TYPES:
         raise ValueError(f"Unsupported file extension: {ext}")
 
-    if mode not in {"L", "RGB", "BGR"}:
+    if mode not in {"L", "RGB"}:
         raise ValueError(f"Unsupported mode: {mode}")
 
     frames = []
@@ -70,7 +70,7 @@ def load_image(filename, mode="L"):
 
     Args:
         filename (str): The path to the image file.
-        mode (str, optional): Color mode: "L" (grayscale), "RGB", or "BGR".
+        mode (str, optional): Color mode: "L" (grayscale) or "RGB".
             Defaults to "L".
 
     Returns:
@@ -85,38 +85,23 @@ def load_image(filename, mode="L"):
     allowed_exts = {ext.lower() for ext in _SUPPORTED_IMG_TYPES}
     assert extension in allowed_exts, f"File extension {extension} not supported"
 
-    if mode not in {"L", "RGB", "BGR"}:
+    if mode not in {"L", "RGB"}:
         raise ValueError(f"Unsupported mode: {mode}")
 
     with Image.open(filename) as img:
         return _convert_image_mode(img, mode=mode)
 
 
-def _rgb_to_bgr(array):
-    """Convert an RGB image array to BGR.
-
-    Args:
-        array (ndarray): Input RGB image array.
-
-    Returns:
-        ndarray: Converted BGR image array.
-    """
-    return array[..., ::-1]
-
-
 def _convert_image_mode(img, mode="L"):
     """Convert a PIL Image to the specified mode and return as numpy array."""
-    if mode not in {"L", "RGB", "BGR"}:
-        raise ValueError(f"Unsupported mode: {mode}")
+    if mode not in {"L", "RGB"}:
+        raise ValueError(f"Unsupported mode: {mode}, must be one of: L, RGB")
     if mode == "L":
         img = img.convert("L")
         arr = np.array(img)
     elif mode == "RGB":
         img = img.convert("RGB")
         arr = np.array(img)
-    elif mode == "BGR":
-        img = img.convert("RGB")
-        arr = _rgb_to_bgr(np.array(img))
     return arr
 
 
