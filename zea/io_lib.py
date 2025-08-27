@@ -40,7 +40,11 @@ def load_video(filename, mode="L"):
     Raises:
         ValueError: If the file extension or mode is not supported.
     """
-    ext = Path(filename).suffix.lower()
+    filename = Path(filename)
+    if not filename.exists():
+        raise FileNotFoundError(f"File {filename} does not exist")
+    ext = filename.suffix.lower()
+
     if ext not in _SUPPORTED_VID_TYPES:
         raise ValueError(f"Unsupported file extension: {ext}")
 
@@ -80,10 +84,12 @@ def load_image(filename, mode="L"):
         ValueError: If the file extension or mode is not supported.
     """
     filename = Path(filename)
-    assert filename.exists(), f"File {filename} does not exist"
+    if not filename.exists():
+        raise FileNotFoundError(f"File {filename} does not exist")
     extension = filename.suffix.lower()
     allowed_exts = {ext.lower() for ext in _SUPPORTED_IMG_TYPES}
-    assert extension in allowed_exts, f"File extension {extension} not supported"
+    if extension not in allowed_exts:
+        raise ValueError(f"File extension {extension} not supported")
 
     if mode not in {"L", "RGB"}:
         raise ValueError(f"Unsupported mode: {mode}")
