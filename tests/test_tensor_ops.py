@@ -512,8 +512,6 @@ def test_apply_along_axis(array, axis, fn):
 @pytest.mark.parametrize("mode", ["valid", "same", "full"])
 def test_correlate(mode):
     """Test the correlate function with random complex vectors against np.correlate."""
-    from keras import ops
-
     from zea import tensor_ops
 
     # Set random seed for reproducibility
@@ -523,10 +521,7 @@ def test_correlate(mode):
     a_real = np.random.randn(10).astype(np.float32)
     v_real = np.random.randn(7).astype(np.float32)
 
-    a_tensor = ops.convert_to_tensor(a_real)
-    v_tensor = ops.convert_to_tensor(v_real)
-
-    result_real = tensor_ops.correlate(a_tensor, v_tensor, mode=mode)
+    result_real = tensor_ops.correlate(a_real, v_real, mode=mode)
     expected_real = np.correlate(a_real, v_real, mode=mode)
 
     np.testing.assert_allclose(result_real, expected_real, rtol=1e-5, atol=1e-5)

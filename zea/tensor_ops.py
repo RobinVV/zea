@@ -1,5 +1,6 @@
 """Basic tensor operations implemented with the multi-backend ``keras.ops``."""
 
+import math
 from typing import Tuple, Union
 
 import keras
@@ -1413,26 +1414,20 @@ def correlate(x, y, mode="full"):
         y: np.ndarray (complex or real)
         mode: "full", "valid", or "same"
     """
+    x = ops.convert_to_tensor(x)
+    y = ops.convert_to_tensor(y)
+
     is_complex = "complex" in ops.dtype(x) or "complex" in ops.dtype(y)
 
     # Split into real and imaginary
     xr, xi = ops.real(x), ops.imag(x)
     yr, yi = ops.real(y), ops.imag(y)
 
-    # Manual padding based on mode
-    if mode == "full":
-        # For full mode, pad x with zeros to get full convolution
-        pad_left = ops.shape(y)[0] - 1
-        pad_right = ops.shape(y)[0] - 1
-        xr = ops.pad(xr, [[pad_left, pad_right]])
-        xi = ops.pad(xi, [[pad_left, pad_right]])
-    elif mode == "same":
-        # For same mode, pad to keep output same size as x
-        pad_total = ops.shape(y)[0] - 1
-        pad_right = pad_total // 2
-        pad_left = pad_total - pad_right
-        xr = ops.pad(xr, [[pad_left, pad_right]])
-        xi = ops.pad(xi, [[pad_left, pad_right]])
+    # Pad to do full correlation
+    pad_left = ops.shape(y)[0] - 1
+    pad_right = ops.shape(y)[0] - 1
+    xr = ops.pad(xr, [[pad_left, pad_right]])
+    xi = ops.pad(xi, [[pad_left, pad_right]])
 
     # Correlation: sum over x[n] * conj(y[n+k])
     rr = ops.correlate(xr, yr, mode="valid")
@@ -1447,6 +1442,25 @@ def correlate(x, y, mode="full"):
     imag_part = ops.cast(imag_part, "complex64")
 
     complex_tensor = real_part + 1j * imag_part
+
+    # Extract relevant part based on mode
+    full_length = ops.shape(real_part)[0]
+    x_len = ops.shape(x)[0]
+    y_len = ops.shape(y)[0]
+
+    if mode == "same":
+        # Return output of length max(M, N)
+        target_len = ops.maximum(x_len, y_len)
+        start = math.ceil((full_length - target_len) / 2)
+        end = start + target_len
+        complex_tensor = complex_tensor[start:end]
+    elif mode == "valid":
+        # Return output of length max(M, N) - min(M, N) + 1
+        target_len = ops.maximum(x_len, y_len) - ops.minimum(x_len, y_len) + 1
+        start = math.ceil((full_length - target_len) / 2)
+        end = start + target_len
+        complex_tensor = complex_tensor[start:end]
+    # For "full" mode, use the entire result (no slicing needed)
 
     if is_complex:
         return complex_tensor
