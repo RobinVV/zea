@@ -1333,13 +1333,13 @@ def apply_along_axis(func1d, axis, arr, *args, **kwargs):
     Keras implementation of numpy.apply_along_axis using keras.ops.vectorized_map.
 
     Args:
-        func1d: a callable function with signature func1d(arr, /, *args, **kwargs)
-            where *args and **kwargs are the additional positional and keyword
+        func1d: A callable function with signature ``func1d(arr, /, *args, **kwargs)``
+            where ``*args`` and ``**kwargs`` are the additional positional and keyword
             arguments passed to apply_along_axis.
-        axis: integer axis along which to apply the function.
-        arr: the array over which to apply the function.
-        args, kwargs: additional positional and keyword arguments are passed through
-            to func1d.
+        axis: Integer axis along which to apply the function.
+        arr: The array over which to apply the function.
+        *args: Additional positional arguments passed through to func1d.
+        **kwargs: Additional keyword arguments passed through to func1d.
 
     Returns:
         The result of func1d applied along the specified axis.
