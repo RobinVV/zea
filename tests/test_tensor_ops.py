@@ -494,18 +494,20 @@ def test_apply_along_axis(array, axis, fn):
 
     if fn == "sum":
         fn = ops.sum
+        np_fn = np.sum
     elif fn == "var":
         fn = ops.var
+        np_fn = np.var
     elif fn == "argmax":
         fn = ops.argmax
+        np_fn = np.argmax
     else:
         raise ValueError(f"Function {fn} not recognized.")
 
     # Simple test: sum along axis
     array = array.astype(np.float32)
-    fn = ops.sum
     result = tensor_ops.apply_along_axis(fn, axis, array)
-    expected = np.apply_along_axis(fn, axis, array)
+    expected = np.apply_along_axis(np_fn, axis, array)
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
 
 
