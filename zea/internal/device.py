@@ -64,6 +64,7 @@ def get_gpu_memory(verbose=True):
 
     Returns:
         memory_free_values: list of available memory for each gpu in MiB.
+        Returns empty list if nvidia-smi is not available.
     """
     if not check_nvidia_smi():
         log.warning(
@@ -77,7 +78,11 @@ def get_gpu_memory(verbose=True):
 
     COMMAND = "nvidia-smi --query-gpu=memory.free --format=csv"
 
-    memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+    try:
+        memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+    except sp.CalledProcessError as e:
+        log.warning(f"Failed to retrieve GPU memory: {e}")
+        return []
 
     memory_free_values = [int(x.split()[0]) for i, x in enumerate(memory_free_info)]
 
@@ -259,7 +264,7 @@ def get_device(device="auto:1", verbose=True, hide_others=True):
         print("-" * 2 + header.center(50 - 4, "-") + "-" * 2)
 
     memory = get_gpu_memory(verbose=verbose)
-    if memory is None:  # nvidia-smi not working, fallback to CPU
+    if len(memory) == 0:  # nvidia-smi not working, fallback to CPU
         return _cpu_case()
 
     gpu_ids = list(range(len(memory)))
