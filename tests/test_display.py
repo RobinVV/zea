@@ -73,14 +73,16 @@ def create_radial_pattern(size):
     """Creates a radial pattern for testing scan conversion."""
     x, y = np.meshgrid(np.linspace(-1, 1, size[0]), np.linspace(-1, 1, size[1]))
     r = np.sqrt(x**2 + y**2)
-    return np.exp(-(r**2))
+    image = np.exp(-(r**2))
+    return image.astype("float32")
 
 
 def create_concentric_rings(size):
     """Creates a ring pattern for testing scan conversion."""
     x, y = np.meshgrid(np.linspace(-1, 1, size[0]), np.linspace(-1, 1, size[1]))
     r = np.sqrt(x**2 + y**2)
-    return np.sin(10 * r) ** 2
+    image = np.sin(10 * r) ** 2
+    return image.astype("float32")
 
 
 @pytest.mark.parametrize(
