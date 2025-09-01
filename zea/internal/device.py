@@ -76,11 +76,10 @@ def get_gpu_memory(verbose=True):
     def _output_to_list(x):
         return x.decode("ascii").split("\n")[:-1]
 
-    COMMAND = "nvidia-smi --query-gpu=memory.free --format=csv"
-
+    COMMAND = ["nvidia-smi", "--query-gpu=memory.free", "--format=csv"]
     try:
-        memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
-    except Exception as e:
+        memory_free_info = _output_to_list(sp.check_output(COMMAND, timeout=3))[1:]
+    except sp.SubprocessError as e:
         log.warning(f"Failed to retrieve GPU memory: {e}")
         return []
 
