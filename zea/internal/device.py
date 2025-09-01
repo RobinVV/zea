@@ -71,7 +71,7 @@ def get_gpu_memory(verbose=True):
             "nvidia-smi is not available. Please install nvidia-utils. "
             "Cannot retrieve GPU memory. Falling back to CPU.."
         )
-        return None
+        return []
 
     def _output_to_list(x):
         return x.decode("ascii").split("\n")[:-1]
