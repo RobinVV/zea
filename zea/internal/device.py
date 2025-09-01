@@ -255,7 +255,7 @@ def get_device(device="auto:1", verbose=True, hide_others=True):
             os.environ["CUDA_VISIBLE_DEVICES"] = ""
         # returns None to indicate CPU
 
-    if device.lower() == "cpu":
+    if isinstance(device, str) and device.lower() == "cpu":
         return _cpu_case()
 
     if verbose:
