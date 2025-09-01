@@ -80,7 +80,7 @@ def get_gpu_memory(verbose=True):
 
     try:
         memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
-    except sp.CalledProcessError as e:
+    except Exception as e:
         log.warning(f"Failed to retrieve GPU memory: {e}")
         return []
 
