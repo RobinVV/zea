@@ -69,7 +69,7 @@ def get_gpu_memory(verbose=True):
     if not check_nvidia_smi():
         log.warning(
             "nvidia-smi is not available. Please install nvidia-utils. "
-            "Cannot retrieve GPU memory. Falling back to CPU.."
+            "Cannot retrieve GPU memory. Falling back to CPU."
         )
         return []
 
@@ -84,6 +84,10 @@ def get_gpu_memory(verbose=True):
         return []
 
     memory_free_values = [int(x) for x in memory_free_info]
+
+    if verbose:
+        header = "GPU settings"
+        print("-" * 2 + header.center(50 - 4, "-") + "-" * 2)
 
     # only show enabled devices
     if os.environ.get("CUDA_VISIBLE_DEVICES", "") != "":
@@ -257,10 +261,6 @@ def get_device(device="auto:1", verbose=True, hide_others=True):
 
     if isinstance(device, str) and device.lower() == "cpu":
         return _cpu_case()
-
-    if verbose:
-        header = "GPU settings"
-        print("-" * 2 + header.center(50 - 4, "-") + "-" * 2)
 
     memory = get_gpu_memory(verbose=verbose)
     if len(memory) == 0:  # nvidia-smi not working, fallback to CPU
