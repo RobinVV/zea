@@ -95,10 +95,12 @@ def get_gpu_memory(verbose=True):
         gpus = [int(gpu) for gpu in gpus.split(",")][: len(memory_free_values)]
         if verbose:
             # Report the number of disabled GPUs out of the total
-            num_disabled_gpus = len(memory_free_values) - len(gpus)
             num_gpus = len(memory_free_values)
-
-            print(f"{num_disabled_gpus / num_gpus} GPUs were disabled")
+            num_disabled_gpus = num_gpus - len(gpus)
+            if num_gpus > 0:
+                print(f"{num_disabled_gpus}/{num_gpus} GPUs were disabled")
+            else:
+                print("No GPUs detected by nvidia-smi.")
 
         memory_free_values = [memory_free_values[gpu] for gpu in gpus]
 
