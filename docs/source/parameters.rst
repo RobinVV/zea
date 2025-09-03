@@ -137,6 +137,13 @@ Parameters Reference
      - The file extension to use when saving the video (mp4, gif)
    * - ``scan``
      - The scan section contains the parameters pertaining to the reconstruction.
+<<<<<<< HEAD
+   * - ``scan.grid_size_x``
+     - The number of pixels in the beamforming grid in the x-direction
+   * - ``scan.grid_size_z``
+     - The number of pixels in the beamforming grid in the z-direction
+=======
+>>>>>>> a6696b2b (Start fresh)
    * - ``scan.apply_lens_correction``
      - Set to true to apply lens correction in the time-of-flight calculation
    * - ``scan.center_frequency``
@@ -147,10 +154,13 @@ Parameters Reference
      - The receive f-number for apodization. Set to zero to disable masking. The f-number is the ratio between the distance from the transducer and the size of the aperture.
    * - ``scan.fill_value``
      - Value to fill the image with outside the defined region (float, default 0.0).
+<<<<<<< HEAD
+=======
    * - ``scan.grid_size_x``
      - The number of pixels in the beamforming grid in the x-direction
    * - ``scan.grid_size_z``
      - The number of pixels in the beamforming grid in the z-direction
+>>>>>>> a6696b2b (Start fresh)
    * - ``scan.lens_sound_speed``
      - The speed of sound in the lens in m/s. Usually around 1000 m/s
    * - ``scan.lens_thickness``

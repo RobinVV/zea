@@ -3248,6 +3248,200 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     iq_data_two_channel = complex_to_channels(ops.squeeze(iq_data_signal_complex, axis=-1))
 
     return iq_data_two_channel
+<<<<<<< HEAD
+=======
+
+
+@ops_registry("phase_error")
+class PhaseError(Operation):
+    """Calculate the phase error between translated transmit and receive apertures with
+    Common midpoint. Only works for multistatic data."""
+
+    def _init_(
+        self,
+        reshape_grid=True,
+        **kwargs,
+    ):
+        super()._init_(
+            input_data_type=None,
+            # DataTypes.IMAGE, because we have a image of the phase map
+            output_data_type=DataTypes.image,
+            **kwargs,
+        )
+        self.reshape_grid = reshape_grid
+
+    def create_subapertures(self, data, halfsa, dx):
+        """Create subapertures from the data.
+        Args:
+            data (ops.Tensor): The data to create subapertures from.
+            halfsa (int): The half of the subaperture.
+            dx (float): The spacing between the subapertures.
+        Returns:
+            transmit_subap (ops.Tensor): The transmit subapertures.
+            receive_subap (ops.Tensor): The receive subapertures.
+        """
+        n_tx, n_pix, n_rx, n_ch = data.shape
+        receive_subaps = ops.zeros((n_rx, n_tx))
+        for diag in range(-halfsa, halfsa + 1):
+            receive_subaps = receive_subaps + ops.diag(ops.ones((n_rx - abs(diag),)), diag)
+        receive_subaps = receive_subaps[halfsa : receive_subaps.shape[0] - halfsa : dx]
+        transmit_subaps = receive_subaps[::-1]
+        return transmit_subaps, receive_subaps
+
+    def process_phase_map(self, data, **kwargs):
+        """Create the common midpoint subaperture phase error map.
+        Args:
+            data (ops.Tensor): The data to create the phase error map from.
+        Returns:
+            phase_error_map (ops.Tensor): The phase error map.
+        """
+        transmit_subaps, receive_subaps = self.create_subapertures(data, 8, 1)
+        complex_data = ops.view_as_complex(data)  # [n_tx, n_pix, n_rx, n_ch] -> [n_rtx, n_pix, r_x]
+
+        complex_data = ops.transpose(complex_data, (2, 0, 1))  # [n_rx, n_tx, n_pix]
+        rx_zero_count = ops.matmul(receive_subaps, (complex_data == 0).astype(int))
+
+        rx_valid = rx_zero_count <= 1
+        complex_data_rx = ops.matmul(receive_subaps, complex_data)
+        complex_data_rx = ops.where(rx_valid, complex_data_rx, 0)
+        complex_data_rx = ops.transpose(complex_data_rx, (1, 0, 2))  # [n_tx, n_subap_rx, n_pix]
+        tx_zero_count = ops.matmul(transmit_subaps, (complex_data_rx == 0).astype(int))
+        tx_valid = tx_zero_count <= 1
+
+        data = ops.matmul(transmit_subaps, complex_data_rx)
+        data = ops.where(tx_valid, data, 0)
+        data = ops.transpose(data, (1, 0, 2))  # [n_subap_tx, n_subap, n_pix]
+
+        a = data[:-1, :-1]
+        b = data[1:, 1:]
+        valid = (a != 0) & (b != 0)
+
+        xy = a * ops.conj(b)
+        xy = ops.where(valid, xy, 0)
+        dphi = ops.angle(xy)
+        dphi = ops.abs(dphi)
+
+        dphi = ops.sum(dphi, (0, 1)) / ops.sum(valid, (0, 1)).astype(dphi.dtype)
+        return dphi
+
+    def call(
+        self,
+        **kwargs,
+    ):
+        data = kwargs[self.key]
+        pemap = self.process_phase_map(data)
+        return {self.output_key: pemap}
+
+
+@ops_registry("speckle_brightness")
+class SpeckleBrightness(Operation):
+    """
+    Speckle brightness: mean magnitude across (tx, rx).
+    Expects multistatic aligned data (n_tx, n_pix, n_rx, 2).
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            input_data_type=None,
+            output_data_type=DataTypes.IMAGE,
+            **kwargs,
+        )
+
+    def compute_sb(self, data):
+        iq = ops.view_as_complex(data)  # (n_tx, n_pix, n_rx)
+        iq = ops.mean(iq, axis=(0, 2))  # Average over tx
+        mag = ops.abs(iq)
+        return -mag
+
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        if self.with_batch_dim:
+            out = ops.map(lambda d: self.compute_sb(d), data)
+        else:
+            out = self.compute_sb(data)
+        return {self.output_key: out}
+
+
+@ops_registry("correlation_coefficient")
+class CorrelationCoefficient(Operation):
+    """
+    Correlation coefficient between neighboring common-midpoint subapertures.
+    Directly on multistatic aligned data (n_tx, n_pix, n_rx, 2).
+
+    Steps:
+      1. Form TX/RX subapertures (halfsa, dx).
+      2. Project RX then TX.
+      3. Correlate (i,i) with (i+1,i+1); average over pairs.
+    Output: (n_pix,)
+    """
+
+    def __init__(self, halfsa=8, dx=1, **kwargs):
+        super().__init__(
+            input_data_type=None,
+            output_data_type=DataTypes.IMAGE,
+            **kwargs,
+        )
+        self.halfsa = halfsa
+        self.dx = dx
+
+    def create_subapertures(self, data, halfsa, dx):
+        """Create subapertures from the data.
+        Args:
+            data (ops.Tensor): The data to create subapertures from.
+            halfsa (int): The half of the subaperture.
+            dx (float): The spacing between the subapertures.
+        Returns:
+            transmit_subap (ops.Tensor): The transmit subapertures.
+            receive_subap (ops.Tensor): The receive subapertures.
+        """
+        n_tx, n_pix, n_rx, n_ch = data.shape
+        receive_subaps = ops.zeros((n_rx, n_tx))
+        for diag in range(-halfsa, halfsa + 1):
+            receive_subaps = receive_subaps + ops.diag(ops.ones((n_rx - abs(diag),)), diag)
+        receive_subaps = receive_subaps[halfsa : receive_subaps.shape[0] - halfsa : dx]
+        transmit_subaps = receive_subaps[::-1]
+        return transmit_subaps, receive_subaps
+
+    def compute_cc(self, data):
+        transmit_subaps, receive_subaps = self.create_subapertures(data, 8, 1)
+        complex_data = ops.view_as_complex(data)  # [n_tx, n_pix, n_rx, n_ch] -> [n_rtx, n_pix, r_x]
+
+        complex_data = ops.transpose(complex_data, (2, 0, 1))  # [n_rx, n_tx, n_pix]
+        rx_zero_count = ops.matmul(receive_subaps, (complex_data == 0).astype(int))
+
+        rx_valid = rx_zero_count <= 1
+        complex_data_rx = ops.matmul(receive_subaps, complex_data)
+        complex_data_rx = ops.where(rx_valid, complex_data_rx, 0)
+        complex_data_rx = ops.transpose(complex_data_rx, (1, 0, 2))  # [n_tx, n_subap_rx, n_pix]
+        tx_zero_count = ops.matmul(transmit_subaps, (complex_data_rx == 0).astype(int))
+        tx_valid = tx_zero_count <= 1
+
+        data = ops.matmul(transmit_subaps, complex_data_rx)
+        data = ops.where(tx_valid, data, 0)
+        data = ops.transpose(data, (1, 0, 2))  # [n_subap_tx, n_subap, n_pix]
+        foc = data
+        x = foc[:-1, :-1]
+        y = foc[1:, 1:]
+        valid = (x != 0) & (y != 0)
+        xy = ops.where(valid, x * ops.conj(y), 0)
+        xx = ops.where(valid, x * ops.conj(x), 0)
+        yy = ops.where(valid, y * ops.conj(y), 0)
+
+        eps = 1e-10
+        cc = ops.real(xy) / (ops.sqrt(ops.abs(xx) * ops.abs(yy)) + eps)
+        cc = ops.clip(cc, -1 + eps * 1e3, 1 - eps * 1e3)
+        cc = ops.abs(cc)
+        mean_cc = ops.sum(cc, axis=(0, 1)) / ops.sum(ops.cast(valid, cc.dtype), axis=(0, 1))
+        return 1 - mean_cc
+
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        if self.with_batch_dim:
+            out = ops.map(lambda d: self.compute_cc(d), data)
+        else:
+            out = self.compute_cc(data)
+        return {self.output_key: out}
+>>>>>>> a6696b2b (Start fresh)
 
 
 def compute_time_to_peak_stack(waveforms, center_frequencies, waveform_sampling_frequency=250e6):
