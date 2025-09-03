@@ -728,7 +728,7 @@ class DiffusionModel(DeepGenerativeModel):
             )
         return next_noisy_images
 
-    def start_track_progress(self, diffusion_steps):
+    def start_track_progress(self, diffusion_steps, initial_step=0):
         """Initialize the progress tracking for the diffusion process.
 
         For diffusion animation we keep track of the diffusion progress.
@@ -736,7 +736,7 @@ class DiffusionModel(DeepGenerativeModel):
         """
         self.track_progress = []
         if diffusion_steps > 50:
-            self.track_progress_interval = diffusion_steps // 50
+            self.track_progress_interval = (diffusion_steps - initial_step) // 50
         else:
             self.track_progress_interval = 1
 
