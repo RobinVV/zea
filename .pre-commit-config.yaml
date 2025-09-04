@@ -46,3 +46,9 @@ repos:
         entry: python docs/source/parameters_doc.py
         language: system
         files: ^docs/source/parameters_doc\.py$
+    -   id: generate-keras-ops
+        name: Generate Keras Operations
+        entry: python -m zea.keras._generate
+        language: system
+        files: ^(.*/)?(poetry\.lock|pyproject\.toml|zea/keras/_generate\.py)$
+        pass_filenames: false
