@@ -76,9 +76,22 @@ def get_gpu_memory(verbose=True):
     def _output_to_list(x):
         return x.decode("ascii").split("\n")[:-1]
 
-    COMMAND = ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"]
+    COMMAND = [
+        "nvidia-smi",
+        "--query-gpu=memory.free",
+        "--format=csv,noheader,nounits",
+    ]
+    # Fail-safe timeout (seconds). Override with ZEA_NVIDIA_SMI_TIMEOUT; set <=0 to disable.
+    smi_timeout = float(os.getenv("ZEA_NVIDIA_SMI_TIMEOUT", "30"))
     try:
-        memory_free_info = _output_to_list(sp.check_output(COMMAND, timeout=3))
+        if smi_timeout > 0:
+            raw = sp.check_output(COMMAND, timeout=smi_timeout)
+        else:
+            raw = sp.check_output(COMMAND)
+        memory_free_info = _output_to_list(raw)
+    except sp.TimeoutExpired:
+        log.warning(f"nvidia-smi timed out after {smi_timeout}s. Falling back to CPU.")
+        return []
     except sp.SubprocessError as e:
         log.warning(f"Failed to retrieve GPU memory: {e}")
         return []
