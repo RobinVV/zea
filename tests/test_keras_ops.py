@@ -3,10 +3,13 @@
 As we cannot test all functions, we will only test a few
 of them to ensure that the wrapping works correctly."""
 
+import inspect
+
 import numpy as np
 import pytest
 
 import zea.keras.ops
+from zea.ops import ops_registry
 
 
 def test_swapaxes():
@@ -20,11 +23,7 @@ def test_swapaxes():
 
 def test_registry():
     """Test that all keras.ops functions are registered in ops_registry."""
-    for name, _ in zea.keras.ops._funcs:
-        # Check if the operation class is created and registered
-        op_class = getattr(zea.keras.ops, zea.keras.ops._snake_to_pascal(name), None)
-        assert op_class is not None
 
-        assert "keras." + name in zea.keras.ops.ops_registry, (
-            f"Operation {name} not registered in ops_registry"
-        )
+    classes = inspect.getmembers(zea.keras.ops, inspect.isclass)
+    for _class in classes:
+        ops_registry.get_name(_class)  # this raises an error if the class is not registered
