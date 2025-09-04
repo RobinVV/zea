@@ -754,8 +754,9 @@ def test_ops_pass_positional_arg():
 
 
 def test_registry():
-    """Test that all keras.ops functions are registered in ops_registry."""
+    """Test that all Operations are registered in ops_registry."""
 
     classes = inspect.getmembers(ops, inspect.isclass)
-    for _class in classes:
-        ops_registry.get_name(_class)  # this raises an error if the class is not registered
+    for _, _class in classes:
+        if _class.__module__.startswith("zea.ops."):
+            ops_registry.get_name(_class)  # this raises an error if the class is not registered
