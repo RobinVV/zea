@@ -19,6 +19,7 @@ zea
    display
    interface
    io_lib
+   keras
    log
    metrics
    models
