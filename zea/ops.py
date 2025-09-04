@@ -2666,6 +2666,7 @@ class AnisotropicDiffusion(Operation):
         return result
 
 
+@ops_registry("channels_to_complex")
 class ChannelsToComplex(Operation):
     def call(self, **kwargs):
         data = kwargs[self.key]
@@ -2673,6 +2674,7 @@ class ChannelsToComplex(Operation):
         return {self.output_key: output}
 
 
+@ops_registry("complex_to_channels")
 class ComplexToChannels(Operation):
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
