@@ -5,7 +5,6 @@
 /log
 docs/source/_autosummary/*
 !docs/source/_autosummary/zea.rst
-zea/keras/_generated_ops.py
 
 # Temporary files
 temp/

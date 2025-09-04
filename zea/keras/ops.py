@@ -56,17 +56,20 @@ def _generate_operation_class_code(name, func):
     module_path = f"keras.ops.{name}" if hasattr(keras.ops, name) else f"keras.ops.image.{name}"
 
     return f'''
-@ops_registry("{module_path}")
-class {class_name}(Lambda):
-    """{doc}"""
-    
-    def __init__(self, **kwargs):
-        super().__init__(func={module_path}, **kwargs)
+try:
+    @ops_registry("{module_path}")
+    class {class_name}(Lambda):
+        """{doc}"""
+        
+        def __init__(self, **kwargs):
+            super().__init__(func={module_path}, **kwargs)
+except AttributeError:
+    pass  # user may have a different keras version
 
 '''
 
 
-def _should_regenerate_ops_file(output_path="_generated_ops.py"):
+def _should_regenerate_ops_file(output_path):
     """Check if the generated ops file needs to be regenerated."""
     import os
 
@@ -78,7 +81,7 @@ def _should_regenerate_ops_file(output_path="_generated_ops.py"):
         with open(output_path, "r") as f:
             content = f.read()
             # Look for a version comment we'll add
-            if f"# Generated for Keras {keras.__version__}" not in content:
+            if f"Generated in Keras {keras.__version__}" not in content:
                 return True
     except Exception:
         return True
@@ -95,7 +98,7 @@ def _generate_ops_file(output_path="_generated_ops.py"):
     content = f'''"""Auto-generated zea.Operations for all unary keras.ops functions.
 
 This file is generated automatically. Do not edit manually.
-# Generated for Keras {keras.__version__}
+Generated in Keras {keras.__version__}
 """
 
 import keras
