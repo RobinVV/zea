@@ -2243,7 +2243,7 @@ try:
 
     @ops_registry("keras.ops.image.affine_transform")
     class AffineTransform(Lambda):
-        """Operation wrapping keras.ops.affine_transform."""
+        """Operation wrapping keras.ops.image.affine_transform."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.affine_transform, **kwargs)
@@ -2255,7 +2255,7 @@ try:
 
     @ops_registry("keras.ops.image.crop_images")
     class CropImages(Lambda):
-        """Operation wrapping keras.ops.crop_images."""
+        """Operation wrapping keras.ops.image.crop_images."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.crop_images, **kwargs)
@@ -2267,7 +2267,7 @@ try:
 
     @ops_registry("keras.ops.image.elastic_transform")
     class ElasticTransform(Lambda):
-        """Operation wrapping keras.ops.elastic_transform."""
+        """Operation wrapping keras.ops.image.elastic_transform."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.elastic_transform, **kwargs)
@@ -2279,7 +2279,7 @@ try:
 
     @ops_registry("keras.ops.image.extract_patches")
     class ExtractPatches(Lambda):
-        """Operation wrapping keras.ops.extract_patches."""
+        """Operation wrapping keras.ops.image.extract_patches."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.extract_patches, **kwargs)
@@ -2291,7 +2291,7 @@ try:
 
     @ops_registry("keras.ops.image.gaussian_blur")
     class GaussianBlur(Lambda):
-        """Operation wrapping keras.ops.gaussian_blur."""
+        """Operation wrapping keras.ops.image.gaussian_blur."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.gaussian_blur, **kwargs)
@@ -2303,7 +2303,7 @@ try:
 
     @ops_registry("keras.ops.image.hsv_to_rgb")
     class HsvToRgb(Lambda):
-        """Operation wrapping keras.ops.hsv_to_rgb."""
+        """Operation wrapping keras.ops.image.hsv_to_rgb."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.hsv_to_rgb, **kwargs)
@@ -2315,7 +2315,7 @@ try:
 
     @ops_registry("keras.ops.image.pad_images")
     class PadImages(Lambda):
-        """Operation wrapping keras.ops.pad_images."""
+        """Operation wrapping keras.ops.image.pad_images."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.pad_images, **kwargs)
@@ -2327,7 +2327,7 @@ try:
 
     @ops_registry("keras.ops.image.perspective_transform")
     class PerspectiveTransform(Lambda):
-        """Operation wrapping keras.ops.perspective_transform."""
+        """Operation wrapping keras.ops.image.perspective_transform."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.perspective_transform, **kwargs)
@@ -2339,7 +2339,7 @@ try:
 
     @ops_registry("keras.ops.image.resize")
     class Resize(Lambda):
-        """Operation wrapping keras.ops.resize."""
+        """Operation wrapping keras.ops.image.resize."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.resize, **kwargs)
@@ -2351,7 +2351,7 @@ try:
 
     @ops_registry("keras.ops.image.rgb_to_grayscale")
     class RgbToGrayscale(Lambda):
-        """Operation wrapping keras.ops.rgb_to_grayscale."""
+        """Operation wrapping keras.ops.image.rgb_to_grayscale."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.rgb_to_grayscale, **kwargs)
@@ -2363,7 +2363,7 @@ try:
 
     @ops_registry("keras.ops.image.rgb_to_hsv")
     class RgbToHsv(Lambda):
-        """Operation wrapping keras.ops.rgb_to_hsv."""
+        """Operation wrapping keras.ops.image.rgb_to_hsv."""
 
         def __init__(self, **kwargs):
             super().__init__(func=keras.ops.image.rgb_to_hsv, **kwargs)

@@ -11,6 +11,8 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
 """
 
 import inspect
+import shutil
+import tempfile
 from pathlib import Path
 
 import keras
@@ -50,10 +52,8 @@ def _snake_to_pascal(name):
 def _generate_operation_class_code(name, namespace):
     """Generate Python code for a zea.Operation class for a given keras.ops function."""
     class_name = _snake_to_pascal(name)
-    doc = f"Operation wrapping keras.ops.{name}."
-
-    # Get the full module path for the function
     module_path = f"{namespace.__name__}.{name}"
+    doc = f"Operation wrapping {module_path}."
 
     return f'''
 try:
@@ -102,9 +102,14 @@ from zea.ops import Lambda
     for name, _ in _unary_functions_from_namespace(keras.ops.image, "images"):
         content += _generate_operation_class_code(name, keras.ops.image)
 
-    # Write to file
-    with open(Path(__file__).parent / "ops.py", "w", encoding="utf-8") as f:
-        f.write(content)
+    # Write to a temporary file first, then move to final location
+    target_path = Path(__file__).parent / "ops.py"
+    with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp_file:
+        tmp_file.write(content)
+        temp_path = Path(tmp_file.name)
+
+    # Atomic move to avoid partial writes
+    shutil.move(temp_path, target_path)
 
     print("Done generating zea/keras/ops.py")
 
