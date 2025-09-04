@@ -11,6 +11,7 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
 """
 
 import inspect
+from pathlib import Path
 
 import keras
 
@@ -65,7 +66,7 @@ class {class_name}(Lambda):
 '''
 
 
-def should_regenerate_ops_file(output_path="_generated_ops.py"):
+def _should_regenerate_ops_file(output_path="_generated_ops.py"):
     """Check if the generated ops file needs to be regenerated."""
     import os
 
@@ -85,7 +86,7 @@ def should_regenerate_ops_file(output_path="_generated_ops.py"):
     return False
 
 
-def generate_ops_file(output_path="_generated_ops.py"):
+def _generate_ops_file(output_path="_generated_ops.py"):
     """Generate a .py file with all operation class definitions."""
     _funcs = _unary_functions_from_namespace(keras.ops, "x")
     _funcs += _unary_functions_from_namespace(keras.ops.image, "images")
@@ -114,7 +115,8 @@ from zea.ops import Lambda
 
 
 # Auto-regenerate if needed
-if should_regenerate_ops_file("zea/keras/_generated_ops.py"):
-    generate_ops_file("zea/keras/_generated_ops.py")
+_filename = Path(__file__).parent / "_generated_ops.py"
+if _should_regenerate_ops_file(_filename):
+    _generate_ops_file(_filename)
 
 from ._generated_ops import *  # noqa: E402, F403
