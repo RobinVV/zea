@@ -347,9 +347,15 @@ class File(h5py.File):
             log.warning(
                 f"Scan parameters from file were not valid: {exc}. Trying to standardize them."
             )
-            return Scan.merge(self.get_scan_parameters(event, standardize=True), kwargs)
+            try:
+                return Scan.merge(
+                    self.get_scan_parameters(event, standardize=True), kwargs, safe=True
+                )
+            except Exception as exc2:
+                log.error(f"Could not create Scan object after standardization: {exc2}.")
+                raise
         except Exception as exc:
-            log.error(f"Could not create Scan object from file parameters: {exc}.")
+            raise RuntimeError(f"Could not create Scan object: {exc}.") from exc
 
     def get_probe_parameters(self, event=None) -> dict:
         """Returns a dictionary of probe parameters to initialize a probe
@@ -382,7 +388,7 @@ class File(h5py.File):
         probe_parameters_file = self.get_probe_parameters(event)
         return Probe.from_parameters(self.probe_name, probe_parameters_file)
 
-    def recursively_load_dict_contents_from_group(self, path: str, squeeze: bool = False) -> dict:
+    def recursively_load_dict_contents_from_group(self, path: str) -> dict:
         """Load dict from contents of group
 
         Values inside the group are converted to numpy arrays
@@ -391,12 +397,10 @@ class File(h5py.File):
 
         Args:
             path (str): path to group
-            squeeze (bool, optional): squeeze arrays with single element.
-                Defaults to False.
         Returns:
             dict: dictionary with contents of group
         """
-        return recursively_load_dict_contents_from_group(self, path, squeeze)
+        return recursively_load_dict_contents_from_group(self, path)
 
     @classmethod
     def get_shape(cls, path: str, key: str) -> tuple:
