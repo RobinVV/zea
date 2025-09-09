@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from zea.data.file import File
+from zea.data.file import File, load_file
 from zea.probes import Probe
 from zea.scan import Scan
 
@@ -101,3 +101,20 @@ def test_file_attributes():
         assert isinstance(file.scan(), Scan), "Scan should be an instance of Scan class"
 
         file.validate()
+
+
+def test_load_file_function():
+    """Test the load_file function."""
+
+    FILE_PATH = "hf://zeahub/zea-carotid-2023/2_cross_bifur_right_0000_small.hdf5"
+
+    selected_transmits = [0, 2, 4]
+    data, scan, probe = load_file(FILE_PATH, indices=[slice(2), selected_transmits])
+
+    assert data.shape[0] == 2, "Data should have 2 frames"
+    assert data.shape[1] == 3, "Data should have 3 selected transmits"
+    assert isinstance(scan, Scan), "Scan should be an instance of Scan class"
+    assert isinstance(probe, Probe), "Probe should be an instance of Probe class"
+    assert scan.selected_transmits == selected_transmits, (
+        "Selected transmits should match expected value"
+    )

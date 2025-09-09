@@ -311,29 +311,15 @@ class File(h5py.File):
 
         return scan_parameters
 
-    def get_scan_parameters(self, event=None) -> dict:
-        """Returns a dictionary of default parameters to initialize a scan
-        object that works with the file.
+    def get_scan_parameters(self, event=None, standardize=False) -> dict:
+        """Returns a dictionary of parameters to initialize a scan object.
 
-        Returns:
-            dict: The default parameters (the keys are identical to the
-                __init__ parameters of the Scan class).
+        Optionally standardizes the parameters (which removes unsupported parameters and casts
+        to the correct type).
         """
-        file_scan_parameters = self.get_parameters(event)
-
-        scan_parameters = {}
-        for parameter, value in file_scan_parameters.items():
-            if parameter in Scan.VALID_PARAMS:
-                param_type = Scan.VALID_PARAMS[parameter]["type"]
-                if param_type in (bool, int, float):
-                    scan_parameters[parameter] = param_type(value)
-                elif isinstance(param_type, tuple) and float in param_type:
-                    scan_parameters[parameter] = float(value)
-                else:
-                    scan_parameters[parameter] = value
-
-        if len(scan_parameters) == 0:
-            log.info(f"Could not find proper scan parameters in {self}.")
+        scan_parameters = self.get_parameters(event)
+        if standardize:
+            scan_parameters = Scan.standardize_params(**scan_parameters)
         return scan_parameters
 
     def scan(self, event=None, **kwargs) -> Scan:
@@ -355,7 +341,15 @@ class File(h5py.File):
         Returns:
             Scan: The scan object.
         """
-        return Scan.merge(self.get_scan_parameters(event), kwargs)
+        try:
+            return Scan.merge(self.get_scan_parameters(event), kwargs)
+        except (ValueError, TypeError) as exc:
+            log.warning(
+                f"Scan parameters from file were not valid: {exc}. Trying to standardize them."
+            )
+            return Scan.merge(self.get_scan_parameters(event, standardize=True), kwargs)
+        except Exception as exc:
+            log.error(f"Could not create Scan object from file parameters: {exc}.")
 
     def get_probe_parameters(self, event=None) -> dict:
         """Returns a dictionary of probe parameters to initialize a probe
@@ -519,20 +513,15 @@ def load_file(
         # the number of selected transmits
         if data_type in ["raw_data", "aligned_data"]:
             indices = File._prepare_indices(indices)
-            n_tx = data.shape[1]
             if isinstance(indices, tuple) and len(indices) > 1:
-                tx_idx = indices[1]
-                transmits = np.arange(n_tx)[tx_idx]
-                scan_kwargs["selected_transmits"] = transmits
+                scan_kwargs["selected_transmits"] = indices[1]
 
         scan = file.scan(**scan_kwargs)
 
         return data, scan, probe
 
 
-def recursively_load_dict_contents_from_group(
-    h5file: h5py._hl.files.File, path: str, squeeze: bool = False
-) -> dict:
+def recursively_load_dict_contents_from_group(h5file: h5py.File, path: str) -> dict:
     """Load dict from contents of group
 
     Values inside the group are converted to numpy arrays
@@ -540,28 +529,15 @@ def recursively_load_dict_contents_from_group(
     arrays are converted to the corresponding primitive type (if squeeze=True)
 
     Args:
-        h5file (h5py._hl.files.File): h5py file object
+        h5file (h5py.File): h5py file object
         path (str): path to group
-        squeeze (bool, optional): squeeze arrays with single element.
-            Defaults to False.
     Returns:
         dict: dictionary with contents of group
     """
     ans = {}
     for key, item in h5file[path].items():
-        if isinstance(item, h5py._hl.dataset.Dataset):
+        if isinstance(item, h5py.Dataset):
             ans[key] = item[()]
-            # all ones in shape
-            if squeeze:
-                if ans[key].shape == () or all(i == 1 for i in ans[key].shape):
-                    # check for strings
-                    if isinstance(ans[key], str):
-                        ans[key] = str(ans[key])
-                    # check for integers
-                    elif int(ans[key]) == float(ans[key]):
-                        ans[key] = int(ans[key])
-                    else:
-                        ans[key] = float(ans[key])
         elif isinstance(item, h5py._hl.group.Group):
             ans[key] = recursively_load_dict_contents_from_group(h5file, path + "/" + key + "/")
     return ans

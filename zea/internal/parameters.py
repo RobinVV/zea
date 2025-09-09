@@ -15,6 +15,7 @@ from copy import deepcopy
 
 import numpy as np
 
+from zea import log
 from zea.internal.cache import serialize_elements
 from zea.internal.core import Object as ZeaObject
 from zea.internal.core import _to_tensor
@@ -458,9 +459,37 @@ class Parameters(ZeaObject):
         return f"{self.__class__.__name__}(\n{param_str}\n)"
 
     @classmethod
-    def safe_initialize(cls, **kwargs):
-        """Overwrite safe initialize from zea.core.Object.
+    def standardize_params(cls, **kwargs) -> dict:
+        """Return a dict with only valid parameters set and cast to the right type."""
+        params = {}
+        for parameter, value in kwargs.items():
+            if parameter not in cls.VALID_PARAMS:
+                continue
 
-        We do not want safe initialization here.
-        """
-        return cls(**kwargs)
+            param_type = cls.VALID_PARAMS[parameter]["type"]
+
+            # If the value is a single-element array, convert it to a scalar
+            if isinstance(value, np.ndarray) and value.size == 1:
+                value = value.item()
+
+            # Cast to the expected type if possible
+            if param_type in (bool, int, float):
+                params[parameter] = param_type(value)
+
+            # When multiple types are allowed, and float is one of them, prefer float
+            elif isinstance(param_type, tuple) and float in param_type:
+                params[parameter] = float(value)
+
+            # Otherwise, cannot cast, just assign
+            else:
+                params[parameter] = value
+        return params
+
+    @classmethod
+    def safe_initialize(cls, **kwargs):
+        """Reduce kwargs to only valid parameters and convert types as needed."""
+        params = cls.standardize_params(**kwargs)
+
+        if len(params) == 0:
+            log.info(f"Could not find proper scan parameters in {kwargs}.")
+        return cls(**params)
