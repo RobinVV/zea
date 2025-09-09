@@ -177,10 +177,7 @@ class Scan(Parameters):
         "grid_type": {"type": str, "default": "cartesian"},
         "polar_limits": {"type": (tuple, list)},
         "dynamic_range": {"type": (tuple, list), "default": DEFAULT_DYNAMIC_RANGE},
-        "selected_transmits": {
-            "type": (type(None), str, int, list, slice, np.ndarray),
-            "default": None,
-        },
+        "selected_transmits": {"type": (type(None), str, int, list, slice, np.ndarray)},
         # acquisition parameters
         "sound_speed": {"type": (float, int), "default": 1540.0},
         "sampling_frequency": {"type": float},
