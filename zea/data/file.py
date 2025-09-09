@@ -290,7 +290,7 @@ class File(h5py.File):
         """
         scan_parameters = {}
         if "scan" in self:
-            scan_parameters = self.recursively_load_dict_contents_from_group(self, "scan")
+            scan_parameters = self.recursively_load_dict_contents_from_group("scan")
         elif "event" in list(self.keys())[0]:
             if event is None:
                 raise ValueError(
@@ -305,9 +305,7 @@ class File(h5py.File):
                 f"Found number of events: {len(self.keys())}."
             )
 
-            scan_parameters = self.recursively_load_dict_contents_from_group(
-                self, f"event_{event}/scan"
-            )
+            scan_parameters = self.recursively_load_dict_contents_from_group(f"event_{event}/scan")
         else:
             log.warning("Could not find scan parameters in file.")
 
@@ -397,7 +395,6 @@ class File(h5py.File):
         or primitive types (int, float, str).
 
         Args:
-            h5file (h5py.File): h5py file object
             path (str): path to group
         Returns:
             dict: dictionary with contents of group
@@ -407,9 +404,7 @@ class File(h5py.File):
             if isinstance(item, h5py.Dataset):
                 ans[key] = item[()]
             elif isinstance(item, h5py.Group):
-                ans[key] = self.recursively_load_dict_contents_from_group(
-                    self, path + "/" + key + "/"
-                )
+                ans[key] = self.recursively_load_dict_contents_from_group(path + "/" + key + "/")
         return ans
 
     @classmethod
