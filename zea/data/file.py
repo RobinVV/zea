@@ -290,7 +290,7 @@ class File(h5py.File):
         """
         scan_parameters = {}
         if "scan" in self:
-            scan_parameters = recursively_load_dict_contents_from_group(self, "scan")
+            scan_parameters = self.recursively_load_dict_contents_from_group(self, "scan")
         elif "event" in list(self.keys())[0]:
             if event is None:
                 raise ValueError(
@@ -305,7 +305,9 @@ class File(h5py.File):
                 f"Found number of events: {len(self.keys())}."
             )
 
-            scan_parameters = recursively_load_dict_contents_from_group(self, f"event_{event}/scan")
+            scan_parameters = self.recursively_load_dict_contents_from_group(
+                self, f"event_{event}/scan"
+            )
         else:
             log.warning("Could not find scan parameters in file.")
 
@@ -392,15 +394,23 @@ class File(h5py.File):
         """Load dict from contents of group
 
         Values inside the group are converted to numpy arrays
-        or primitive types (int, float, str). Single element
-        arrays are converted to the corresponding primitive type (if squeeze=True)
+        or primitive types (int, float, str).
 
         Args:
+            h5file (h5py.File): h5py file object
             path (str): path to group
         Returns:
             dict: dictionary with contents of group
         """
-        return recursively_load_dict_contents_from_group(self, path)
+        ans = {}
+        for key, item in self[path].items():
+            if isinstance(item, h5py.Dataset):
+                ans[key] = item[()]
+            elif isinstance(item, h5py.Group):
+                ans[key] = self.recursively_load_dict_contents_from_group(
+                    self, path + "/" + key + "/"
+                )
+        return ans
 
     @classmethod
     def get_shape(cls, path: str, key: str) -> tuple:
@@ -523,28 +533,6 @@ def load_file(
         scan = file.scan(**scan_kwargs)
 
         return data, scan, probe
-
-
-def recursively_load_dict_contents_from_group(h5file: h5py.File, path: str) -> dict:
-    """Load dict from contents of group
-
-    Values inside the group are converted to numpy arrays
-    or primitive types (int, float, str). Single element
-    arrays are converted to the corresponding primitive type (if squeeze=True)
-
-    Args:
-        h5file (h5py.File): h5py file object
-        path (str): path to group
-    Returns:
-        dict: dictionary with contents of group
-    """
-    ans = {}
-    for key, item in h5file[path].items():
-        if isinstance(item, h5py.Dataset):
-            ans[key] = item[()]
-        elif isinstance(item, h5py.Group):
-            ans[key] = recursively_load_dict_contents_from_group(h5file, path + "/" + key + "/")
-    return ans
 
 
 def _print_hdf5_attrs(hdf5_obj, prefix=""):
