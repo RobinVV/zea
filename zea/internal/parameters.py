@@ -147,47 +147,81 @@ class Parameters(ZeaObject):
     def __init__(self, **kwargs):
         super().__init__()
 
+        # Check if VALID_PARAMS is defined
         if self.VALID_PARAMS is None:
             raise NotImplementedError("VALID_PARAMS must be defined in subclasses of Parameters.")
+
+        # Check if the definition of the class has circular dependencies
+        for name in self.__class__.__dict__:
+            self._check_for_circular_dependencies(name)
+
+        # Internal state
+        self._params = {}
+        self._properties = self.get_properties()
+        self._computed = set()
+        self._cache = {}
+        self._dependency_versions = {}
+
+        # Tensor cache stores converted tensors for parameters and computed properties
+        # to avoid converting them multiple times if there are no changes.
+        self._tensor_cache = {}
 
         # Initialize parameters with defaults
         for param, config in self.VALID_PARAMS.items():
             if param not in kwargs and "default" in config:
                 kwargs[param] = config["default"]
 
-        # Validate parameter types
+        # Set provided parameters
         for key, value in kwargs.items():
-            self._validate_parameter(key, value)
-
-        self._params = {}
-        self._properties = self.get_properties()
-        self._computed = set()
-        self._cache = {}
-        self._dependency_versions = {}
-        for k, v in kwargs.items():
-            self._params[k] = v
-
-        # Tensor cache stores converted tensors for parameters and computed properties
-        # to avoid converting them multiple times if there are no changes.
-        self._tensor_cache = {}
-
-        # Check if the definition of the class has circular dependencies
-        for name in self.__class__.__dict__:
-            self._check_for_circular_dependencies(name)
+            setattr(self, key, value)
 
     @classmethod
     def _validate_parameter(cls, key, value):
-        """Validate parameter against the VALID_PARAMS definition."""
+        # Check if the parameter is valid
         if key not in cls.VALID_PARAMS:
             raise ValueError(
                 f"Invalid parameter: {key}. Valid parameters are: {list(cls.VALID_PARAMS.keys())}"
             )
+
+        # Cast the value if needed and possible
+        value = cls._cast(key, value)
+
+        # Check if the value matches the expected type
         expected_type = cls.VALID_PARAMS[key]["type"]
         if expected_type is not None and value is not None and not isinstance(value, expected_type):
             allowed = cls._human_readable_type(expected_type)
             raise TypeError(
                 f"Parameter '{key}' expected type {allowed}, got {type(value).__name__}"
             )
+
+        return value
+
+    @classmethod
+    def _cast(cls, key, value):
+        """Cast parameter to the expected type if 'cast_from' is specified."""
+        # If the value is a single-element array, convert it to a scalar
+        # If it's a numpy scalar, convert it to a native Python type
+        if (isinstance(value, np.ndarray) and value.size == 1) or isinstance(value, np.generic):
+            value = value.item()
+
+        # Assume the key exists in VALID_PARAMS
+        config = cls.VALID_PARAMS[key]
+
+        if value is None or "cast_from" not in config:
+            return value
+
+        cast_to = config["type"]
+        if isinstance(cast_to, tuple):
+            raise ValueError(f"Casting to multiple types is not supported for parameter '{key}'.")
+
+        cast_types = config["cast_from"]
+        if not isinstance(cast_types, tuple):
+            cast_types = (cast_types,)
+
+        if any(isinstance(value, t) for t in cast_types):
+            value = cast_to(value)
+
+        return value
 
     @staticmethod
     def _human_readable_type(type):
@@ -277,7 +311,7 @@ class Parameters(ZeaObject):
             )
 
         # Validate new value
-        self._validate_parameter(key, value)
+        value = self._validate_parameter(key, value)
 
         # Set the parameter
         self._params[key] = value
@@ -463,26 +497,10 @@ class Parameters(ZeaObject):
         """Return a dict with only valid parameters set and cast to the right type."""
         params = {}
         for parameter, value in kwargs.items():
-            if parameter not in cls.VALID_PARAMS:
-                continue
-
-            param_type = cls.VALID_PARAMS[parameter]["type"]
-
-            # If the value is a single-element array, convert it to a scalar
-            if isinstance(value, np.ndarray) and value.size == 1:
-                value = value.item()
-
-            # Cast to the expected type if possible
-            if param_type in (bool, int, float):
-                params[parameter] = param_type(value)
-
-            # When multiple types are allowed, and float is one of them, prefer float
-            elif isinstance(param_type, tuple) and float in param_type:
-                params[parameter] = float(value)
-
-            # Otherwise, cannot cast, just assign
-            else:
+            if parameter in cls.VALID_PARAMS:
                 params[parameter] = value
+            else:
+                log.debug(f"Skipping invalid parameter '{parameter}'.")
         return params
 
     @classmethod

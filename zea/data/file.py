@@ -311,18 +311,11 @@ class File(h5py.File):
 
         return scan_parameters
 
-    def get_scan_parameters(self, event=None, standardize=False) -> dict:
-        """Returns a dictionary of parameters to initialize a scan object.
+    def get_scan_parameters(self, event=None) -> dict:
+        """Returns a dictionary of scan parameters stored in the file."""
+        return self.get_parameters(event)
 
-        Optionally standardizes the parameters (which removes unsupported parameters and casts
-        to the correct type).
-        """
-        scan_parameters = self.get_parameters(event)
-        if standardize:
-            scan_parameters = Scan.standardize_params(**scan_parameters)
-        return scan_parameters
-
-    def scan(self, event=None, **kwargs) -> Scan:
+    def scan(self, event=None, safe=True, **kwargs) -> Scan:
         """Returns a Scan object initialized with the parameters from the file.
 
         Args:
@@ -334,6 +327,9 @@ class File(h5py.File):
                     ...
 
                 Defaults to None. In that case no event structure is expected.
+            safe (bool, optional): If True, will only use parameters that are
+                defined in the Scan class. If False, will use all parameters
+                from the file. Defaults to True.
             **kwargs: Additional keyword arguments to pass to the Scan object.
                 These will override the parameters from the file if they are
                 present in the file.
@@ -341,21 +337,7 @@ class File(h5py.File):
         Returns:
             Scan: The scan object.
         """
-        try:
-            return Scan.merge(self.get_scan_parameters(event), kwargs)
-        except (ValueError, TypeError) as exc:
-            log.warning(
-                f"Scan parameters from file were not valid: {exc}. Trying to standardize them."
-            )
-            try:
-                return Scan.merge(
-                    self.get_scan_parameters(event, standardize=True), kwargs, safe=True
-                )
-            except Exception as exc2:
-                log.error(f"Could not create Scan object after standardization: {exc2}.")
-                raise
-        except Exception as exc:
-            raise RuntimeError(f"Could not create Scan object: {exc}.") from exc
+        return Scan.merge(self.get_scan_parameters(event), kwargs, safe=safe)
 
     def get_probe_parameters(self, event=None) -> dict:
         """Returns a dictionary of probe parameters to initialize a probe
