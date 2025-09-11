@@ -56,17 +56,12 @@ def _generate_operation_class_code(name, namespace):
     doc = f"Operation wrapping {module_path}."
 
     return f'''
-try:
+@ops_registry("{module_path}")
+class {class_name}(Lambda):
+    """{doc}"""
 
-    @ops_registry("{module_path}")
-    class {class_name}(Lambda):
-        """{doc}"""
-
-        def __init__(self, **kwargs):
-            super().__init__(func={module_path}, **kwargs)
-except AttributeError:
-    pass  # user may have a different keras version
-
+    def __init__(self, **kwargs):
+        super().__init__(func={module_path}, **kwargs)
 '''
 
 
