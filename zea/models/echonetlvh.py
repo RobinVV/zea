@@ -133,8 +133,11 @@ class EchoNetLVH(BaseModel):
         mask_clipped = ops.clip(mask, 0, None)
         mask_normed = mask_clipped / ops.max(mask_clipped)
 
-        # Convert to probability distribution (sum to 1)
-        coordinate_probabilities = ops.map(lambda m: m / ops.sum(m), mask_normed)
+        def safe_normalize(m):
+            mask_sum = ops.sum(m)
+            return ops.where(mask_sum > 0, m / mask_sum, m)
+
+        coordinate_probabilities = ops.map(safe_normalize, mask_normed)
 
         # Add dimension for broadcasting with coordinate grid
         coordinate_probabilities = ops.expand_dims(coordinate_probabilities, axis=-1)
@@ -168,7 +171,6 @@ class EchoNetLVH(BaseModel):
                 [0, 1, 1],  # Cyan (IVSd_X1)
                 [0, 1, 0],  # Green (IVSd_X2)
             ],
-            dtype=np.uint8,
         )
 
         # Convert to numpy and ensure RGB format
@@ -200,15 +202,21 @@ class EchoNetLVH(BaseModel):
             color = overlay_colors[ch]
 
             # Find center of mass for this channel
-            center = self.expected_coordinate(ops.expand_dims(mask, axis=0))
-            center = tuple((int(center[0, 0]), int(center[0, 1])))
+            center_coords = self.expected_coordinate(ops.expand_dims(mask, axis=0))
+            center_x = ops.convert_to_numpy(center_coords[0, 0])
+            center_y = ops.convert_to_numpy(center_coords[0, 1])
+
+            # Bounds check before conversion to int
+            if 0 <= center_x < image.shape[1] and 0 <= center_y < image.shape[0]:
+                center = (int(center_x), int(center_y))
+            else:
+                center = None
 
             if center is not None:
                 # Blend heatmap with overlay
                 mask_alpha = mask * alpha
                 for c in range(3):
                     overlay[..., c] += mask_alpha * color[c]
-
             centers.append(center)
 
         # Draw connecting lines between consecutive landmarks
