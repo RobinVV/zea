@@ -23,6 +23,8 @@ class EchoNetLVH(BaseModel):
     - IVSd_2: Interventricular Septum point 2
 
     The model outputs 4-channel logits corresponding to heatmaps for each landmark.
+
+    For more information, see the original project page at https://echonet.github.io/lvh/index.html
     """
 
     def __init__(self, **kwargs):
