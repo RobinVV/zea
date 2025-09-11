@@ -184,10 +184,11 @@ class Parameters(ZeaObject):
             )
 
         # Cast the value if needed and possible
-        value = cls._cast(key, value)
-
-        # Check if the value matches the expected type
         expected_type = cls.VALID_PARAMS[key]["type"]
+        if expected_type is not None and value is not None and not isinstance(value, expected_type):
+            value = cls._cast(key, value)
+
+        # Check again
         if expected_type is not None and value is not None and not isinstance(value, expected_type):
             allowed = cls._human_readable_type(expected_type)
             raise TypeError(
