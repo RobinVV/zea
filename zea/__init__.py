@@ -55,7 +55,7 @@ from . import (
     data,
     display,
     io_lib,
-    keras,
+    keras_ops,
     metrics,
     models,
     simulator,

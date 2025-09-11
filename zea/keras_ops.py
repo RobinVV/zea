@@ -5,7 +5,7 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
 
 .. code-block:: python
 
-    from zea.keras import Squeeze
+    from zea.keras_ops import Squeeze
 
     op = Squeeze(axis=1)
 

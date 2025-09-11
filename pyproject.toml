@@ -155,7 +155,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
-    "zea/keras/ops.py"
+    "keras_ops.py"
 ]
 
 # more lenient line width than Black

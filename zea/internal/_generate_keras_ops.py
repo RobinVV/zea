@@ -5,7 +5,7 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
 
 .. code-block:: python
 
-    from zea.keras import Squeeze
+    from zea.keras_ops import Squeeze
 
     op = Squeeze(axis=1)
 """
@@ -81,7 +81,7 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
 
 .. code-block:: python
 
-    from zea.keras import Squeeze
+    from zea.keras_ops import Squeeze
 
     op = Squeeze(axis=1)
 
@@ -103,7 +103,7 @@ from zea.ops import Lambda
         content += _generate_operation_class_code(name, keras.ops.image)
 
     # Write to a temporary file first, then move to final location
-    target_path = Path(__file__).parent / "ops.py"
+    target_path = Path(__file__).parent.parent / "keras_ops.py"
     with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as tmp_file:
         tmp_file.write(content)
         temp_path = Path(tmp_file.name)
@@ -111,7 +111,7 @@ from zea.ops import Lambda
     # Atomic move to avoid partial writes
     shutil.move(temp_path, target_path)
 
-    print("Done generating zea/keras/ops.py")
+    print("Done generating `keras_ops.py`.")
 
 
 if __name__ == "__main__":
