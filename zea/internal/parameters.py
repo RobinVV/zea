@@ -198,7 +198,9 @@ class Parameters(ZeaObject):
 
     @classmethod
     def _cast(cls, key, value):
-        """Cast parameter to the expected type if 'cast_from' is specified."""
+        """Cast parameter to the expected type if 'cast_from' is specified.
+
+        Additionally, int to float conversion is allowed implicitly."""
         # If the value is a single-element array, convert it to a scalar
         # If it's a numpy scalar, convert it to a native Python type
         if (isinstance(value, np.ndarray) and value.size == 1) or isinstance(value, np.generic):
@@ -207,12 +209,18 @@ class Parameters(ZeaObject):
         # Assume the key exists in VALID_PARAMS
         config = cls.VALID_PARAMS[key]
 
-        if value is None or "cast_from" not in config:
+        if value is None:
             return value
 
         cast_to = config["type"]
         if isinstance(cast_to, tuple):
             raise ValueError(f"Casting to multiple types is not supported for parameter '{key}'.")
+
+        if "cast_from" not in config:
+            if isinstance(value, int) and cast_to is float:
+                # Allow implicit conversion from int to float
+                return float(value)
+            return value
 
         cast_types = config["cast_from"]
         if not isinstance(cast_types, tuple):

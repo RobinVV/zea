@@ -186,7 +186,7 @@ class Scan(Parameters):
         "n_tx": {"type": int},
         "n_ax": {"type": int},
         "n_ch": {"type": int},
-        "bandwidth_percent": {"type": float, "default": 200.0, "cast_from": int},
+        "bandwidth_percent": {"type": float, "default": 200.0},
         "demodulation_frequency": {"type": float},
         "element_width": {"type": float},
         "attenuation_coef": {"type": float, "default": 0.0},
