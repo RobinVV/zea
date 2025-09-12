@@ -84,7 +84,7 @@ They can be used in zea pipelines like any other :class:`zea.Operation`, for exa
     op = Squeeze(axis=1)
 
 This file is generated automatically. Do not edit manually.
-Generated in Keras {keras.__version__}
+Generated with Keras {keras.__version__}
 """
 
 import keras
