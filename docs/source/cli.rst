@@ -1,8 +1,10 @@
 Command line interface
 ================================
 
+Besides the main :doc:`zea API documentation <_autosummary/zea>`, ``zea`` also provides a command line interface (CLI).
+
 -------------------------------
-Main CLI Command
+File reading and visualization
 -------------------------------
 
 .. argparse::
@@ -11,7 +13,7 @@ Main CLI Command
    :prog: zea
 
 -------------------------------
-Data Copying Command
+Data copying
 -------------------------------
 
 .. argparse::
