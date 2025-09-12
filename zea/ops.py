@@ -417,6 +417,11 @@ class Pipeline:
                 "'ops' or None."
             )
         if timed:
+            log.warning(
+                "Timer has been initialized for the pipeline. To get an accurate timing estimate, "
+                "the `jax.block_until_ready()` is used, which will slow down the execution, so "
+                "do not use for regular processing!"
+            )
             self._callable_layers = self._get_timed_operations()
         else:
             self._callable_layers = self._pipeline_layers
