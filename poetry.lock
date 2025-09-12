@@ -5028,7 +5028,7 @@ description = "A sphinx extension that automatically documents argparse commands
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"docs\""
+markers = "extra == \"dev\" or extra == \"docs\""
 files = [
     {file = "sphinx_argparse-0.5.2-py3-none-any.whl", hash = "sha256:d771b906c36d26dee669dbdbb5605c558d9440247a5608b810f7fa6e26ab1fd3"},
     {file = "sphinx_argparse-0.5.2.tar.gz", hash = "sha256:e5352f8fa894b6fb6fda0498ba28a9f8d435971ef4bbc1a6c9c6414e7644f032"},
@@ -6323,7 +6323,7 @@ propcache = ">=0.2.1"
 
 [extras]
 backends = ["jax", "tensorflow", "torch"]
-dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "mock", "myst-parser", "nbsphinx", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "sphinx", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx_design", "sphinxcontrib-bibtex"]
+dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "mock", "myst-parser", "nbsphinx", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx_design", "sphinxcontrib-bibtex"]
 display = ["opencv-python"]
 display-headless = ["opencv-python-headless"]
 docs = ["IPython", "PyStemmer", "furo", "mock", "myst-parser", "nbsphinx", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx_design", "sphinxcontrib-bibtex"]
@@ -6333,4 +6333,4 @@ tests = ["cloudpickle", "ipykernel", "ipywidgets", "papermill", "pre-commit", "p
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "4af42bdaf67d97d8958b867313a91f6a3ed37d2061d4ae55767e4c69e109906a"
+content-hash = "554d07de3e18eea3d1359db25f32ce86f45b6e06d3b7b2912133d7517774d52e"
