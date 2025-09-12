@@ -13,7 +13,7 @@ from zea import log
 from zea.visualize import set_mpl_style
 
 
-def get_args():
+def get_parser():
     """Command line argument parser"""
     parser = argparse.ArgumentParser(description="Process ultrasound data.")
     parser.add_argument("-c", "--config", type=str, default=None, help="path to config file.")
@@ -41,13 +41,12 @@ def get_args():
         help="Skip zea file integrity checks. Use with caution.",
     )
     parser.add_argument("--gui", default=False, action=argparse.BooleanOptionalAction)
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 def main():
     """main entrypoint for zea"""
-    args = get_args()
+    args = get_parser().parse_args()
 
     set_mpl_style()
 

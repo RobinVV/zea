@@ -27,6 +27,7 @@ extensions = [
     "nbsphinx",  # for Jupyter notebook support
     "sphinx_design",  # for fancy code block selection
     "sphinxcontrib.bibtex",  # for bibliography support
+    "sphinxarg.ext",  # for argparse support
 ]
 
 autodoc_mock_imports = ["zea.backend.tf2jax"]

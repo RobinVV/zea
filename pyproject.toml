@@ -91,6 +91,7 @@ docs = [
     "sphinx-autodoc-typehints",
     "sphinx-copybutton",
     "sphinx_design",
+    "sphinx-argparse",
     "sphinxcontrib-bibtex",
     "mock",
     "myst-parser",
