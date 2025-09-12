@@ -69,7 +69,7 @@ from .data.file import File, load_file
 from .datapaths import set_data_paths
 from .interface import Interface
 from .internal.device import init_device
-from .internal.setup_zea import set_backend, setup, setup_config
+from .internal.setup_zea import setup, setup_config
 from .ops import Pipeline
 from .probes import Probe
 from .scan import Scan
