@@ -28,6 +28,6 @@ Here are the environment variables that ``zea`` uses at runtime. Arguably the mo
      - ``0``
      - ``0``, ``1``
    * - ``ZEA_NVIDIA_SMI_TIMEOUT``
-     - Timeout in seconds for calling ``nvidia-smi`` to get GPU information.
+     - Timeout in seconds for calling ``nvidia-smi`` to get GPU information during :func:`zea.init_device`.
      - ``30``
      - Any positive integer, or ``<= 0`` to disable timeout.
