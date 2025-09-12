@@ -1,3 +1,5 @@
+"""DeepLabV3+ architecture for multi-class segmentation. For more details see https://arxiv.org/abs/1802.02611."""
+
 import keras
 from keras import layers, ops
 

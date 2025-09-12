@@ -1,3 +1,5 @@
+"""EchonNetLVH model for segmentation of PLAX view cardiac ultrasound. For more details see https://echonet.github.io/lvh/index.html."""
+
 import cv2
 import numpy as np
 from keras import ops
@@ -60,13 +62,14 @@ class EchoNetLVH(BaseModel):
         Forward pass of the model.
 
         Args:
-            inputs (Tensor): Input images of shape [B, H, W, C]
-                           - Must be scan converted
-                           - Pixel values in range [0, 255]
+            inputs (Tensor): Input images of shape [B, H, W, C]. They should
+                be scan converted, with pixel values in range [0, 255].
 
         Returns:
             Tensor: Logits of shape [B, H, W, 4] with 4 channels for each landmark
         """
+        assert len(ops.shape(inputs)) == 4
+
         # Store original dimensions for output resizing
         original_size = ops.shape(inputs)[1:3]
 
