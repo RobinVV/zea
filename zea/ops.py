@@ -1376,20 +1376,6 @@ class Mean(Operation):
         return kwargs
 
 
-@ops_registry("transpose")
-class Transpose(Operation):
-    """Transpose the input data along the specified axes."""
-
-    def __init__(self, axes, **kwargs):
-        super().__init__(**kwargs)
-        self.axes = axes
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        transposed_data = ops.transpose(data, axes=self.axes)
-        return {self.output_key: transposed_data}
-
-
 @ops_registry("simulate_rf")
 class Simulate(Operation):
     """Simulate RF data."""
@@ -1576,19 +1562,6 @@ class PfieldWeighting(Operation):
         weighted_data = data * pfield_expanded
 
         return {self.output_key: weighted_data}
-
-
-@ops_registry("sum")
-class Sum(Operation):
-    """Sum data along a specific axis."""
-
-    def __init__(self, axis, **kwargs):
-        super().__init__(**kwargs)
-        self.axis = axis
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        return {self.output_key: ops.sum(data, axis=self.axis)}
 
 
 @ops_registry("delay_and_sum")
@@ -2124,29 +2097,37 @@ class Demodulate(Operation):
 class Lambda(Operation):
     """Use any function as an operation."""
 
-    def __init__(self, func, func_kwargs=None, **kwargs):
-        super().__init__(**kwargs)
-        func_kwargs = func_kwargs or {}
+    def __init__(self, func, **kwargs):
+        # Split kwargs into kwargs for partial and __init__
+        op_kwargs = {k: v for k, v in kwargs.items() if k not in func.__code__.co_varnames}
+        func_kwargs = {k: v for k, v in kwargs.items() if k in func.__code__.co_varnames}
+        Lambda._check_if_unary(func, **func_kwargs)
+
+        super().__init__(**op_kwargs)
         self.func = partial(func, **func_kwargs)
+
+    @staticmethod
+    def _check_if_unary(func, **kwargs):
+        """Checks if the kwargs are sufficient to call the function as a unary operation."""
+        sig = inspect.signature(func)
+        # Remove arguments that are already provided in func_kwargs
+        params = list(sig.parameters.values())
+        remaining = [p for p in params if p.name not in kwargs]
+        # Count required positional arguments (excluding self/cls)
+        required_positional = [
+            p
+            for p in remaining
+            if p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+        ]
+        if len(required_positional) != 1:
+            raise ValueError(
+                f"Partial of {func.__name__} must be callable with exactly one required "
+                f"positional argument, we still need: {required_positional}."
+            )
 
     def call(self, **kwargs):
         data = kwargs[self.key]
         data = self.func(data)
-        return {self.output_key: data}
-
-
-@ops_registry("clip")
-class Clip(Operation):
-    """Clip the input data to a given range."""
-
-    def __init__(self, min_value=None, max_value=None, **kwargs):
-        super().__init__(**kwargs)
-        self.min_value = min_value
-        self.max_value = max_value
-
-    def call(self, **kwargs):
-        data = kwargs[self.key]
-        data = ops.clip(data, self.min_value, self.max_value)
         return {self.output_key: data}
 
 
@@ -2685,6 +2666,7 @@ class AnisotropicDiffusion(Operation):
         return result
 
 
+@ops_registry("channels_to_complex")
 class ChannelsToComplex(Operation):
     def call(self, **kwargs):
         data = kwargs[self.key]
@@ -2692,6 +2674,7 @@ class ChannelsToComplex(Operation):
         return {self.output_key: output}
 
 
+@ops_registry("complex_to_channels")
 class ComplexToChannels(Operation):
     def __init__(self, axis=-1, **kwargs):
         super().__init__(**kwargs)
