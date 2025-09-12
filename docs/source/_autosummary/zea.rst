@@ -3,6 +3,16 @@ zea
 
 .. automodule:: zea
 
+.. rubric:: Functions
+
+.. autosummary::
+   :toctree:
+
+   init_device
+   load_file
+   set_data_paths
+   setup
+   setup_config
 
 .. rubric:: Modules
 
