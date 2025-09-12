@@ -1,7 +1,7 @@
-Here are the environment variables that ``zea`` uses at runtime.
-
 Environment variables
 ================================
+
+Here are the environment variables that ``zea`` uses at runtime.
 
 .. list-table::
    :header-rows: 1
