@@ -51,7 +51,8 @@ echonet_lvh_presets = {
     "echonetlvh": {
         "metadata": {
             "description": (
-                "EchoNetLVH segmentation model for PLAX-view cardiac ultrasound segmentation. Trained on images of size (224, 224)."
+                "EchoNetLVH segmentation model for PLAX-view cardiac ultrasound segmentation. "
+                "Trained on images of size (224, 224)."
             ),
             "params": 0,
             "path": "echonetlvh",
