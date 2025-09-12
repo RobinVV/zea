@@ -4,8 +4,9 @@
 
 Currently, the following models are available (all inherited from :class:`zea.models.BaseModel`):
 
-- :class:`zea.models.echonet.EchoNetDynamic`: A model for echocardiography segmentation.
+- :class:`zea.models.echonet.EchoNetDynamic`: A model for left ventricle segmentation.
 - :class:`zea.models.carotid_segmenter.CarotidSegmenter`: A model for carotid artery segmentation.
+- :class:`zea.models.echonetlvh.EchoNetLVH`: A model for left ventricle hypertrophy segmentation.
 - :class:`zea.models.unet.UNet`: A simple U-Net implementation.
 - :class:`zea.models.lpips.LPIPS`: A model implementing the perceptual similarity metric.
 - :class:`zea.models.taesd.TinyAutoencoder`: A tiny autoencoder model for image compression.
@@ -74,9 +75,11 @@ The following steps are recommended when adding a new model:
 
 from . import (
     carotid_segmenter,
+    deeplabv3,
     dense,
     diffusion,
     echonet,
+    echonetlvh,
     generative,
     gmm,
     layers,

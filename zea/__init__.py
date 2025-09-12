@@ -10,7 +10,7 @@ from . import log
 __version__ = "0.0.4"
 
 
-def setup():
+def _bootstrap_backend():
     """Setup function to initialize the zea package."""
 
     def _check_backend_installed():
@@ -46,8 +46,8 @@ def setup():
 
 
 # call and clean up namespace
-setup()
-del setup
+_bootstrap_backend()
+del _bootstrap_backend
 
 from . import (
     agent,
@@ -69,7 +69,7 @@ from .data.file import File, load_file
 from .datapaths import set_data_paths
 from .interface import Interface
 from .internal.device import init_device
-from .internal.setup_zea import set_backend, setup, setup_config
+from .internal.setup_zea import setup, setup_config
 from .ops import Pipeline
 from .probes import Probe
 from .scan import Scan
