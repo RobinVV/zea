@@ -61,7 +61,10 @@ class {class_name}(Lambda):
     """{doc}"""
 
     def __init__(self, **kwargs):
-        super().__init__(func={module_path}, **kwargs)
+        try:
+            super().__init__(func={module_path}, **kwargs)
+        except AttributeError as e:
+            raise MissingKerasOps("{class_name}", "{module_path}") from e
 '''
 
 
@@ -88,6 +91,15 @@ import keras
 
 from zea.internal.registry import ops_registry
 from zea.ops import Lambda
+
+class MissingKerasOps(ValueError):
+    def __init__(self, class_name: str, func: str):
+        super().__init__(
+            f"Failed to create {{class_name}} with {{func}}. " +
+            "This may be due to an incompatible version of `keras`. " +
+            "Please try to upgrade `keras` to the latest version by running " +
+            "`pip install --upgrade keras`."
+        )
 
 '''
 
