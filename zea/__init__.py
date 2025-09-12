@@ -10,7 +10,7 @@ from . import log
 __version__ = "0.0.4"
 
 
-def setup():
+def _bootstrap_backend():
     """Setup function to initialize the zea package."""
 
     def _check_backend_installed():
@@ -46,8 +46,8 @@ def setup():
 
 
 # call and clean up namespace
-setup()
-del setup
+_bootstrap_backend()
+del _bootstrap_backend
 
 from . import (
     agent,
