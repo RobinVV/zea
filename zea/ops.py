@@ -400,8 +400,6 @@ class Pipeline:
         """
         self._call_pipeline = self.call
         self.name = name
-        self.timer = FunctionTimer()
-        self.timed = timed
 
         self._pipeline_layers = operations
 
@@ -410,6 +408,19 @@ class Pipeline:
 
         self.with_batch_dim = with_batch_dim
         self._validate_flag = validate
+
+        # Setup timer
+        if jit_options == "pipeline" and timed:
+            raise ValueError(
+                "timed=True cannot be used with jit_options='pipeline' as the entire "
+                "pipeline is compiled into a single function. Try setting jit_options to "
+                "'ops' or None."
+            )
+        if timed:
+            self._callable_layers = self._get_timed_operations()
+        else:
+            self._callable_layers = self._pipeline_layers
+        self._timed = timed
 
         if validate:
             self.validate()
@@ -523,33 +534,23 @@ class Pipeline:
         """Alias for self.layers to match the zea naming convention"""
         return self._pipeline_layers
 
-    def timed_call(self, **inputs):
-        """Process input data through the pipeline."""
+    def reset_timer(self):
+        """Reset the timer for timed operations."""
+        if self._timed:
+            self._callable_layers = self._get_timed_operations()
+        else:
+            log.warning(
+                "Timer has not been initialized. Set timed=True when initializing the pipeline."
+            )
 
-        for op in self._pipeline_layers:
-            timed_op = self.timer(op, name=op.__class__.__name__)
-            try:
-                outputs = timed_op(**inputs)
-            except KeyError as exc:
-                raise KeyError(
-                    f"[zea.Pipeline] Operation '{op.__class__.__name__}' "
-                    f"requires input key '{exc.args[0]}', "
-                    "but it was not provided in the inputs.\n"
-                    "Check whether the objects (such as `zea.Scan`) passed to "
-                    "`pipeline.prepare_parameters()` contain all required keys.\n"
-                    f"Current list of all passed keys: {list(inputs.keys())}\n"
-                    f"Valid keys for this pipeline: {self.valid_keys}"
-                ) from exc
-            except Exception as exc:
-                raise RuntimeError(
-                    f"[zea.Pipeline] Error in operation '{op.__class__.__name__}': {exc}"
-                ) from exc
-            inputs = outputs
-        return outputs
+    def _get_timed_operations(self):
+        """Get a list of timed operations."""
+        self.timer = FunctionTimer()
+        return [self.timer(op, name=op.__class__.__name__) for op in self._pipeline_layers]
 
     def call(self, **inputs):
         """Process input data through the pipeline."""
-        for operation in self._pipeline_layers:
+        for operation in self._callable_layers:
             try:
                 outputs = operation(**inputs)
             except KeyError as exc:
@@ -633,18 +634,13 @@ class Pipeline:
                 if operation.jittable and operation._jit_compile:
                     operation.set_jit(value == "ops")
 
-    @property
-    def _call_fn(self):
-        """Get the call function of the pipeline."""
-        return self.call if not self.timed else self.timed_call
-
     def jit(self):
         """JIT compile the pipeline."""
-        self._call_pipeline = jit(self._call_fn, **self.jit_kwargs)
+        self._call_pipeline = jit(self.call, **self.jit_kwargs)
 
     def unjit(self):
         """Un-JIT compile the pipeline."""
-        self._call_pipeline = self._call_fn
+        self._call_pipeline = self.call
 
     @property
     def jittable(self):
