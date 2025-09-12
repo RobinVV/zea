@@ -1,6 +1,5 @@
 """EchoNetLVH model for segmentation of PLAX view cardiac ultrasound. For more details see https://echonet.github.io/lvh/index.html."""
 
-import cv2
 import numpy as np
 from keras import ops
 
@@ -166,6 +165,16 @@ class EchoNetLVH(BaseModel):
         Returns:
             ndarray: Image with overlaid heatmaps and measurements of shape [H, W, 3]
         """
+        try:
+            import cv2
+
+        except ImportError as exc:
+            raise ImportError(
+                "OpenCV is required for `EchoNetLVH.overlay_labels_on_image`. "
+                "Please install it with 'pip install opencv-python' or "
+                "'pip install opencv-python-headless'."
+            ) from exc
+
         # Color scheme for each landmark
         overlay_colors = np.array(
             [
