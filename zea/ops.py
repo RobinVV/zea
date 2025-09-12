@@ -578,14 +578,9 @@ class Pipeline:
     def __call__(self, return_numpy=False, **inputs):
         """Process input data through the pipeline."""
 
-        if any(key in inputs for key in ["probe", "scan", "config"]):
-            raise ValueError(
-                "Probe, Scan and Config objects should be first processed with "
-                "`Pipeline.prepare_parameters` before calling the pipeline. "
-                "e.g. inputs = Pipeline.prepare_parameters(probe, scan, config)"
-            )
-
-        if any(isinstance(arg, ZEAObject) for arg in inputs.values()):
+        if any(key in inputs for key in ["probe", "scan", "config"]) or any(
+            isinstance(arg, ZEAObject) for arg in inputs.values()
+        ):
             raise ValueError(
                 "Probe, Scan and Config objects should be first processed with "
                 "`Pipeline.prepare_parameters` before calling the pipeline. "
