@@ -231,3 +231,18 @@ One can also acquire data using various ultrasound platforms and convert it to t
 **us4us**
 
 - See ``zea/data/convert/us4us.py`` for details.
+
+-------------------------------
+Copy a ``zea`` Dataset
+-------------------------------
+
+We have a CLI command to copy a ``zea`` dataset, which can be useful for creating subsets or modifying parameters.
+It might also be useful if you only need one data type (e.g., only the raw data) and want to save space by removing other data types.
+By default, it will append data to existing h5 files, but you can also overwrite them.
+
+Example usage:
+
+.. code-block:: shell
+
+    python -m zea.data --help
+    python -m zea.data <source_folder> <destination_folder> <key>
