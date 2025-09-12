@@ -20,6 +20,7 @@ zea
    doppler
    interface
    io_lib
+   keras_ops
    log
    metrics
    models

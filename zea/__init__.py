@@ -40,9 +40,9 @@ def setup():
 
     _check_backend_installed()
 
-    import keras
+    from keras.backend import backend as keras_backend
 
-    log.info(f"Using backend {keras.backend.backend()!r}")
+    log.info(f"Using backend {keras_backend()!r}")
 
 
 # call and clean up namespace
@@ -55,6 +55,7 @@ from . import (
     data,
     display,
     io_lib,
+    keras_ops,
     metrics,
     models,
     simulator,
