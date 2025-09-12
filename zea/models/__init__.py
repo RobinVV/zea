@@ -16,7 +16,7 @@ To use these models, you can import them directly from the :mod:`zea.models` mod
 
 .. code-block:: python
 
-    from zea.models import UNet
+    from zea.models.unet import UNet
 
     model = UNet.from_preset("unet-echonet-inpainter")
 
@@ -48,7 +48,7 @@ An example of how to use the :class:`zea.models.diffusion.DiffusionModel` is sho
 
 .. code-block:: python
 
-    from zea.models import DiffusionModel
+    from zea.models.diffusion import DiffusionModel
 
     model = DiffusionModel.from_preset("diffusion-echonet-dynamic")
     samples = model.sample(n_samples=4)
