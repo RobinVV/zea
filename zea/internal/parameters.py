@@ -253,7 +253,10 @@ class Parameters(ZeaObject):
             arr.setflags(write=False)
             return arr
 
-        log.warning(f"Cannot make {type(val)}: {val} immutable, please do not change it in-place!")
+        if not isinstance(val, (int, float, str, tuple, type(None), types.MappingProxyType)):
+            log.debug(
+                f"Cannot make {type(val)}: {val} immutable, please do not change it in-place!"
+            )
         return val
 
     def __getattr__(self, item):
