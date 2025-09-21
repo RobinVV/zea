@@ -11,11 +11,14 @@ For a comprehensive example usage, see: :doc:`../notebooks/agent/agent_example`
 All strategies are stateless, meaning that they do not maintain any internal state.
 """
 
+from typing import Callable
+
 import keras
 from keras import ops
 
 from zea import tensor_ops
 from zea.agent import masks
+from zea.backend.autograd import AutoGrad
 from zea.internal.registry import action_selection_registry
 
 
@@ -493,3 +496,106 @@ class CovarianceSamplingLines(LinesActionModel):
         best_mask = ops.squeeze(best_mask, axis=0)
 
         return best_mask, self.lines_to_im_size(best_mask)
+
+
+class TaskBasedLines(GreedyEntropy):
+    """
+    Select lines to maximize information gain with respect to a
+    downstream task outcome.
+    """
+
+    def __init__(
+        self,
+        n_actions: int,
+        n_possible_actions: int,
+        img_width: int,
+        img_height: int,
+        downstream_task_function: Callable,
+        mean: float = 0,
+        std_dev: float = 1,
+        num_lines_to_update: int = 5,
+        **kwargs,
+    ):
+        """
+        downstream_task_function should be differentiable
+        """
+        super().__init__(
+            n_actions,
+            n_possible_actions,
+            img_width,
+            img_height,
+            mean,
+            std_dev,
+            num_lines_to_update,
+        )
+        self.downstream_task_function = downstream_task_function
+
+    def compute_output_and_saliency_propagation(self, particles):
+        """
+        Should only be used for downstream task functions with scalar output.
+        """
+        autograd = AutoGrad()
+
+        autograd.set_function(self.downstream_task_function)
+        downstream_grad_and_value_fn = autograd.get_gradient_and_value_jit_fn()
+        jacobian, _ = ops.vectorized_map(
+            downstream_grad_and_value_fn,
+            particles[:, None, ...],  # add batch dim for segmenter
+        )
+
+        posterior_variance = ops.expand_dims(ops.var(particles, axis=0), axis=0)
+        mean_jacobian = ops.mean(jacobian, axis=0)
+        return posterior_variance * (mean_jacobian**2)  # don't sum yet
+
+    def sum_neighbouring_columns_into_n_possible_actions(self, full_linewise_salience):
+        full_image_width = ops.shape(full_linewise_salience)[1]
+        assert full_image_width % self.n_possible_actions == 0, (
+            "n_possible_actions must divide evenly into image width"
+        )
+        stacked_linewise_salience = ops.reshape(
+            full_linewise_salience,
+            (self.n_possible_actions, full_image_width // self.n_possible_actions),
+        )
+        return ops.sum(stacked_linewise_salience, axis=1)[None, ...]
+
+    def sample(self, particles):
+        """Sample the action using the greedy entropy method.
+
+        Args:
+            particles (Tensor): Particles of shape (batch_size, n_particles, height, width)
+
+        Returns:
+            Tuple[Tensor, Tensor]:
+                - Newly selected lines as k-hot vectors, shaped (batch_size, n_possible_actions)
+                - Masks of shape (batch_size, img_height, img_width)
+        """
+        particles = ops.expand_dims(particles[0], axis=-1)  # remove batch, add channel
+        # pixelwise_contribution_to_var_dst = (
+        #     self.compute_output_and_saliency_propagation_summed(particles)
+        # )
+        pixelwise_contribution_to_var_dst = self.compute_output_and_saliency_propagation(particles)
+        linewise_contribution_to_var_dst = ops.sum(
+            pixelwise_contribution_to_var_dst[..., 0], axis=1
+        )
+        linewise_contribution_to_var_dst = self.sum_neighbouring_columns_into_n_possible_actions(
+            linewise_contribution_to_var_dst
+        )
+
+        # Greedily select best line, reweight entropies, and repeat
+        all_selected_lines = []
+        for _ in range(self.n_actions):
+            max_contribution_line, linewise_contribution_to_var_dst = ops.vectorized_map(
+                self.select_line_and_reweight_entropy,
+                linewise_contribution_to_var_dst,
+            )
+            all_selected_lines.append(max_contribution_line)
+
+        selected_lines_k_hot = ops.any(
+            ops.one_hot(all_selected_lines, self.n_possible_actions, dtype=masks._DEFAULT_DTYPE),
+            axis=0,
+        )
+        return (
+            selected_lines_k_hot,
+            self.lines_to_im_size(selected_lines_k_hot),
+            pixelwise_contribution_to_var_dst,
+        )
