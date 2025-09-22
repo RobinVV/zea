@@ -9,7 +9,6 @@ from zea.models.deeplabv3 import DeeplabV3Plus
 from zea.models.preset_utils import register_presets
 from zea.models.presets import echonet_lvh_presets
 from zea.utils import translate
-from zea.display import scan_convert_2d, compute_scan_convert_2d_coordinates
 
 
 @model_registry(name="echonetlvh")
