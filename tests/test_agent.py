@@ -359,6 +359,28 @@ def test_task_based_lines():
     # Test that pixelwise contribution values are non-negative (variance * squared gradient)
     assert np.all(pixelwise_contribution >= 0)
 
+    # Test with batch size > 1
+    batch_size = 3
+    # Create particles for multiple batches
+    particles_batch = np.tile(particles, (batch_size, 1, 1, 1))  # (batch_size, n_particles, h, w)
+    
+    n_actions = 1
+    agent = selection.TaskBasedLines(n_actions, w, h, w, downstream_task_fn)
+    selected_lines_batch, mask_batch, pixelwise_contribution_batch = agent.sample(particles_batch)
+    
+    # Test batch output shapes
+    assert mask_batch.shape == (batch_size, h, w)
+    assert selected_lines_batch.shape == (batch_size, w)
+    assert pixelwise_contribution_batch.shape == (batch_size, h, w)
+    
+    # Test that correct number of lines are selected for each batch
+    for b in range(batch_size):
+        first_row = mask_batch[b, 0]
+        assert np.count_nonzero(first_row) == n_actions
+        assert np.count_nonzero(selected_lines_batch[b]) == n_actions
+        # All pixelwise contributions should be non-negative
+        assert np.all(pixelwise_contribution_batch[b] >= 0)
+
     # Test with a different downstream task function: mean pixel value
     def mean_task_fn(x):
         return ops.mean(x)

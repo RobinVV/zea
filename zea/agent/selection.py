@@ -597,15 +597,17 @@ class TaskBasedLines(GreedyEntropy):
         Raises:
             AssertionError: If the image width is not evenly divisible by n_possible_actions.
         """
+        batch_size = ops.shape(full_linewise_salience)[0]
         full_image_width = ops.shape(full_linewise_salience)[1]
         assert full_image_width % self.n_possible_actions == 0, (
             "n_possible_actions must divide evenly into image width"
         )
+        cols_per_action = full_image_width // self.n_possible_actions
         stacked_linewise_salience = ops.reshape(
             full_linewise_salience,
-            (self.n_possible_actions, full_image_width // self.n_possible_actions),
+            (batch_size, self.n_possible_actions, cols_per_action),
         )
-        return ops.sum(stacked_linewise_salience, axis=1)[None, ...]
+        return ops.sum(stacked_linewise_salience, axis=2)
 
     def sample(self, particles):
         """Sample actions using task-based information gain maximization.
