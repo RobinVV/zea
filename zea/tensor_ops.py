@@ -130,12 +130,74 @@ def extend_n_dims(arr, axis, n_dims):
     return ops.reshape(arr, new_shape)
 
 
+def vmap(fun, in_axes=0, out_axes=0):
+    """Vectorized map.
+
+    Args:
+        fun: The function to be mapped.
+        in_axes: The axis or axes to be mapped over in the input.
+            Can be an integer, a tuple of integers, or None.
+            If None, the corresponding argument is not mapped over.
+            Defaults to 0.
+        out_axes: The axis or axes to be mapped over in the output.
+            Can be an integer, a tuple of integers, or None.
+            If None, the corresponding output is not mapped over.
+            Defaults to 0.
+
+    Returns:
+        A function that applies `fun` in a vectorized manner over the specified axes.
+
+    Raises:
+        ValueError: If the backend does not support vmap.
+    """
+    if keras.backend.backend() == "jax":
+        import jax
+
+        return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
+    elif keras.backend.backend() == "torch":
+        import torch
+
+        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
+    else:
+        return manual_vmap(fun, in_axes=in_axes, out_axes=out_axes)
+
+
+def manual_vmap(fun, in_axes=0, out_axes=0):
+    """Manual vectorized map for backends that do not support vmap."""
+
+    if isinstance(in_axes, int):
+        in_axes = (in_axes,)
+    if isinstance(out_axes, int):
+        out_axes = (out_axes,)
+    if not isinstance(in_axes, tuple):
+        raise ValueError("in_axes must be an int or a tuple of ints.")
+    if not isinstance(out_axes, tuple):
+        raise ValueError("out_axes must be an int or a tuple of ints.")
+
+    def _moveaxis_back(tensor):
+        for out_axis in reversed(out_axes):
+            tensor = ops.moveaxis(tensor, 0, out_axis)
+        return tensor
+
+    def wrapper(tensor):
+        for in_axis in in_axes:
+            tensor = ops.moveaxis(tensor, in_axis, 0)
+        outputs = func_with_one_batch_dim(fun, tensor, n_batch_dims=len(in_axes))
+        if isinstance(outputs, (tuple, list)):
+            new_outputs = []
+            for out in outputs:
+                new_outputs.append(_moveaxis_back(out))
+            return new_outputs
+        return _moveaxis_back(outputs)
+
+    return wrapper
+
+
 def func_with_one_batch_dim(
     func,
     tensor,
     n_batch_dims: int,
     batch_size: int | None = None,
-    func_axis: int | None = None,
     **kwargs,
 ):
     """Wraps a function to apply it to an input tensor with one or more batch dimensions.
@@ -151,11 +213,10 @@ def func_with_one_batch_dim(
         batch_size (int, optional): Integer specifying the size of the batch for
             each step to execute in parallel. Defaults to None, in which case the function
             will run everything in parallel.
-        func_axis (int, optional): If `func` returns mulitple outputs, this axis will be returned.
         **kwargs: Additional keyword arguments to pass to the function.
 
     Returns:
-        The output tensor with the same batch dimensions as the input tensor.
+        The output tensor (or tensors) with the same batch dimensions as the input tensor.
 
     Raises:
         ValueError: If the number of batch dimensions is greater than the rank of the input tensor.
@@ -175,19 +236,16 @@ def func_with_one_batch_dim(
     else:
         reshaped_output = batched_map(func, reshaped_input, batch_size=batch_size)
 
-    # If the function returns multiple outputs, select the one corresponding to `func_axis`
+    def _reshape_output(output):
+        return ops.reshape(output, [*batch_dims, *ops.shape(output)[1:]])
+
     if isinstance(reshaped_output, (tuple, list)):
-        if func_axis is None:
-            raise ValueError(
-                "func_axis must be specified when the function returns multiple outputs."
-            )
-        reshaped_output = reshaped_output[func_axis]
+        new_outputs = []
+        for out in reshaped_output:
+            new_outputs.append(_reshape_output(out))
+        return new_outputs
 
-    # Extract the shape of the output tensor after applying the function (excluding the batch dim)
-    output_other_dims = ops.shape(reshaped_output)[1:]
-
-    # Reshape the output tensor to restore the original batch dimensions
-    return ops.reshape(reshaped_output, [*batch_dims, *output_other_dims])
+    return _reshape_output(reshaped_output)
 
 
 def matrix_power(matrix, power):
@@ -1425,6 +1483,11 @@ def correlate(x, y, mode="full"):
     y = ops.convert_to_tensor(y)
 
     is_complex = "complex" in ops.dtype(x) or "complex" in ops.dtype(y)
+
+    # Cast to complex64 if real
+    if not is_complex:
+        x = ops.cast(x, "complex64")
+        y = ops.cast(y, "complex64")
 
     # Split into real and imaginary
     xr, xi = ops.real(x), ops.imag(x)

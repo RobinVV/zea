@@ -4,10 +4,13 @@ import inspect
 
 import numpy as np
 import pytest
+from keras import ops
 
 from zea import metrics
 from zea.backend.tensorflow.losses import SMSLE
 from zea.internal.registry import metrics_registry
+
+from . import backend_equality_check
 
 
 def test_smsle():
@@ -24,41 +27,28 @@ def test_smsle():
     assert loss.shape == ()
 
 
-@pytest.mark.parametrize(
-    "y_true, y_pred",
-    [
-        (
-            np.random.rand(11, 128, 512, 2).astype(np.float32),
-            np.random.rand(11, 128, 512, 2).astype(np.float32),
-        ),
-        (
-            np.random.rand(200).astype(np.float32),
-            np.random.rand(200).astype(np.float32),
-        ),
-        (
-            np.random.rand(300, 20).astype(np.float32),
-            np.random.rand(300, 20).astype(np.float32),
-        ),
-    ],
-)
-def test_metrics(y_true, y_pred):
+@pytest.mark.parametrize("metric_name", metrics_registry.registered_names())
+@backend_equality_check(decimal=3)
+def test_metrics(metric_name):
     """Test all losses and metrics"""
-    supervised_metrics = metrics_registry.filter_by_argument("supervised", True)
-    unsupervised_metrics = metrics_registry.filter_by_argument("supervised", False)
-
-    for metric_name in metrics_registry:
+    if metric_name == "lpips":
+        metric = metrics.get_metric(metric_name, image_range=[0, 255])
+    else:
         metric = metrics.get_metric(metric_name)
-        try:
-            if metric_name in supervised_metrics:
-                metric_value = metric(y_true, y_pred)
-            elif metric_name in unsupervised_metrics:
-                metric_value = metric(y_pred)
-            else:
-                raise ValueError("Metric is not supervised or unsupervised")
-        except NotImplementedError:
-            continue
+    paired = metrics_registry.get_parameter(metric_name, "paired")
 
-        assert metric_value.shape == (), f"{metric_name} function does not return a scalar"
+    rng = np.random.default_rng(42)
+    y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
+
+    if paired:
+        metric_value = metric(y_true, y_pred)
+    else:
+        metric_value = metric(y_pred)
+
+    return metric_value
 
 
 def test_metrics_registry():

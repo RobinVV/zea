@@ -1,5 +1,8 @@
 """Metrics for ultrasound images."""
 
+from functools import partial
+from typing import List
+
 import keras
 import numpy as np
 from keras import ops
@@ -7,14 +10,14 @@ from keras import ops
 from zea import log, tensor_ops
 from zea.internal.registry import metrics_registry
 from zea.models.lpips import LPIPS
-from zea.utils import translate
+from zea.utils import reduce_to_signature, translate
 
 
 def get_metric(name, **kwargs):
     """Get metric function given name."""
     metric_fn = metrics_registry[name]
     if not metric_fn.__name__.startswith("get_"):
-        return metric_fn
+        return partial(metric_fn, **kwargs)
 
     log.info(f"Initializing metric: {log.green(name)}")
     return metric_fn(**kwargs)
@@ -53,14 +56,16 @@ def contrast(x, y):
 @metrics_registry(name="gcnr", paired=True)
 def gcnr(x, y, bins=256):
     """Generalized contrast-to-noise-ratio"""
-    x = ops.ravel(x)
-    y = ops.ravel(y)
-    _, bins = ops.histogram(ops.concatenate((x, y)), bins=bins)
-    f, _ = ops.histogram(x, bins=bins, density=True)
-    g, _ = ops.histogram(y, bins=bins, density=True)
-    f /= ops.sum(f)
-    g /= ops.sum(g)
-    return 1 - ops.sum(ops.minimum(f, g))
+    x = ops.convert_to_numpy(x)
+    y = ops.convert_to_numpy(y)
+    x = np.ravel(x)
+    y = np.ravel(y)
+    _, bins = np.histogram(np.concatenate((x, y)), bins=bins)
+    f, _ = np.histogram(x, bins=bins, density=True)
+    g, _ = np.histogram(y, bins=bins, density=True)
+    f /= np.sum(f)
+    g /= np.sum(g)
+    return 1 - np.sum(np.minimum(f, g))
 
 
 @metrics_registry(name="fwhm", paired=False)
@@ -102,7 +107,7 @@ def psnr(y_true, y_pred, *, max_val=255):
         max_val: The dynamic range of the images
 
     Returns:
-        (float): peak signal to noise ratio of y_true and y_pred.
+        Tensor (float): PSNR score for each image in the batch.
     """
     mse = _reduce_mean(ops.square(y_true - y_pred))
     psnr = 20 * ops.log10(max_val) - 10 * ops.log10(mse)
@@ -140,7 +145,7 @@ def ssim(
     a,
     b,
     *,
-    max_val: float = 1.0,
+    max_val: float = 255.0,
     filter_size: int = 11,
     filter_sigma: float = 1.5,
     k1: float = 0.01,
@@ -183,17 +188,17 @@ def ssim(
         # Construct a 1D Gaussian blur filter.
         hw = filter_size // 2
         shift = (2 * hw - filter_size + 1) / 2
-        f_i = ((ops.arange(filter_size) - hw + shift) / filter_sigma) ** 2
+        f_i = ((ops.cast(ops.arange(filter_size), "float32") - hw + shift) / filter_sigma) ** 2
         filt = ops.exp(-0.5 * f_i)
         filt /= ops.sum(filt)
 
         # Construct a 1D convolution.
         def filter_fn_1(z):
-            return tensor_ops.correlate(z, filt[::-1], mode="valid")
+            return tensor_ops.correlate(z, ops.flip(filt), mode="valid")
 
         # Apply the vectorized filter along the y axis.
         def filter_fn_y(z):
-            z_flat = ops.moveaxis(z, -3, -1).reshape((-1, z.shape[-3]))
+            z_flat = ops.reshape(ops.moveaxis(z, -3, -1), (-1, z.shape[-3]))
             z_filtered_shape = ((z.shape[-4],) if z.ndim == 4 else ()) + (
                 z.shape[-2],
                 z.shape[-1],
@@ -249,6 +254,7 @@ def ncc(x, y):
     return ops.sum(x * y) / ops.sum(ops.sqrt((x**2)) * ops.sum(y**2))
 
 
+@metrics_registry(name="lpips", paired=True)
 def get_lpips(image_range, batch_size=128, clip=False):
     """
     Get the Learned Perceptual Image Patch Similarity (LPIPS) metric.
@@ -294,6 +300,46 @@ def get_lpips(image_range, batch_size=128, clip=False):
         )
 
     return lpips
+
+
+class Metrics:
+    """Class for calculating multiple paired metrics."""
+
+    def __init__(self, metrics: List[str], image_range: tuple, **kwargs):
+        # Assert all metrics are paired
+        for m in metrics:
+            assert metrics_registry.get_parameter(m, "paired"), (
+                f"Metric {m} is not a paired metric."
+            )
+        # Initialize all metrics
+        self.metrics = [
+            get_metric(m, reduce_to_signature(metrics_registry[m], **kwargs)) for m in metrics
+        ]
+        self.image_range = image_range
+
+    @staticmethod
+    def call_metric_fn(metric_fn, y_true, y_pred, average_batch, batch_axes):
+        if average_batch:
+            return metric_fn(y_true, y_pred)
+        else:
+            if batch_axes is None:
+                batch_axes = tuple(range(ops.ndim(y_true) - 3))
+            _result = tensor_ops.vmap(metric_fn, in_axes=batch_axes)(y_true, y_pred)
+            return ops.mean(_result, axis=batch_axes)
+
+    def __call__(
+        self,
+        y_true,
+        y_pred,
+        average_batch=True,
+        batch_axes=None,
+    ):
+        """Calculate all metrics and return as a dictionary."""
+        results = {}
+        for metric in self.metrics:
+            name = metric.__name__
+            results[name] = self.call_metric_fn(metric, y_true, y_pred, average_batch, batch_axes)
+        return results
 
 
 def _sector_reweight_image(image, sector_angle, axis):
