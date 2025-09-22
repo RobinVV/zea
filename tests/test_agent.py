@@ -309,6 +309,7 @@ def test_uniform_random_lines():
     with pytest.raises(AssertionError):
         selection.UniformRandomLines(3, 10, h, w)
 
+
 def test_task_based_lines():
     """Test TaskBasedLines action selection."""
     np.random.seed(2)
@@ -331,12 +332,12 @@ def test_task_based_lines():
     n_actions = 1
     agent = selection.TaskBasedLines(n_actions, w, h, w, downstream_task_fn)
     selected_lines, mask, pixelwise_contribution = agent.sample(particles)
-    
+
     # Test output shapes
     assert mask.shape == (1, h, w)
     assert selected_lines.shape == (1, w)
     assert pixelwise_contribution.shape == (1, h, w)
-    
+
     # Test that correct number of lines are selected
     first_row = mask[0, 0]
     assert np.count_nonzero(first_row) == n_actions
@@ -346,11 +347,11 @@ def test_task_based_lines():
     n_actions = 2
     agent = selection.TaskBasedLines(n_actions, w, h, w, downstream_task_fn)
     selected_lines, mask, pixelwise_contribution = agent.sample(particles)
-    
+
     assert mask.shape == (1, h, w)
     assert selected_lines.shape == (1, w)
     assert pixelwise_contribution.shape == (1, h, w)
-    
+
     first_row = mask[0, 0]
     assert np.count_nonzero(first_row) == n_actions
     assert np.count_nonzero(selected_lines[0]) == n_actions
@@ -364,13 +365,13 @@ def test_task_based_lines():
 
     agent_mean = selection.TaskBasedLines(n_actions, w, h, w, mean_task_fn)
     selected_lines_mean, mask_mean, pixelwise_contribution_mean = agent_mean.sample(particles)
-    
+
     # Should have same shapes
     assert mask_mean.shape == (1, h, w)
     assert selected_lines_mean.shape == (1, w)
     assert pixelwise_contribution_mean.shape == (1, h, w)
     assert np.count_nonzero(selected_lines_mean[0]) == n_actions
-    
+
     # regression tests
     assert 2 in np.flatnonzero(selected_lines)
     assert 6 in np.flatnonzero(selected_lines)
