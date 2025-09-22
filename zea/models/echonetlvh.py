@@ -9,6 +9,7 @@ from zea.models.deeplabv3 import DeeplabV3Plus
 from zea.models.preset_utils import register_presets
 from zea.models.presets import echonet_lvh_presets
 from zea.utils import translate
+from zea.display import scan_convert_2d, compute_scan_convert_2d_coordinates
 
 
 @model_registry(name="echonetlvh")
@@ -37,16 +38,11 @@ class EchoNetLVH(BaseModel):
         """
         super().__init__(**kwargs)
 
-        # Scan conversion constants for echonet processing
-        self.rho_range = (0, 224)  # Radial distance range in pixels
-        self.theta_range = (np.deg2rad(-45), np.deg2rad(45))  # Angular range in radians
-        self.fill_value = -1.0  # Fill value for scan conversion
-        self.resolution = 1.0  # mm per pixel resolution
-
+      
         # Network input/output dimensions
-        self.n_rho = 224
-        self.n_theta = 224
-        self.output_shape = (224, 224, 4)
+        # self.n_rho = 224
+        # self.n_theta = 224
+        # self.output_shape = (224, 224, 4)
 
         # Pre-computed coordinate grid for efficient processing
         self.coordinate_grid = ops.stack(

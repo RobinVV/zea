@@ -518,6 +518,7 @@ class TaskBasedLines(GreedyEntropy):
     ):
         """
         downstream_task_function should be differentiable
+        downstream_task_function should take a _batch_ of inputs
         """
         super().__init__(
             n_actions,
@@ -533,18 +534,24 @@ class TaskBasedLines(GreedyEntropy):
     def compute_output_and_saliency_propagation(self, particles):
         """
         Should only be used for downstream task functions with scalar output.
+
+        Params:
+            particles (Tensor of shape [Batch, N_particles, Height, Width])
         """
         autograd = AutoGrad()
 
         autograd.set_function(self.downstream_task_function)
         downstream_grad_and_value_fn = autograd.get_gradient_and_value_jit_fn()
         jacobian, _ = ops.vectorized_map(
-            downstream_grad_and_value_fn,
-            particles[:, None, ...],  # add batch dim for segmenter
+            lambda p: ops.vectorized_map(
+                downstream_grad_and_value_fn,
+                p,  # add batch dim for segmenter
+            ),
+            particles
         )
 
-        posterior_variance = ops.expand_dims(ops.var(particles, axis=0), axis=0)
-        mean_jacobian = ops.mean(jacobian, axis=0)
+        posterior_variance = ops.var(particles, axis=1)
+        mean_jacobian = ops.mean(jacobian, axis=1)
         return posterior_variance * (mean_jacobian**2)  # don't sum yet
 
     def sum_neighbouring_columns_into_n_possible_actions(self, full_linewise_salience):
@@ -569,24 +576,20 @@ class TaskBasedLines(GreedyEntropy):
                 - Newly selected lines as k-hot vectors, shaped (batch_size, n_possible_actions)
                 - Masks of shape (batch_size, img_height, img_width)
         """
-        particles = ops.expand_dims(particles[0], axis=-1)  # remove batch, add channel
-        # pixelwise_contribution_to_var_dst = (
-        #     self.compute_output_and_saliency_propagation_summed(particles)
-        # )
         pixelwise_contribution_to_var_dst = self.compute_output_and_saliency_propagation(particles)
         linewise_contribution_to_var_dst = ops.sum(
-            pixelwise_contribution_to_var_dst[..., 0], axis=1
+            pixelwise_contribution_to_var_dst, axis=1
         )
-        linewise_contribution_to_var_dst = self.sum_neighbouring_columns_into_n_possible_actions(
+        actionwise_contribution_to_var_dst = self.sum_neighbouring_columns_into_n_possible_actions(
             linewise_contribution_to_var_dst
         )
 
         # Greedily select best line, reweight entropies, and repeat
         all_selected_lines = []
         for _ in range(self.n_actions):
-            max_contribution_line, linewise_contribution_to_var_dst = ops.vectorized_map(
+            max_contribution_line, actionwise_contribution_to_var_dst = ops.vectorized_map(
                 self.select_line_and_reweight_entropy,
-                linewise_contribution_to_var_dst,
+                actionwise_contribution_to_var_dst,
             )
             all_selected_lines.append(max_contribution_line)
 
