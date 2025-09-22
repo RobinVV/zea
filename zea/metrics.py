@@ -8,6 +8,7 @@ import numpy as np
 from keras import ops
 
 from zea import log, tensor_ops
+from zea.backend import func_on_device
 from zea.internal.registry import metrics_registry
 from zea.models.lpips import LPIPS
 from zea.utils import reduce_to_signature, translate
@@ -312,20 +313,25 @@ class Metrics:
                 f"Metric {m} is not a paired metric."
             )
         # Initialize all metrics
-        self.metrics = [
-            get_metric(m, reduce_to_signature(metrics_registry[m], **kwargs)) for m in metrics
-        ]
+        self.metrics = {
+            m: get_metric(m, **reduce_to_signature(metrics_registry[m], kwargs)) for m in metrics
+        }
         self.image_range = image_range
 
     @staticmethod
-    def call_metric_fn(metric_fn, y_true, y_pred, average_batch, batch_axes):
+    def call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
         if average_batch:
-            return metric_fn(y_true, y_pred)
+            metric_fn = lambda x, y: ops.mean(fun(x, y))
         else:
             if batch_axes is None:
                 batch_axes = tuple(range(ops.ndim(y_true) - 3))
-            _result = tensor_ops.vmap(metric_fn, in_axes=batch_axes)(y_true, y_pred)
-            return ops.mean(_result, axis=batch_axes)
+            metric_fn = tensor_ops.vmap(fun, in_axes=batch_axes)
+
+        out = func_on_device(metric_fn, device, y_true, y_pred)
+
+        if return_numpy:
+            out = ops.convert_to_numpy(out)
+        return out
 
     def __call__(
         self,
@@ -333,12 +339,15 @@ class Metrics:
         y_pred,
         average_batch=True,
         batch_axes=None,
+        return_numpy=True,
+        device=None,
     ):
         """Calculate all metrics and return as a dictionary."""
         results = {}
-        for metric in self.metrics:
-            name = metric.__name__
-            results[name] = self.call_metric_fn(metric, y_true, y_pred, average_batch, batch_axes)
+        for name, metric in self.metrics.items():
+            results[name] = self.call_metric_fn(
+                metric, y_true, y_pred, average_batch, batch_axes, return_numpy, device
+            )
         return results
 
 

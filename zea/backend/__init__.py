@@ -129,40 +129,46 @@ class on_device:
     """
 
     def __init__(self, device: str):
-        self.set_device(device)
+        self.device = self.get_device(device)
+        self._context = self.get_context(self.device)
+
+    def get_context(self, device):
+        if device is None:
+            return nullcontext()
 
         if keras.backend.backend() == "tensorflow":
             import tensorflow as tf
 
-            self._context = tf.device(self.device)
+            return tf.device(device)
 
-        elif keras.backend.backend() == "jax":
+        if keras.backend.backend() == "jax":
             import jax
 
-            self._context = jax.default_device(self.device)
-        elif keras.backend.backend() == "torch":
+            return jax.default_device(device)
+        if keras.backend.backend() == "torch":
             import torch
 
-            self._context = torch.device(self.device)
-        else:
-            self._context = nullcontext()
+            return torch.device(device)
 
-    def set_device(self, device: str):
+        return nullcontext()
+
+    def get_device(self, device: str):
+        if device is None:
+            return None
+
         device = device.lower()
 
         if keras.backend.backend() == "tensorflow":
-            device = device.replace("cuda", "gpu")
+            return device.replace("cuda", "gpu")
 
-        elif keras.backend.backend() == "jax":
+        if keras.backend.backend() == "jax":
             from zea.backend.jax import str_to_jax_device
 
             device = device.replace("cuda", "gpu")
-            device = str_to_jax_device(device)
+            return str_to_jax_device(device)
 
-        elif keras.backend.backend() == "torch":
-            device = device.replace("gpu", "cuda")
-
-        self.device = device
+        if keras.backend.backend() == "torch":
+            return device.replace("gpu", "cuda")
 
     def __enter__(self):
         self._context.__enter__()

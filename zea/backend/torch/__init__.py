@@ -17,6 +17,9 @@ def func_on_device(func, device, *args, **kwargs):
     Returns:
         The output of the function.
     """
+    if device is None:
+        return func(*args, **kwargs)
+
     if isinstance(device, str):
         device = torch.device(device)
 

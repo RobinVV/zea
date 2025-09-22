@@ -51,6 +51,26 @@ def test_metrics(metric_name):
     return metric_value
 
 
+def test_metrics_class():
+    """Test Metrics class"""
+    rng = np.random.default_rng(42)
+    y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
+
+    METRIC_NAMES = ["mse", "psnr", "ssim"]
+    metrics_instance = metrics.Metrics(METRIC_NAMES, [0, 255])
+
+    results = metrics_instance(y_true, y_pred, average_batch=True)
+    assert all(name in results for name in METRIC_NAMES)
+    assert all(np.isscalar(value.item()) for value in results.values())
+
+    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=0)
+    assert all(name in results_no_avg for name in METRIC_NAMES)
+    assert all(value.shape[0] == 2 for value in results_no_avg.values())
+
+
 def test_metrics_registry():
     """Test if all metrics are in the registry"""
     metrics_module = inspect.getmodule(metrics)
