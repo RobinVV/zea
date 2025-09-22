@@ -363,16 +363,16 @@ def test_task_based_lines():
     batch_size = 3
     # Create particles for multiple batches
     particles_batch = np.tile(particles, (batch_size, 1, 1, 1))  # (batch_size, n_particles, h, w)
-    
+
     n_actions = 1
     agent = selection.TaskBasedLines(n_actions, w, h, w, downstream_task_fn)
     selected_lines_batch, mask_batch, pixelwise_contribution_batch = agent.sample(particles_batch)
-    
+
     # Test batch output shapes
     assert mask_batch.shape == (batch_size, h, w)
     assert selected_lines_batch.shape == (batch_size, w)
     assert pixelwise_contribution_batch.shape == (batch_size, h, w)
-    
+
     # Test that correct number of lines are selected for each batch
     for b in range(batch_size):
         first_row = mask_batch[b, 0]
