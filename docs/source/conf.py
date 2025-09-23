@@ -37,7 +37,9 @@ autodoc_default_options = {
     "members": True,
     "undoc-members": True,
     "show-inheritance": True,
+    "special-members": "__call__",
 }
+autoclass_content = "both"  # include both class docstring and __init__ docstring
 
 templates_path = ["_templates"]
 
