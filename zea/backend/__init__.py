@@ -126,6 +126,13 @@ class on_device:
 
     Args:
         device (str): Device string, e.g. ``'cuda'``, ``'gpu'``, or ``'cpu'``.
+
+    Example:
+        .. code-block:: python
+
+            with zea.backend.on_device("gpu:3"):
+                pipeline = zea.Pipeline([zea.keras_ops.Abs()])
+                output = pipeline(data=keras.random.normal((10, 10)))  # output is on "cuda:3"
     """
 
     def __init__(self, device: str):

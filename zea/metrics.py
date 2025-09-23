@@ -311,6 +311,13 @@ class Metrics:
 
     Will preprocess images by translating to [0, 255], clipping, and quantizing to uint8
     if specified.
+
+    Example:
+        .. code-block:: python
+
+            metrics = zea.metrics.Metrics(["psnr", "lpips"], image_range=[0, 255])
+            result = metrics(y_true, y_pred)
+            print(result)  # {"psnr": 30.5, "lpips": 0.15}
     """
 
     def __init__(
@@ -348,7 +355,7 @@ class Metrics:
         self.clip = clip
 
     @staticmethod
-    def call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
+    def _call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
         if batch_axes is None:
             batch_axes = tuple(range(ops.ndim(y_true) - 3))
         elif not isinstance(batch_axes, (list, tuple)):
@@ -401,7 +408,7 @@ class Metrics:
         """
         results = {}
         for name, metric in self.metrics.items():
-            results[name] = self.call_metric_fn(
+            results[name] = self._call_metric_fn(
                 metric,
                 self._prepocess(y_true),
                 self._prepocess(y_pred),
