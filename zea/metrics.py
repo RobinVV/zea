@@ -253,7 +253,9 @@ def ssim(
 @metrics_registry(name="ncc", paired=True)
 def ncc(x, y):
     """Normalized cross correlation"""
-    return ops.sum(x * y) / ops.sum(ops.sqrt((x**2)) * ops.sum(y**2))
+    num = ops.sum(x * y)
+    denom = ops.sqrt(ops.sum(x**2) * ops.sum(y**2))
+    return num / ops.maximum(denom, keras.config.epsilon())
 
 
 @metrics_registry(name="lpips", paired=True)
