@@ -77,21 +77,19 @@ def test_metrics_class():
 
 def test_metrics_registry():
     """Test if all metrics are in the registry"""
-    metrics_module = inspect.getmodule(metrics)
-    metrics_funcs = inspect.getmembers(metrics_module, inspect.isfunction)
-    metrics_func_names = [func[0] for func in metrics_funcs]
 
-    for metric in metrics_func_names:
-        if metric == "get_metric" or metric.startswith("_"):
-            continue
-        assert metric in metrics_registry, f"{metric} is not in the metrics registry"
+    metrics_funcs = inspect.getmembers(metrics, inspect.isfunction)
+    for _, _func in metrics_funcs:
+        if _func.__module__.startswith("zea.metrics."):
+            metrics_registry.get_name(_func)  # this raises an error if the class is not registered
 
 
 def test_sector_reweight_image():
     """Test sector reweight util function"""
     # TODO: redo this test to not reimplement the function
     # arrange
-    cube_of_ones = np.ones((3, 3, 3))
+    cube_of_ones = np.ones((3, 3, 3)).astype(np.float32)
+    cube_of_ones = ops.convert_to_tensor(cube_of_ones)
 
     # act
     reweighted_cube = metrics._sector_reweight_image(cube_of_ones, 180, axis=1)

@@ -305,7 +305,7 @@ def get_lpips(image_range, batch_size=128, clip=False):
 
 
 class Metrics:
-    """Class for calculating multiple paired metrics.
+    """Class for calculating multiple paired metrics. Also useful for batch processing.
 
     Will preprocess images by translating to [0, 255], clipping, and quantizing to uint8
     if specified.
@@ -428,7 +428,7 @@ def _sector_reweight_image(image, sector_angle, axis):
             pixel post-scan-conversion.
     """
     height = image.shape[axis]
-    depths = ops.arange(height) + 0.5  # center of the pixel as its depth
+    depths = ops.arange(height, dtype="float32") + 0.5  # center of the pixel as its depth
     reweighting_factors = (sector_angle / 360) * 2 * np.pi * depths
     # Reshape reweighting_factors to broadcast along the specified axis
     shape = [1] * ops.ndim(image)
