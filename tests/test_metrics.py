@@ -48,6 +48,26 @@ def test_metrics(metric_name):
     else:
         metric_value = metric(y_pred)
 
+    # Regression test against TensorFlow implementations for SSIM and PSNR
+    if metric_name == "ssim":
+        import tensorflow as tf
+
+        expected_value = tf.image.ssim(
+            ops.convert_to_numpy(y_true),
+            ops.convert_to_numpy(y_pred),
+            max_val=255.0,
+        )
+        np.testing.assert_allclose(metric_value, expected_value, rtol=1e-5, atol=1e-5)
+    elif metric_name == "psnr":
+        import tensorflow as tf
+
+        expected_value = tf.image.psnr(
+            ops.convert_to_numpy(y_true),
+            ops.convert_to_numpy(y_pred),
+            max_val=255.0,
+        )
+        np.testing.assert_allclose(metric_value, expected_value, rtol=1e-5, atol=1e-5)
+
     return metric_value
 
 
