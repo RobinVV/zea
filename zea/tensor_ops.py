@@ -168,20 +168,6 @@ def vmap(fun, in_axes=0, out_axes=0):
 def manual_vmap(fun, in_axes=0, out_axes=0):
     """Manual vectorized map for backends that do not support vmap."""
 
-    # If in_axes or out_axes is an int, convert to tuple
-    if isinstance(in_axes, int):
-        in_axes = (in_axes,)
-    if isinstance(out_axes, int):
-        out_axes = (out_axes,)
-
-    # Check that in_axes and out_axes are tuples
-    if not isinstance(in_axes, tuple):
-        raise ValueError("in_axes must be an int or a tuple of ints.")
-    if not isinstance(out_axes, tuple):
-        raise ValueError("out_axes must be an int or a tuple of ints.")
-
-    ZEROS = (0,) * len(in_axes)
-
     def find_map_length(args, in_axes):
         """Find the length of the axis to map over."""
         # NOTE: only needed for numpy, the other backends can handle a singleton dimension
@@ -206,14 +192,31 @@ def manual_vmap(fun, in_axes=0, out_axes=0):
         return fun(*args)
 
     def wrapper(*args):
-        args = _moveaxes(args, in_axes, ZEROS)
+        # If in_axes or out_axes is an int, convert to tuple
+        if isinstance(in_axes, int):
+            _in_axes = (in_axes,) * len(args)
+        else:
+            _in_axes = in_axes
+        if isinstance(out_axes, int):
+            _out_axes = (out_axes,) * len(args)
+        else:
+            _out_axes = out_axes
+        zeros = (0,) * len(args)
+
+        # Check that in_axes and out_axes are tuples
+        if not isinstance(_in_axes, tuple):
+            raise ValueError("in_axes must be an int or a tuple of ints.")
+        if not isinstance(_out_axes, tuple):
+            raise ValueError("out_axes must be an int or a tuple of ints.")
+
+        args = _moveaxes(args, _in_axes, zeros)
         outputs = ops.vectorized_map(_fun, tuple(args))
 
         tuple_output = isinstance(outputs, (tuple, list))
         if not tuple_output:
             outputs = (outputs,)
 
-        outputs = _moveaxes(outputs, ZEROS, out_axes)
+        outputs = _moveaxes(outputs, zeros, _out_axes)
 
         if not tuple_output:
             outputs = outputs[0]
