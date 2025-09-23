@@ -154,11 +154,9 @@ def vmap(fun, in_axes=0, out_axes=0):
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
-    elif keras.backend.backend() == "torch":
-        import torch
-
-        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
     else:
+        # torch has vmap support, but not for all operations yet.
+        # tensorflow has vectorized_map but it is not as flexible as jax.vmap
         return manual_vmap(fun, in_axes=in_axes, out_axes=out_axes)
 
 
@@ -179,10 +177,11 @@ def manual_vmap(fun, in_axes=0, out_axes=0):
             tensor = ops.moveaxis(tensor, 0, out_axis)
         return tensor
 
-    def wrapper(tensor):
+    def wrapper(*args):
+        args = list(args)
         for in_axis in in_axes:
-            tensor = ops.moveaxis(tensor, in_axis, 0)
-        outputs = func_with_one_batch_dim(fun, tensor, n_batch_dims=len(in_axes))
+            args = [ops.moveaxis(arg, in_axis, 0) for arg in args]
+        outputs = func_with_one_batch_dim(fun, n_batch_dims=len(in_axes))(*args)
         if isinstance(outputs, (tuple, list)):
             new_outputs = []
             for out in outputs:
@@ -193,59 +192,59 @@ def manual_vmap(fun, in_axes=0, out_axes=0):
     return wrapper
 
 
-def func_with_one_batch_dim(
-    func,
-    tensor,
-    n_batch_dims: int,
-    batch_size: int | None = None,
-    **kwargs,
-):
+def func_with_one_batch_dim(func, n_batch_dims: int, batch_size: int | None = None):
     """Wraps a function to apply it to an input tensor with one or more batch dimensions.
 
     The function will be executed in parallel on all batch elements.
 
     Args:
-        func (function): The function to apply to the image.
-            Will take the `func_axis` output from the function.
-        tensor (Tensor): The input tensor.
-        n_batch_dims (int): The number of batch dimensions in the input tensor.
-            Expects the input to start with n_batch_dims batch dimensions. Defaults to 2.
+        func (function): The function to apply.
+        n_batch_dims (int): The number of batch dimensions in the input tensor(s).
+            Expects the input to start with n_batch_dims batch dimensions.
         batch_size (int, optional): Integer specifying the size of the batch for
             each step to execute in parallel. Defaults to None, in which case the function
             will run everything in parallel.
-        **kwargs: Additional keyword arguments to pass to the function.
 
     Returns:
-        The output tensor (or tensors) with the same batch dimensions as the input tensor.
-
-    Raises:
-        ValueError: If the number of batch dimensions is greater than the rank of the input tensor.
+        function: A wrapped version of `func` that can handle input tensors with
+            multiple batch dimensions.
     """
-    # Extract the shape of the batch dimensions from the input tensor
-    batch_dims = ops.shape(tensor)[:n_batch_dims]
 
-    # Extract the shape of the remaining (non-batch) dimensions
-    other_dims = ops.shape(tensor)[n_batch_dims:]
+    def _reshape_input(tensor):
+        # Extract the shape of the remaining (non-batch) dimensions
+        other_dims = ops.shape(tensor)[n_batch_dims:]
 
-    # Reshape the input tensor to merge all batch dimensions into one
-    reshaped_input = ops.reshape(tensor, [-1, *other_dims])
+        # Reshape the input tensor to merge all batch dimensions into one
+        return ops.reshape(tensor, [-1, *other_dims])
 
-    # Apply the given function to the reshaped input tensor
-    if batch_size is None:
-        reshaped_output = func(reshaped_input, **kwargs)
-    else:
-        reshaped_output = batched_map(func, reshaped_input, batch_size=batch_size)
+    def _reshape_output(tensor, batch_dims):
+        # Reshape the output tensor to restore the original batch dimensions
+        return ops.reshape(tensor, [*batch_dims, *ops.shape(tensor)[1:]])
 
-    def _reshape_output(output):
-        return ops.reshape(output, [*batch_dims, *ops.shape(output)[1:]])
+    def wrapper(*args):
+        # Extract the shape of the batch dimensions from the input tensor
+        batch_dims = ops.shape(args[0])[:n_batch_dims]
 
-    if isinstance(reshaped_output, (tuple, list)):
-        new_outputs = []
-        for out in reshaped_output:
-            new_outputs.append(_reshape_output(out))
-        return new_outputs
+        args = list(args)
+        args = [_reshape_input(arg) for arg in args]
 
-    return _reshape_output(reshaped_output)
+        # Apply the given function to the reshaped input tensor
+        if batch_size is None:
+            reshaped_output = func(*args)
+        else:
+            raise NotImplementedError(
+                "batch_size is not implemented yet for func_with_one_batch_dim"
+            )
+
+        if isinstance(reshaped_output, (tuple, list)):
+            new_outputs = []
+            for out in reshaped_output:
+                new_outputs.append(_reshape_output(out, batch_dims))
+            return new_outputs
+
+        return _reshape_output(reshaped_output, batch_dims)
+
+    return wrapper
 
 
 def matrix_power(matrix, power):
