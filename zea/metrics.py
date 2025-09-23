@@ -51,7 +51,7 @@ def cnr(x, y):
 @metrics_registry(name="contrast", paired=True)
 def contrast(x, y):
     """Contrast ratio"""
-    return 20 * ops.log10(x.mean() / y.mean())
+    return 20 * ops.log10(ops.mean(x) / ops.mean(y))
 
 
 @metrics_registry(name="gcnr", paired=True)
@@ -347,14 +347,16 @@ class Metrics:
 
     @staticmethod
     def call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
-        if average_batch:
-            metric_fn = lambda x, y: ops.mean(fun(x, y))
-        else:
-            if batch_axes is None:
-                batch_axes = tuple(range(ops.ndim(y_true) - 3))
-            metric_fn = tensor_ops.vmap(fun, in_axes=batch_axes)
+        if batch_axes is None:
+            batch_axes = tuple(range(ops.ndim(y_true) - 3))
+
+        # Because most metric functions do not support batching, we vmap over the batch axes.
+        metric_fn = tensor_ops.vmap(fun, in_axes=batch_axes)
 
         out = func_on_device(metric_fn, device, y_true, y_pred)
+
+        if average_batch:
+            out = ops.mean(out)
 
         if return_numpy:
             out = ops.convert_to_numpy(out)
