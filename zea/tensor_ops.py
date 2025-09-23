@@ -163,31 +163,57 @@ def vmap(fun, in_axes=0, out_axes=0):
 def manual_vmap(fun, in_axes=0, out_axes=0):
     """Manual vectorized map for backends that do not support vmap."""
 
+    # If in_axes or out_axes is an int, convert to tuple
     if isinstance(in_axes, int):
         in_axes = (in_axes,)
     if isinstance(out_axes, int):
         out_axes = (out_axes,)
+
+    # Check that in_axes and out_axes are tuples
     if not isinstance(in_axes, tuple):
         raise ValueError("in_axes must be an int or a tuple of ints.")
     if not isinstance(out_axes, tuple):
         raise ValueError("out_axes must be an int or a tuple of ints.")
 
-    def _moveaxis_back(tensor):
-        for out_axis in reversed(out_axes):
-            tensor = ops.moveaxis(tensor, 0, out_axis)
-        return tensor
+    ZEROS = (0,) * len(in_axes)
+
+    def find_map_length(args, in_axes):
+        """Find the length of the axis to map over."""
+        # NOTE: only needed for numpy, the other backends can handle a singleton dimension
+        for arg, axis in zip(args, in_axes):
+            if axis is None:
+                continue
+
+            return ops.shape(arg)[axis]
+        return 1
+
+    def _moveaxes(args, in_axes, out_axes):
+        """Move axes of the input arguments."""
+        args = list(args)
+        for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
+            if in_axis is not None:
+                args[i] = ops.moveaxis(arg, in_axis, out_axis)
+            else:
+                args[i] = ops.repeat(arg[None], find_map_length(args, in_axes), axis=out_axis)
+        return tuple(args)
+
+    def _fun(args):
+        return fun(*args)
 
     def wrapper(*args):
-        args = list(args)
-        for in_axis in in_axes:
-            args = [ops.moveaxis(arg, in_axis, 0) for arg in args]
-        outputs = func_with_one_batch_dim(fun, n_batch_dims=len(in_axes))(*args)
-        if isinstance(outputs, (tuple, list)):
-            new_outputs = []
-            for out in outputs:
-                new_outputs.append(_moveaxis_back(out))
-            return new_outputs
-        return _moveaxis_back(outputs)
+        args = _moveaxes(args, in_axes, ZEROS)
+        outputs = ops.vectorized_map(_fun, tuple(args))
+
+        tuple_output = isinstance(outputs, (tuple, list))
+        if not tuple_output:
+            outputs = (outputs,)
+
+        outputs = _moveaxes(outputs, ZEROS, out_axes)
+
+        if not tuple_output:
+            outputs = outputs[0]
+
+        return outputs
 
     return wrapper
 
