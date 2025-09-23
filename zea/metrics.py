@@ -29,8 +29,8 @@ def _reduce_mean(array, keep_batch_dim=True):
     Preserves batch dimension if keep_batch_dim=True.
     """
     if keep_batch_dim:
-        axis = len(array.shape)
-        axis = tuple(range(axis)[-3:])
+        ndim = ops.ndim(array)
+        axis = tuple(range(max(0, ndim - 3), ndim))
     else:
         axis = None
     return ops.mean(array, axis=axis)
