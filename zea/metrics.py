@@ -161,28 +161,29 @@ def ssim(
     "Image quality assessment: from error visibility to structural similarity",
     in IEEE Transactions on Image Processing, vol. 13, no. 4, pp. 600-612, 2004.
 
-    This function was modeled after tf.image.ssim, and should produce comparable
-    output.
+    This function copied from [`dm_pix.ssim`](https://dm-pix.readthedocs.io/en/latest/api.html#dm_pix.ssim),
+    which is part of the DeepMind's `dm_pix` library. They modeled their implementation
+    after the `tf.image.ssim` function.
 
     Note: the true SSIM is only defined on grayscale. This function does not
     perform any colorspace transform. If the input is in a color space, then it
     will compute the average SSIM.
 
     Args:
-      a: First image (or set of images).
-      b: Second image (or set of images).
-      max_val: The maximum magnitude that `a` or `b` can have.
-      filter_size: Window size (>= 1). Image dims must be at least this small.
-      filter_sigma: The bandwidth of the Gaussian used for filtering (> 0.).
-      k1: One of the SSIM dampening parameters (> 0.).
-      k2: One of the SSIM dampening parameters (> 0.).
-      return_map: If True, will cause the per-pixel SSIM "map" to be returned.
-      filter_fn: An optional argument for overriding the filter function used by
-        SSIM, which would otherwise be a 2D Gaussian blur specified by filter_size
-        and filter_sigma.
+        a: First image (or set of images).
+        b: Second image (or set of images).
+        max_val: The maximum magnitude that `a` or `b` can have.
+        filter_size: Window size (>= 1). Image dims must be at least this small.
+        filter_sigma: The bandwidth of the Gaussian used for filtering (> 0.).
+        k1: One of the SSIM dampening parameters (> 0.).
+        k2: One of the SSIM dampening parameters (> 0.).
+        return_map: If True, will cause the per-pixel SSIM "map" to be returned.
+        filter_fn: An optional argument for overriding the filter function used by
+            SSIM, which would otherwise be a 2D Gaussian blur specified by filter_size
+            and filter_sigma.
 
     Returns:
-      Each image's mean SSIM, or a tensor of individual values if `return_map`.
+        Each image's mean SSIM, or a tensor of individual values if `return_map`.
     """
 
     if filter_fn is None:
