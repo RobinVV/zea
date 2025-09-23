@@ -133,6 +133,9 @@ def extend_n_dims(arr, axis, n_dims):
 def vmap(fun, in_axes=0, out_axes=0):
     """Vectorized map.
 
+    For torch and jax backends, this uses the native vmap implementation.
+    For other backends, this a wrapper that uses `ops.vectorized_map` under the hood.
+
     Args:
         fun: The function to be mapped.
         in_axes: The axis or axes to be mapped over in the input.
@@ -154,9 +157,11 @@ def vmap(fun, in_axes=0, out_axes=0):
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
+    elif keras.backend.backend() == "torch":
+        import torch
+
+        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
     else:
-        # torch has vmap support, but not for all operations yet.
-        # tensorflow has vectorized_map but it is not as flexible as jax.vmap
         return manual_vmap(fun, in_axes=in_axes, out_axes=out_axes)
 
 

@@ -60,7 +60,7 @@ def test_metrics_class():
     y_true = ops.convert_to_tensor(y_true)
     y_pred = ops.convert_to_tensor(y_pred)
 
-    METRIC_NAMES = ["mse", "psnr", "ssim"]
+    METRIC_NAMES = ["mse", "psnr", "lpips"]  # ssim does not work with torch.vmap
     metrics_instance = metrics.Metrics(METRIC_NAMES, [0, 255])
 
     results = metrics_instance(y_true, y_pred, average_batch=True)

@@ -304,19 +304,45 @@ def get_lpips(image_range, batch_size=128, clip=False):
 
 
 class Metrics:
-    """Class for calculating multiple paired metrics."""
+    """Class for calculating multiple paired metrics.
 
-    def __init__(self, metrics: List[str], image_range: tuple, **kwargs):
+    Will preprocess images by translating to [0, 255], clipping, and quantizing to uint8
+    if specified.
+    """
+
+    def __init__(
+        self,
+        metrics: List[str],
+        image_range: tuple,
+        quantize: bool = False,
+        clip: bool = False,
+        **kwargs,
+    ):
+        """Initialize the Metrics class.
+
+        Args:
+            metrics (list): List of metric names to calculate.
+            image_range (tuple): The range of the images. Used for metrics like PSNR and LPIPS.
+            kwargs: Additional keyword arguments to pass to the metric functions.
+        """
         # Assert all metrics are paired
         for m in metrics:
             assert metrics_registry.get_parameter(m, "paired"), (
                 f"Metric {m} is not a paired metric."
             )
+
+        # Add image_range to kwargs for metrics that require it
+        kwargs["image_range"] = image_range
+        self.image_range = image_range
+
         # Initialize all metrics
         self.metrics = {
             m: get_metric(m, **reduce_to_signature(metrics_registry[m], kwargs)) for m in metrics
         }
-        self.image_range = image_range
+
+        # Other settings
+        self.quantize = quantize
+        self.clip = clip
 
     @staticmethod
     def call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
@@ -333,6 +359,15 @@ class Metrics:
             out = ops.convert_to_numpy(out)
         return out
 
+    def _prepocess(self, tensor):
+        tensor = translate(tensor, self.image_range, [0, 255])
+        if self.clip:
+            tensor = ops.clip(tensor, 0, 255)
+        if self.quantize:
+            tensor = ops.cast(tensor, "uint8")
+        tensor = ops.cast(tensor, "float32")  # Some metrics require float32
+        return tensor
+
     def __call__(
         self,
         y_true,
@@ -342,11 +377,29 @@ class Metrics:
         return_numpy=True,
         device=None,
     ):
-        """Calculate all metrics and return as a dictionary."""
+        """Calculate all metrics and return as a dictionary.
+
+        Args:
+            y_true (tensor): Ground truth images with shape [..., h, w, c]
+            y_pred (tensor): Predicted images with shape [..., h, w, c]
+            average_batch (bool): Whether to average the metrics over the batch dimensions.
+            batch_axes (tuple): The axes corresponding to the batch dimensions. If None, will
+                assume all leading dimensions except the last 3 are batch dimensions.
+            return_numpy (bool): Whether to return the metrics as numpy arrays. If False, will
+                return as tensors.
+            device (str): The device to run the metric calculations on. If None, will use the
+                default device.
+        """
         results = {}
         for name, metric in self.metrics.items():
             results[name] = self.call_metric_fn(
-                metric, y_true, y_pred, average_batch, batch_axes, return_numpy, device
+                metric,
+                self._prepocess(y_true),
+                self._prepocess(y_pred),
+                average_batch,
+                batch_axes,
+                return_numpy,
+                device,
             )
         return results
 
