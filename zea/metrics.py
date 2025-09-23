@@ -257,7 +257,7 @@ def ncc(x, y):
 
 
 @metrics_registry(name="lpips", paired=True)
-def get_lpips(image_range, batch_size=128, clip=False):
+def get_lpips(image_range, batch_size=None, clip=False):
     """
     Get the Learned Perceptual Image Patch Similarity (LPIPS) metric.
 
@@ -349,9 +349,13 @@ class Metrics:
     def call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
         if batch_axes is None:
             batch_axes = tuple(range(ops.ndim(y_true) - 3))
+        elif not isinstance(batch_axes, (list, tuple)):
+            batch_axes = (batch_axes,)
 
         # Because most metric functions do not support batching, we vmap over the batch axes.
-        metric_fn = tensor_ops.vmap(fun, in_axes=batch_axes)
+        metric_fn = fun
+        for ax in reversed(batch_axes):
+            metric_fn = tensor_ops.vmap(metric_fn, in_axes=ax)
 
         out = func_on_device(metric_fn, device, y_true, y_pred)
 

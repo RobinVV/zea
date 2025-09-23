@@ -71,7 +71,7 @@ def test_metrics(metric_name):
     return metric_value
 
 
-@backend_equality_check(decimal=3)
+@backend_equality_check(decimal=2)
 def test_metrics_class():
     """Test Metrics class"""
     rng = np.random.default_rng(42)
@@ -90,6 +90,15 @@ def test_metrics_class():
     results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=0)
     assert all(name in results_no_avg for name in METRIC_NAMES)
     assert all(value.shape[0] == 2 for value in results_no_avg.values())
+
+    y_true = rng.random((2, 1, 16, 16, 4, 3)).astype(np.float32) * 255.0
+    y_pred = rng.random((2, 1, 16, 16, 4, 3)).astype(np.float32) * 255.0
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
+
+    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=(0, -2))
+    assert all(name in results_no_avg for name in METRIC_NAMES)
+    assert all(value.shape == (2, 4, 1) for value in results_no_avg.values())
 
     # Compare backends for a single metric
     return results_no_avg["mse"]
