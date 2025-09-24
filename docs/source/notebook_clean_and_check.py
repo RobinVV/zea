@@ -42,11 +42,6 @@ BADGE_COLAB = re.compile(
 BADGE_GITHUB = re.compile(
     r"\[!\[View on GitHub\]\(https://img\.shields\.io/badge/GitHub-View%20Source-blue\?logo=github\)\]\(([^)]+)\)"
 )
-NOISY_OUTPUT_PATTERNS = [
-    re.compile(r"computation placer already registered", re.I),
-    re.compile(r"Unable to register cuDNN factory", re.I),
-    re.compile(r"Unable to register cuBLAS factory", re.I),
-]
 
 
 def error(msg, nb_path=None):
@@ -130,15 +125,12 @@ def clean_outputs(nb, nb_path):
         outputs, new_outputs = cell.get("outputs", []), []
         for out in outputs:
             if out.get("output_type") == "stream" and out.get("name") == "stderr":
-                text = "".join(out.get("text", []))
-                if any(pat.search(text) for pat in NOISY_OUTPUT_PATTERNS):
-                    print(
-                        f"[NOTEBOOK CLEAN] {nb_path}: Removed noisy stderr output "
-                        f"from cell {idx + 1}.",
-                        file=sys.stderr,
-                    )
-                    changed = True
-                    continue
+                print(
+                    f"[NOTEBOOK CLEAN] {nb_path}: Removed stderr output from cell {idx + 1}.",
+                    file=sys.stderr,
+                )
+                changed = True
+                continue
             new_outputs.append(out)
         if new_outputs != outputs:
             cell["outputs"] = new_outputs
