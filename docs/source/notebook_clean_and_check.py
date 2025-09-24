@@ -55,6 +55,20 @@ def error(msg, nb_path=None):
     sys.exit(1)
 
 
+def check_cell_size(nb, nb_path, max_cell_bytes=400_000):
+    """Check that no cell is excessively large (e.g., due to embedded images/gifs)."""
+    for idx, cell in enumerate(nb.get("cells", [])):
+        # Check the size of the cell's JSON representation
+        cell_bytes = len(json.dumps(cell, ensure_ascii=False).encode("utf-8"))
+        if cell_bytes > max_cell_bytes:
+            error(
+                f"Cell {idx + 1} is too large (>{max_cell_bytes} bytes, got {cell_bytes}). "
+                "This may be due to an embedded image or gif. Please save large media files "
+                "separately and reference them in markdown instead of embedding.",
+                nb_path,
+            )
+
+
 def check_execution_counts(nb, nb_path):
     code_cells = [c for c in nb.get("cells", []) if c.get("cell_type") == "code"]
     exec_counts = [c.get("execution_count") for c in code_cells]
@@ -152,6 +166,7 @@ def process_notebook(nb_path):
     with nb_path.open("r", encoding="utf-8") as f:
         nb = json.load(f)
 
+    check_cell_size(nb, nb_path)
     check_first_cell(nb, nb_path)
     check_execution_counts(nb, nb_path)
     check_badges(nb, nb_path)
