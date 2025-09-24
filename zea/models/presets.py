@@ -97,6 +97,14 @@ diffusion_model_presets = {
         },
         "hf_handle": "hf://zeahub/diffusion-echonet-dynamic",
     },
+    "diffusion-echonetlvh-3-frame": {
+        "metadata": {
+            "description": ("3-frame diffusion model trained on EchoNetLVH dataset."),
+            "params": 0,
+            "path": "diffusion",
+        },
+        "hf_handle": "hf://zeahub/diffusion-echonetlvh",
+    },
 }
 
 carotid_segmenter_presets = {
