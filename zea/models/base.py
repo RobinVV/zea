@@ -8,6 +8,7 @@ import importlib
 import keras
 from keras.src.saving.serialization_lib import record_object_after_deserialization
 
+from zea import log
 from zea.internal.core import classproperty
 from zea.models.preset_utils import builtin_presets, get_preset_loader, get_preset_saver
 
@@ -98,12 +99,12 @@ class BaseModel(keras.models.Model):
         loader = get_preset_loader(preset)
         model_cls = loader.check_model_class()
         if not issubclass(model_cls, cls):
-            raise ValueError(
-                f"Saved preset has type `{model_cls.__name__}` which is not "
-                f"a subclass of calling class `{cls.__name__}`. Call "
-                f"`from_preset` directly on `{model_cls.__name__}` instead."
+            log.warning(
+                f"Saved preset has type `{model_cls.__module__}.{model_cls.__name__}` which is not "
+                f"a subclass of calling class `{cls.__module__}.{cls.__name__}`. Call "
+                f"`from_preset` directly on `{model_cls.__module__}.{model_cls.__name__}` instead."
             )
-        return loader.load_model(model_cls, load_weights, **kwargs)
+        return loader.load_model(cls, load_weights, **kwargs)
 
     def save_to_preset(self, preset_dir):
         """Save backbone to a preset directory.
@@ -115,7 +116,7 @@ class BaseModel(keras.models.Model):
         saver.save_model(self)
 
 
-def deserialize_zea_object(config):
+def deserialize_zea_object(config, cls=None):
     """Retrieve the object by deserializing the config dict.
 
     Need to borrow this function from keras and customize a bit to allow
@@ -132,10 +133,10 @@ def deserialize_zea_object(config):
     class_name = config["class_name"]
     inner_config = config["config"] or {}
 
-    module = config.get("module", None)
-    registered_name = config.get("registered_name", class_name)
-
-    cls = _retrieve_class(module, registered_name, config)
+    if cls is None:
+        module = config.get("module", None)
+        registered_name = config.get("registered_name", class_name)
+        cls = _retrieve_class(module, registered_name, config)
 
     if not hasattr(cls, "from_config"):
         raise TypeError(
