@@ -55,3 +55,9 @@ repos:
     language: system
     files: ^(.*/)?(poetry\.lock|pyproject\.toml|zea/internal/_generate_keras_ops\.py)$
     pass_filenames: false
+  - id: notebook-clean-and-check
+    name: Notebook Clean and Check
+    entry: python docs/source/notebook_clean_and_check.py
+    language: system
+    files: ^docs/source/notebooks/.*\.ipynb$
+    pass_filenames: true
