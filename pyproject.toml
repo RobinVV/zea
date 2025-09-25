@@ -1,6 +1,6 @@
 [project]
 name = "zea"
-version = "0.0.4"
+version = "0.0.5"
 description = "A Toolbox for Cognitive Ultrasound Imaging. Provides a set of tools for processing of ultrasound data, all built in your favorite machine learning framework."
 authors = [
     { name = "Tristan Stevens", email = "t.s.w.stevens@tue.nl" },
@@ -64,6 +64,7 @@ dev = [
     "sphinx-autodoc-typehints",
     "sphinx-copybutton",
     "sphinx_design",
+    "sphinx-argparse",
     "sphinxcontrib-bibtex",
     "mock",
     "myst-parser",
@@ -91,6 +92,7 @@ docs = [
     "sphinx-autodoc-typehints",
     "sphinx-copybutton",
     "sphinx_design",
+    "sphinx-argparse",
     "sphinxcontrib-bibtex",
     "mock",
     "myst-parser",
@@ -155,6 +157,7 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    "keras_ops.py"
 ]
 
 # more lenient line width than Black

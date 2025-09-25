@@ -84,4 +84,5 @@ The following list contains some of the papers that have been published using ``
    stevens2025sequential
    stevens2025high
    penninga2025deep
-   nieropnolan2025
+   stevens2025semantic
+   van2025patient

@@ -47,6 +47,20 @@ echonet_dynamic_presets = {
     },
 }
 
+echonet_lvh_presets = {
+    "echonetlvh": {
+        "metadata": {
+            "description": (
+                "EchoNetLVH segmentation model for PLAX-view cardiac ultrasound segmentation. "
+                "Trained on images of size (224, 224)."
+            ),
+            "params": 0,
+            "path": "echonetlvh",
+        },
+        "hf_handle": "hf://zeahub/echonetlvh",
+    },
+}
+
 lpips_presets = {
     "lpips": {
         "metadata": {
@@ -82,6 +96,14 @@ diffusion_model_presets = {
             "path": "diffusion",
         },
         "hf_handle": "hf://zeahub/diffusion-echonet-dynamic",
+    },
+    "diffusion-echonetlvh-3-frame": {
+        "metadata": {
+            "description": ("3-frame diffusion model trained on EchoNetLVH dataset."),
+            "params": 0,
+            "path": "diffusion",
+        },
+        "hf_handle": "hf://zeahub/diffusion-echonetlvh",
     },
 }
 
