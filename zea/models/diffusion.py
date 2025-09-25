@@ -182,7 +182,7 @@ class DiffusionModel(DeepGenerativeModel):
             **kwargs: Additional arguments.
 
         Returns:
-            Generated samples.
+            Generated samples of shape `(n_samples, *input_shape)`.
         """
         seed, seed1 = split_seed(seed, 2)
 
