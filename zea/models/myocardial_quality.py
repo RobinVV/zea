@@ -27,15 +27,18 @@ class MyocardialImgQuality(BaseModel):
     def __init__(self, ):
         super().__init__()
 
+    def preprocess_input(self, input):
+        max_val = np.max(input)
+        min_val = np.min(input)
+        input = (input - min_val) / (max_val - min_val) * 255.0
+        return input
+
     def call(self, input):
         if not hasattr(self, 'onnx_sess'):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
         output_name = self.onnx_sess.get_outputs()[0].name
-        # scale input to [0, 255]
-        max_val = np.max(input)
-        min_val = np.min(input)
-        input = (input - min_val) / (max_val - min_val) * 255.0
+        input = self.preprocess_input(input)
 
         output = self.onnx_sess.run([output_name], {input_name: input})[0]
         slope = self.slope_intercept[0]
