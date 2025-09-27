@@ -26,11 +26,32 @@ SEGMENTATION_WEIGHTS_URL = "https://huggingface.co/gillesvdv/augmented_camus_seg
 
 @model_registry(name="augmented_camus_seg")
 class AugmentedCamusSeg(BaseModel):
+    """
+    nnU-Net based segmentation model for left ventricle and myocardium on the augmented CAMUS dataset.
+
+    This class loads an ONNX model and provides inference for cardiac ultrasound segmentation tasks.
+    """
 
     def __init__(self,):
         super().__init__()
 
     def call(self, input):
+        """
+        Run inference on the input data using the loaded ONNX model.
+
+        Args:
+            input (np.ndarray): Input image or batch of images for segmentation.
+                Shape: [batch, 1, 256, 256]
+                Range: Any numeric range; normalized internally.
+
+        Returns:
+            np.ndarray: Segmentation mask(s) for left ventricle and myocardium.
+                Shape: [batch, 8]
+                Range: float
+
+        Raises:
+            ValueError: If model weights are not loaded.
+        """
         if not hasattr(self, 'onnx_sess'):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
@@ -40,9 +61,15 @@ class AugmentedCamusSeg(BaseModel):
 
     def custom_load_weights(self,model_path="./augmented_camus_seg.onnx"):
         """
-        Load the weights for the segmentation model.
-        Downloads the model if it does not exist locally from SEGMENTATION_WEIGHTS_URL.
-        :param model_path: Local path to save the model
+        Load the ONNX weights for the segmentation model.
+
+        Downloads the model file from SEGMENTATION_WEIGHTS_URL if not found locally.
+
+        Args:
+            model_path (str): Local path to save and load the ONNX model.
+
+        Returns:
+            None
         """
         if not os.path.exists(model_path):
             r = requests.get(SEGMENTATION_WEIGHTS_URL)

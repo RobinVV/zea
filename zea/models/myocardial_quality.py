@@ -23,17 +23,44 @@ FILE_NAME = "mobilenetv2_regional_quality.zip"
 
 @model_registry(name="myocardial_quality")
 class MyocardialImgQuality(BaseModel):
+    """
+    MobileNetV2 based regional image quality scoring model for myocardial regions in apical views.
+
+    This class loads an ONNX model and provides inference for regional image quality scoring tasks.
+    """
 
     def __init__(self, ):
         super().__init__()
 
     def preprocess_input(self, input):
+        """
+        Normalize input image(s) to [0, 255] range.
+
+        Args:
+            input (np.ndarray): Input image(s), any numeric range.
+
+        Returns:
+            np.ndarray: Normalized image(s) in [0, 255] range.
+        """
         max_val = np.max(input)
         min_val = np.min(input)
         input = (input - min_val) / (max_val - min_val) * 255.0
         return input
 
     def call(self, input):
+        """
+        Predict regional image quality scores for input image(s).
+
+        Args:
+            input (np.ndarray): Input image or batch of images.
+                Shape: [batch, 1, 256, 256]
+                Range: Any numeric range; normalized internally.
+
+        Returns:
+            np.ndarray: Regional quality scores.
+                Shape: [batch, 3, 256, 256]
+                Range: float
+        """
         if not hasattr(self, 'onnx_sess'):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
@@ -48,9 +75,14 @@ class MyocardialImgQuality(BaseModel):
 
     def custom_load_weights(self, model_dir="./"):
         """
-        Load the weights for the segmentation model.
-        Downloads the model if it does not exist locally from MODEL_WEIGHTS_URL.
-        :param model_dir: Local path to folder where to save the model
+        Load ONNX model weights and bias correction for regional image quality scoring.
+        Downloads the model files from HuggingFace Hub if not found locally from REPO_ID and FILE_NAME.
+
+        Args:
+            model_dir (str): Local directory to store and load model files.
+
+        Returns:
+            None
         """
         onnx_model_path = os.path.join(model_dir, "mobilenetv2_regional_quality","model.onnx")
         slope_intercept_path = os.path.join(model_dir, "mobilenetv2_regional_quality","slope_intercept_bias_correction.npy")
