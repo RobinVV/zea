@@ -3,6 +3,8 @@ The model is the movilenetV2 based image quality model from:
 Van De Vyver, et al. "Regional Image Quality Scoring for 2-D Echocardiography Using Deep Learning."
 Ultrasound in Medicine & Biology 51.4 (2025): 638-649.
 
+GitHub original repo: https://github.com/GillesVanDeVyver/arqee
+
 The model is originally a PyTorch model converted to ONNX. The model predicts the regional image quality of
 the myocardial regions in apical views. It can also be used to get the overall image quality by averaging the
 regional scores.

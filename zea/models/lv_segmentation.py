@@ -4,6 +4,8 @@ Van De Vyver, Gilles, et al.
 "Generative augmentations for improved cardiac ultrasound segmentation using diffusion models."
 arXiv preprint arXiv:2502.20100 (2025).
 
+GitHub original repo: https://github.com/GillesVanDeVyver/EchoGAINS
+
 At the time of writing (17 September 2025) and to the best of my knowledge, it is the state-of-the-art model for
 left ventricle segmentation on the CAMUS dataset.
 
