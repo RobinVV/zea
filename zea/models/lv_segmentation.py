@@ -23,7 +23,7 @@ from zea.models.presets import camus_presets
 SEGMENTATION_WEIGHTS_URL = "https://huggingface.co/gillesvdv/augmented_camus_seg/resolve/main/augmented_camus_seg.onnx"
 
 @model_registry(name="augmented_camus_seg")
-class augmented_camus_seg(BaseModel):
+class AugmentedCamusSeg(BaseModel):
 
     def __init__(self,):
         super().__init__()
@@ -51,5 +51,5 @@ class augmented_camus_seg(BaseModel):
         self.onnx_sess = onnxruntime.InferenceSession(model_path)
 
 
-register_presets(camus_presets, augmented_camus_seg)
+register_presets(camus_presets, AugmentedCamusSeg)
     

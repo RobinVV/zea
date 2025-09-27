@@ -19,8 +19,8 @@ from huggingface_hub import hf_hub_download
 REPO_ID = 'gillesvdv/mobilenetv2_regional_quality'
 FILE_NAME = "mobilenetv2_regional_quality.zip"
 
-@model_registry(name="myocardial_img_quality")
-class myocardial_img_quality(BaseModel):
+@model_registry(name="myocardial_quality")
+class MyocardialImgQuality(BaseModel):
 
     def __init__(self, ):
         super().__init__()
@@ -60,4 +60,4 @@ class myocardial_img_quality(BaseModel):
         self.slope_intercept = np.load(slope_intercept_path)
 
 
-register_presets(camus_presets, myocardial_img_quality)
+register_presets(camus_presets, MyocardialImgQuality)
