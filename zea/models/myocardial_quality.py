@@ -8,18 +8,23 @@ GitHub original repo: https://github.com/GillesVanDeVyver/arqee
 The model is originally a PyTorch model converted to ONNX. The model predicts the regional image quality of
 the myocardial regions in apical views. It can also be used to get the overall image quality by averaging the
 regional scores.
-"""
-from zea.internal.registry import model_registry
-from zea.models.base import BaseModel
-import onnxruntime
-import numpy as np
+"""  # noqa: E501
+
 import os
-from zea.models.preset_utils import register_presets
-from zea.models.presets import camus_presets
+import zipfile
+
+import numpy as np
+import onnxruntime
 from huggingface_hub import hf_hub_download
 
-REPO_ID = 'gillesvdv/mobilenetv2_regional_quality'
+from zea.internal.registry import model_registry
+from zea.models.base import BaseModel
+from zea.models.preset_utils import register_presets
+from zea.models.presets import camus_presets
+
+REPO_ID = "gillesvdv/mobilenetv2_regional_quality"
 FILE_NAME = "mobilenetv2_regional_quality.zip"
+
 
 @model_registry(name="myocardial_quality")
 class MyocardialImgQuality(BaseModel):
@@ -29,7 +34,7 @@ class MyocardialImgQuality(BaseModel):
     This class loads an ONNX model and provides inference for regional image quality scoring tasks.
     """
 
-    def __init__(self, ):
+    def __init__(self):
         super().__init__()
 
     def preprocess_input(self, input):
@@ -61,7 +66,7 @@ class MyocardialImgQuality(BaseModel):
                 Shape: [batch, 3, 256, 256]
                 Range: float
         """
-        if not hasattr(self, 'onnx_sess'):
+        if not hasattr(self, "onnx_sess"):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
         output_name = self.onnx_sess.get_outputs()[0].name
@@ -76,7 +81,8 @@ class MyocardialImgQuality(BaseModel):
     def custom_load_weights(self, model_dir="./"):
         """
         Load ONNX model weights and bias correction for regional image quality scoring.
-        Downloads the model files from HuggingFace Hub if not found locally from REPO_ID and FILE_NAME.
+        Downloads the model files from HuggingFace Hub if not found locally
+            from `REPO_ID` and `FILE_NAME`.
 
         Args:
             model_dir (str): Local directory to store and load model files.
@@ -84,13 +90,17 @@ class MyocardialImgQuality(BaseModel):
         Returns:
             None
         """
-        onnx_model_path = os.path.join(model_dir, "mobilenetv2_regional_quality","model.onnx")
-        slope_intercept_path = os.path.join(model_dir, "mobilenetv2_regional_quality","slope_intercept_bias_correction.npy")
-
+        onnx_model_path = os.path.join(model_dir, "mobilenetv2_regional_quality", "model.onnx")
+        slope_intercept_path = os.path.join(
+            model_dir, "mobilenetv2_regional_quality", "slope_intercept_bias_correction.npy"
+        )
 
         if not os.path.exists(onnx_model_path) or not os.path.exists(slope_intercept_path):
-            downloaded_file_path = hf_hub_download(repo_id=REPO_ID, filename=FILE_NAME, cache_dir=model_dir)
-            os.system(f"unzip -o {downloaded_file_path} -d {model_dir}")
+            downloaded_file_path = hf_hub_download(
+                repo_id=REPO_ID, filename=FILE_NAME, cache_dir=model_dir
+            )
+            with zipfile.ZipFile(downloaded_file_path, "r") as zip_ref:
+                zip_ref.extractall(model_dir)
 
         self.model_path = onnx_model_path
         self.onnx_sess = onnxruntime.InferenceSession(onnx_model_path)
