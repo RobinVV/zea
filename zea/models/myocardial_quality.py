@@ -8,13 +8,20 @@ GitHub original repo: https://github.com/GillesVanDeVyver/arqee
 The model is originally a PyTorch model converted to ONNX. The model predicts the regional image quality of
 the myocardial regions in apical views. It can also be used to get the overall image quality by averaging the
 regional scores.
+
+Note:
+-----
+To use this model, you must install the `onnxruntime` Python package:
+
+    pip install onnxruntime
+
+This is required for ONNX model inference.
 """  # noqa: E501
 
 import os
 import zipfile
 
 import numpy as np
-import onnxruntime
 from huggingface_hub import hf_hub_download
 
 from zea.internal.registry import model_registry
@@ -90,6 +97,14 @@ class MyocardialImgQuality(BaseModel):
         Returns:
             None
         """
+        try:
+            import onnxruntime
+        except ImportError:
+            raise ImportError(
+                "onnxruntime is not installed. Please run "
+                "`pip install onnxruntime` to use this model."
+            )
+
         onnx_model_path = os.path.join(model_dir, "mobilenetv2_regional_quality", "model.onnx")
         slope_intercept_path = os.path.join(
             model_dir, "mobilenetv2_regional_quality", "slope_intercept_bias_correction.npy"

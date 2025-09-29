@@ -10,6 +10,14 @@ At the time of writing (17 September 2025) and to the best of our knowledge,
 it is the state-of-the-art model for left ventricle segmentation on the CAMUS dataset.
 
 The model is originally a PyTorch model converted to ONNX. The model segments the left ventricle and myocardium.
+
+Note:
+-----
+To use this model, you must install the `onnxruntime` Python package:
+
+    pip install onnxruntime
+
+This is required for ONNX model inference.
 """  # noqa: E501
 
 import os
