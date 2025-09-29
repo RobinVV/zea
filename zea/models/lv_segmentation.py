@@ -14,7 +14,6 @@ The model is originally a PyTorch model converted to ONNX. The model segments th
 
 import os
 
-import onnxruntime
 import requests
 
 from zea.internal.registry import model_registry
@@ -72,10 +71,14 @@ class AugmentedCamusSeg(BaseModel):
 
         Args:
             model_path (str): Local path to save and load the ONNX model.
-
-        Returns:
-            None
         """
+        try:
+            import onnxruntime
+        except ImportError:
+            raise ImportError(
+                "onnxruntime is not installed. Please run `pip install onnxruntime` to use this model."
+            )
+
         if not os.path.exists(model_path):
             r = requests.get(SEGMENTATION_WEIGHTS_URL)
             with open(model_path, "wb") as f:
