@@ -47,7 +47,7 @@ echonet_dynamic_presets = {
     },
 }
 
-camus_presets = {
+augmented_camus_seg_presets = {
     "augmented_camus_seg": {
         "metadata": {
             "description": (
@@ -59,6 +59,21 @@ camus_presets = {
         },
         "hf_handle": "hf://gillesvdv/augmented_camus_seg",
     },
+}
+
+myocardial_quality_presets = {
+    "mobilenetv2_regional_quality": {
+        "metadata": {
+            "description": (
+                "MobileNetV2-based regional myocardial image quality scoring model. "
+                "Original GitHub repository and code: https://github.com/GillesVanDeVyver/arqee"
+            ),
+            "params": 0,
+            "official_name": "Regional Image Quality Scoring",
+            "path": "myocardial_quality",
+        },
+        "hf_handle": "gillesvdv/mobilenetv2_regional_quality",
+    }
 }
 
 echonet_lvh_presets = {

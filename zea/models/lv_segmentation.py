@@ -19,7 +19,7 @@ import requests
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
 from zea.models.preset_utils import register_presets
-from zea.models.presets import camus_presets
+from zea.models.presets import augmented_camus_seg_presets
 
 SEGMENTATION_WEIGHTS_URL = (
     "https://huggingface.co/gillesvdv/augmented_camus_seg/resolve/main/augmented_camus_seg.onnx"
@@ -89,4 +89,4 @@ class AugmentedCamusSeg(BaseModel):
         self.onnx_sess = onnxruntime.InferenceSession(model_path)
 
 
-register_presets(camus_presets, AugmentedCamusSeg)
+register_presets(augmented_camus_seg_presets, AugmentedCamusSeg)

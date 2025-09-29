@@ -20,7 +20,7 @@ from huggingface_hub import hf_hub_download
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
 from zea.models.preset_utils import register_presets
-from zea.models.presets import camus_presets
+from zea.models.presets import myocardial_quality_presets
 
 REPO_ID = "gillesvdv/mobilenetv2_regional_quality"
 FILE_NAME = "mobilenetv2_regional_quality.zip"
@@ -107,4 +107,4 @@ class MyocardialImgQuality(BaseModel):
         self.slope_intercept = np.load(slope_intercept_path)
 
 
-register_presets(camus_presets, MyocardialImgQuality)
+register_presets(myocardial_quality_presets, MyocardialImgQuality)
