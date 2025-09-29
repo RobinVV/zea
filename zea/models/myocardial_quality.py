@@ -29,6 +29,29 @@ from zea.models.base import BaseModel
 from zea.models.preset_utils import register_presets
 from zea.models.presets import myocardial_quality_presets
 
+# Visualization colors and helper for regional quality (arqee-inspired)
+QUALITY_COLORS = np.array(
+    [
+        [0.929, 0.106, 0.141],  # not visible, red
+        [0.957, 0.396, 0.137],  # poor, orange
+        [1, 0.984, 0.090],  # ok, yellow
+        [0.553, 0.776, 0.098],  # good, light green
+        [0.09, 0.407, 0.216],  # excellent, dark green
+    ]
+)
+REGION_LABELS = [
+    "basal_left",
+    "mid_left",
+    "apical_left",
+    "apical_right",
+    "mid_right",
+    "basal_right",
+    "annulus_left",
+    "annulus_right",
+]
+QUALITY_CLASSES = ["not visible", "poor", "ok", "good", "excellent"]
+
+
 REPO_ID = "gillesvdv/mobilenetv2_regional_quality"
 FILE_NAME = "mobilenetv2_regional_quality.zip"
 
@@ -65,13 +88,13 @@ class MyocardialImgQuality(BaseModel):
 
         Args:
             input (np.ndarray): Input image or batch of images.
-                Shape: [batch, 1, 256, 256]
-                Range: Any numeric range; normalized internally.
+            Shape: [batch, 1, 256, 256]
 
         Returns:
             np.ndarray: Regional quality scores.
-                Shape: [batch, 3, 256, 256]
-                Range: float
+            Shape: [batch, 8] with regions in order:
+                basal_left, mid_left, apical_left, apical_right,
+                mid_right, basal_right, annulus_left, annulus_right
         """
         if not hasattr(self, "onnx_sess"):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
@@ -88,8 +111,9 @@ class MyocardialImgQuality(BaseModel):
     def custom_load_weights(self, model_dir="./"):
         """
         Load ONNX model weights and bias correction for regional image quality scoring.
+
         Downloads the model files from HuggingFace Hub if not found locally
-            from `REPO_ID` and `FILE_NAME`.
+        from `REPO_ID` and `FILE_NAME`.
 
         Args:
             model_dir (str): Local directory to store and load model files.
