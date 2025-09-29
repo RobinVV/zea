@@ -76,7 +76,8 @@ class AugmentedCamusSeg(BaseModel):
             import onnxruntime
         except ImportError:
             raise ImportError(
-                "onnxruntime is not installed. Please run `pip install onnxruntime` to use this model."
+                "onnxruntime is not installed. Please run "
+                "`pip install onnxruntime` to use this model."
             )
 
         if not os.path.exists(model_path):
