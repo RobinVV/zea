@@ -92,7 +92,7 @@ class MyocardialImgQuality(BaseModel):
 
         Returns:
             np.ndarray: Regional quality scores.
-            Shape: [batch, 8] with regions in order:
+                Shape is [batch, 8] with regions in order:
                 basal_left, mid_left, apical_left, apical_right,
                 mid_right, basal_right, annulus_left, annulus_right
         """
@@ -117,9 +117,6 @@ class MyocardialImgQuality(BaseModel):
 
         Args:
             model_dir (str): Local directory to store and load model files.
-
-        Returns:
-            None
         """
         try:
             import onnxruntime
