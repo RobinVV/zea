@@ -58,8 +58,7 @@ class AugmentedCamusSeg(BaseModel):
 
         Returns:
             np.ndarray: Segmentation mask(s) for left ventricle and myocardium.
-                Shape: [batch, 8]
-                Range: float
+                Shape: [batch, 3, 256, 256]  (logits for background, LV, myocardium)
 
         Raises:
             ValueError: If model weights are not loaded.
