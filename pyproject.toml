@@ -76,7 +76,6 @@ dev = [
     "opencv-python-headless>=4",
     # models
     "onnxruntime>=1.15",
-    "tf2jax>=0.3.6",
 ]
 
 tests = [
@@ -117,7 +116,6 @@ display-headless = [
 # but some do, so we list them here
 models = [
     "onnxruntime>=1.15",
-    "tf2jax>=0.3.6",
 ]
 # these are just here for .readthedocs.yaml
 # please for proper install (with GPU support)
