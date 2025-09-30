@@ -18,17 +18,13 @@ To use this model, you must install the `onnxruntime` Python package:
 This is required for ONNX model inference.
 """  # noqa: E501
 
-import os
-import zipfile
-
 import numpy as np
-from huggingface_hub import hf_hub_download
 from keras import ops
 
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
-from zea.models.preset_utils import register_presets
-from zea.models.presets import myocardial_quality_presets
+from zea.models.preset_utils import get_preset_loader, register_presets
+from zea.models.presets import regional_quality_presets
 
 # Visualization colors and helper for regional quality (arqee-inspired)
 QUALITY_COLORS = np.array(
@@ -53,20 +49,13 @@ REGION_LABELS = [
 QUALITY_CLASSES = ["not visible", "poor", "ok", "good", "excellent"]
 
 
-REPO_ID = "gillesvdv/mobilenetv2_regional_quality"
-FILE_NAME = "mobilenetv2_regional_quality.zip"
-
-
-@model_registry(name="myocardial_quality")
-class MyocardialImgQuality(BaseModel):
+@model_registry(name="mobilenetv2_regional_quality")
+class MobileNetv2RegionalQuality(BaseModel):
     """
     MobileNetV2 based regional image quality scoring model for myocardial regions in apical views.
 
     This class loads an ONNX model and provides inference for regional image quality scoring tasks.
     """
-
-    def __init__(self):
-        super().__init__()
 
     def preprocess_input(self, inputs):
         """
@@ -114,16 +103,8 @@ class MyocardialImgQuality(BaseModel):
         output_debiased = (output - intercept) / slope
         return output_debiased
 
-    def custom_load_weights(self, model_dir="./"):
-        """
-        Load ONNX model weights and bias correction for regional image quality scoring.
-
-        Downloads the model files from HuggingFace Hub if not found locally
-        from `REPO_ID` and `FILE_NAME`.
-
-        Args:
-            model_dir (str): Local directory to store and load model files.
-        """
+    def custom_load_weights(self, preset, **kwargs):
+        """Load ONNX model weights and bias correction for regional image quality scoring."""
         try:
             import onnxruntime
         except ImportError:
@@ -131,22 +112,11 @@ class MyocardialImgQuality(BaseModel):
                 "onnxruntime is not installed. Please run "
                 "`pip install onnxruntime` to use this model."
             )
-
-        onnx_model_path = os.path.join(model_dir, "mobilenetv2_regional_quality", "model.onnx")
-        slope_intercept_path = os.path.join(
-            model_dir, "mobilenetv2_regional_quality", "slope_intercept_bias_correction.npy"
-        )
-
-        if not os.path.exists(onnx_model_path) or not os.path.exists(slope_intercept_path):
-            downloaded_file_path = hf_hub_download(
-                repo_id=REPO_ID, filename=FILE_NAME, cache_dir=model_dir
-            )
-            with zipfile.ZipFile(downloaded_file_path, "r") as zip_ref:
-                zip_ref.extractall(model_dir)
-
-        self.model_path = onnx_model_path
-        self.onnx_sess = onnxruntime.InferenceSession(onnx_model_path)
-        self.slope_intercept = np.load(slope_intercept_path)
+        loader = get_preset_loader(preset)
+        filename = loader.get_file("model.onnx")
+        self.onnx_sess = onnxruntime.InferenceSession(filename)
+        filename = loader.get_file("slope_intercept_bias_correction.npy")
+        self.slope_intercept = np.load(filename)
 
 
-register_presets(myocardial_quality_presets, MyocardialImgQuality)
+register_presets(regional_quality_presets, MobileNetv2RegionalQuality)
