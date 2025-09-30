@@ -23,6 +23,7 @@ This is required for ONNX model inference.
 import os
 
 import requests
+from keras import ops
 
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
@@ -67,6 +68,7 @@ class AugmentedCamusSeg(BaseModel):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
         output_name = self.onnx_sess.get_outputs()[0].name
+        inputs = ops.convert_to_numpy(inputs).astype("float32")
         output = self.onnx_sess.run([output_name], {input_name: inputs})[0]
         return output
 

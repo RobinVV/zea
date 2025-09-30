@@ -23,6 +23,7 @@ import zipfile
 
 import numpy as np
 from huggingface_hub import hf_hub_download
+from keras import ops
 
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
@@ -77,7 +78,7 @@ class MyocardialImgQuality(BaseModel):
         Returns:
             np.ndarray: Normalized image(s) in [0, 255] range.
         """
-        inputs = np.asarray(inputs, dtype=np.float32)
+        inputs = ops.convert_to_numpy(inputs).astype("float32")
         max_val = np.max(inputs)
         min_val = np.min(inputs)
         denom = max_val - min_val
