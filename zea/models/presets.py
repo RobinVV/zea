@@ -54,10 +54,10 @@ augmented_camus_seg_presets = {
                 "Augmented CAMUS segmentation model for cardiac ultrasound segmentation. "
                 "Original paper and code: https://arxiv.org/abs/2502.20100"
             ),
-            "params": 0,
+            "params": 33468899,
             "path": "augmented_camus_seg",
         },
-        "hf_handle": "hf://gillesvdv/augmented_camus_seg",
+        "hf_handle": "hf://zeahub/augmented-camus-segmentation",
     },
 }
 

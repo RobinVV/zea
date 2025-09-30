@@ -20,19 +20,12 @@ To use this model, you must install the `onnxruntime` Python package:
 This is required for ONNX model inference.
 """  # noqa: E501
 
-import os
-
-import requests
 from keras import ops
 
 from zea.internal.registry import model_registry
 from zea.models.base import BaseModel
-from zea.models.preset_utils import register_presets
+from zea.models.preset_utils import get_preset_loader, register_presets
 from zea.models.presets import augmented_camus_seg_presets
-
-SEGMENTATION_WEIGHTS_URL = (
-    "https://huggingface.co/gillesvdv/augmented_camus_seg/resolve/main/augmented_camus_seg.onnx"
-)
 
 
 @model_registry(name="augmented_camus_seg")
@@ -44,9 +37,6 @@ class AugmentedCamusSeg(BaseModel):
     - This class loads an ONNX model and provides inference for cardiac ultrasound segmentation tasks.
 
     """  # noqa: E501
-
-    def __init__(self):
-        super().__init__()
 
     def call(self, inputs):
         """
@@ -72,15 +62,8 @@ class AugmentedCamusSeg(BaseModel):
         output = self.onnx_sess.run([output_name], {input_name: inputs})[0]
         return output
 
-    def custom_load_weights(self, model_path="./augmented_camus_seg.onnx"):
-        """
-        Load the ONNX weights for the segmentation model.
-
-        Downloads the model file from SEGMENTATION_WEIGHTS_URL if not found locally.
-
-        Args:
-            model_path (str): Local path to save and load the ONNX model.
-        """
+    def custom_load_weights(self, preset, **kwargs):
+        """Load the ONNX weights for the segmentation model."""
         try:
             import onnxruntime
         except ImportError:
@@ -88,14 +71,9 @@ class AugmentedCamusSeg(BaseModel):
                 "onnxruntime is not installed. Please run "
                 "`pip install onnxruntime` to use this model."
             )
-
-        if not os.path.exists(model_path):
-            r = requests.get(SEGMENTATION_WEIGHTS_URL)
-            with open(model_path, "wb") as f:
-                f.write(r.content)
-            print(f"Downloaded model to {model_path}")
-        self.model_path = model_path
-        self.onnx_sess = onnxruntime.InferenceSession(model_path)
+        loader = get_preset_loader(preset)
+        filename = loader.get_file("model.onnx")
+        self.onnx_sess = onnxruntime.InferenceSession(filename)
 
 
 register_presets(augmented_camus_seg_presets, AugmentedCamusSeg)
