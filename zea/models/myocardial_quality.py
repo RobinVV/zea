@@ -67,27 +67,32 @@ class MyocardialImgQuality(BaseModel):
     def __init__(self):
         super().__init__()
 
-    def preprocess_input(self, input):
+    def preprocess_input(self, inputs):
         """
         Normalize input image(s) to [0, 255] range.
 
         Args:
-            input (np.ndarray): Input image(s), any numeric range.
+            inputs (np.ndarray): Input image(s), any numeric range.
 
         Returns:
             np.ndarray: Normalized image(s) in [0, 255] range.
         """
-        max_val = np.max(input)
-        min_val = np.min(input)
-        input = (input - min_val) / (max_val - min_val) * 255.0
-        return input
+        inputs = np.asarray(inputs, dtype=np.float32)
+        max_val = np.max(inputs)
+        min_val = np.min(inputs)
+        denom = max_val - min_val
+        if denom > 0.0:
+            inputs = (inputs - min_val) / denom * 255.0
+        else:
+            inputs = np.zeros_like(inputs, dtype=np.float32)
+        return inputs
 
-    def call(self, input):
+    def call(self, inputs):
         """
         Predict regional image quality scores for input image(s).
 
         Args:
-            input (np.ndarray): Input image or batch of images.
+            inputs (np.ndarray): Input image or batch of images.
             Shape: [batch, 1, 256, 256]
 
         Returns:
@@ -100,9 +105,9 @@ class MyocardialImgQuality(BaseModel):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
         output_name = self.onnx_sess.get_outputs()[0].name
-        input = self.preprocess_input(input)
+        inputs = self.preprocess_input(inputs)
 
-        output = self.onnx_sess.run([output_name], {input_name: input})[0]
+        output = self.onnx_sess.run([output_name], {input_name: inputs})[0]
         slope = self.slope_intercept[0]
         intercept = self.slope_intercept[1]
         output_debiased = (output - intercept) / slope

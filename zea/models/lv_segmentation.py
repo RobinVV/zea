@@ -47,12 +47,12 @@ class AugmentedCamusSeg(BaseModel):
     def __init__(self):
         super().__init__()
 
-    def call(self, input):
+    def call(self, inputs):
         """
         Run inference on the input data using the loaded ONNX model.
 
         Args:
-            input (np.ndarray): Input image or batch of images for segmentation.
+            inputs (np.ndarray): Input image or batch of images for segmentation.
                 Shape: [batch, 1, 256, 256]
                 Range: Any numeric range; normalized internally.
 
@@ -67,7 +67,7 @@ class AugmentedCamusSeg(BaseModel):
             raise ValueError("Model weights not loaded. Please call custom_load_weights() first.")
         input_name = self.onnx_sess.get_inputs()[0].name
         output_name = self.onnx_sess.get_outputs()[0].name
-        output = self.onnx_sess.run([output_name], {input_name: input})[0]
+        output = self.onnx_sess.run([output_name], {input_name: inputs})[0]
         return output
 
     def custom_load_weights(self, model_path="./augmented_camus_seg.onnx"):
