@@ -6,7 +6,7 @@ from typing import Literal
 import keras
 from keras import ops
 
-from zea.backend import _import_tf
+from zea.backend import _import_tf, jit
 from zea.backend.autograd import AutoGrad
 from zea.internal.core import Object
 from zea.internal.operators import Operator
@@ -866,3 +866,77 @@ class DPS(DiffusionGuidance):
             Tuple of (gradients, (measurement_error, (pred_noises, pred_images)))
         """
         return self.gradient_fn(noisy_images, **kwargs)
+
+
+@diffusion_guidance_registry(name="dds")
+class DDS(DiffusionGuidance):
+    """Decomposed Diffusion Sampling guidance."""
+
+    def setup(self, n_inner=5):
+        """ Setup forward model for CG """
+
+        # functions we need:
+        # CG function: (A, b, x, n_inner, eps) --> x_updated
+        # Acg(x) = AT(A(x))
+        # bcg = AT(measured)
+        # A = Acg
+
+        # self.operator.forward and .transpose
+
+        # we transform the operator from A(x) to A.T(A(x)) to get the normal equations,
+        # so that it is suitable for conjugate gradient. (symmetric, positive definite)
+        Acg = lambda x: self.operator.transpose(self.operator.forward(x))
+        self.Acg = Acg
+        self.n_inner = n_inner
+
+        def conjugate_gradient_inner_loop(i, loop_state):
+            p, rs_old, r, x = loop_state
+            Ap = Acg(p)
+            a = rs_old / ops.sum(p * Ap)
+
+            x = x + a * p # update x
+            r = r - a * Ap # shortcut to compute next residual
+
+            rs_new = ops.sum(r * r)
+            p = r + (rs_new / rs_old) * p
+            return (p, rs_new, r, x)
+        self.conjugate_gradient_inner_loop = conjugate_gradient_inner_loop
+        self.call = jit(self.call)
+
+    def call(self, noisy_images, measurements, noise_rates, signal_rates, **kwargs):
+        pred_noises, pred_images = self.diffusion_model.denoise(
+            noisy_images,
+            noise_rates,
+            signal_rates,
+            training=False,
+        )
+        measurements_cg = self.operator.transpose(measurements)
+        r = measurements_cg - self.Acg(pred_images) # residual
+        p = ops.copy(r) # search vector
+        rs_old = ops.sum(r * r) # residual dot product
+        _, _, _, pred_images_updated_cg = fori_loop(
+            0,
+            self.n_inner,
+            self.conjugate_gradient_inner_loop,
+            (
+                p, rs_old, r, pred_images
+            )
+        )
+
+        # x_updated_cg = self.conjugate_gradient_method(self.Acg, measurements_cg, pred_images, n_inner=self.n_inner)
+
+        # Not strictly necessary, just for debugging
+        # error = L2(measurements - self.operator.forward(pred_images_updated_cg))
+        error = 0
+
+        pred_images = pred_images_updated_cg
+        # we have already performed the guidance steps in self.conjugate_gradient_method, so
+        # we can set these gradients to zero.
+        gradients = ops.zeros_like(pred_images) 
+        return gradients, (error, (pred_noises, pred_images))
+
+    def __call__(self, noisy_images, measurements, noise_rates, signal_rates, **kwargs):
+        """
+        ...
+        """
+        return self.call(noisy_images, measurements, noise_rates, signal_rates, **kwargs)
