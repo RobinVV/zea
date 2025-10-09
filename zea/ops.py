@@ -522,25 +522,37 @@ class Pipeline:
             jit_kwargs=self.jit_kwargs,
             name=self.name,
             validate=self._validate_flag,
+            timed=self._timed,
+        )
+
+    def reinitialize(self):
+        """Reinitialize the pipeline in place."""
+        self.__init__(
+            self._pipeline_layers,
+            with_batch_dim=self.with_batch_dim,
+            jit_options=self.jit_options,
+            jit_kwargs=self.jit_kwargs,
+            name=self.name,
+            validate=self._validate_flag,
+            timed=self._timed,
         )
 
     def prepend(self, operation: Operation):
-        """Prepend an operation to the pipeline. This is not an in-place operation!"""
+        """Prepend an operation to the pipeline."""
         self._pipeline_layers.insert(0, operation)
-        return self.copy()
+        self.reinitialize()
 
     def append(self, operation: Operation):
-        """Append an operation to the pipeline. This is not an in-place operation!"""
+        """Append an operation to the pipeline."""
         self._pipeline_layers.append(operation)
-        return self.copy()
+        self.reinitialize()
 
     def insert(self, index: int, operation: Operation):
-        """Insert an operation at a specific index in the pipeline.
-        This is not an in-place operation!"""
+        """Insert an operation at a specific index in the pipeline."""
         if index < 0 or index > len(self._pipeline_layers):
             raise IndexError("Index out of bounds for inserting operation.")
         self._pipeline_layers.insert(index, operation)
-        return self.copy()
+        self.reinitialize()
 
     @property
     def operations(self):

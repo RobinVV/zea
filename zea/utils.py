@@ -11,6 +11,7 @@ from functools import wraps
 from pathlib import Path
 from statistics import mean, median, stdev
 
+import keras
 import numpy as np
 import yaml
 from keras import ops
@@ -592,8 +593,14 @@ def deep_compare(obj1, obj2):
 
 
 def block_until_ready(func):
-    """Decorator that applies jax.block_until_ready to function outputs."""
-    import jax
+    """Decorator that ensures asynchronous (gpu) operations complete before returning."""
+    if keras.backend.backend() == "jax":
+        import jax
+
+        block_fn = jax.block_until_ready
+    else:
+        # If not using jax backend, return to numpy
+        block_fn = ops.convert_to_numpy
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -602,19 +609,14 @@ def block_until_ready(func):
         # Handle different return types
         if isinstance(result, (list, tuple)):
             # For multiple outputs, block each one
-            blocked_results = [
-                jax.block_until_ready(r) if hasattr(r, "__array__") else r for r in result
-            ]
+            blocked_results = [block_fn(r) if hasattr(r, "__array__") else r for r in result]
             return type(result)(blocked_results)
         elif isinstance(result, dict):
             # For dict outputs, block array values
-            return {
-                k: jax.block_until_ready(v) if hasattr(v, "__array__") else v
-                for k, v in result.items()
-            }
+            return {k: block_fn(v) if hasattr(v, "__array__") else v for k, v in result.items()}
         else:
             # Single output
-            return jax.block_until_ready(result) if hasattr(result, "__array__") else result
+            return block_fn(result) if hasattr(result, "__array__") else result
 
     return wrapper
 

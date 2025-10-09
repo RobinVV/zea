@@ -231,6 +231,19 @@ def patched_pipeline():
     return pipeline
 
 
+def test_pipeline_modification():
+    """Tests if modifying the pipeline updates callable layers correctly."""
+    # set timed to True to ensure _callable_layers is used
+    # basically this makes sure that the pipeline is reinitialized
+    pipeline = ops.Pipeline.from_default(jit_options=None, with_batch_dim=False, timed=True)
+    pipeline.prepend(ops.Simulate())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+    pipeline.append(ops.Normalize())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+    pipeline.insert(2, ops.Identity())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+
+
 def test_operation_initialization(test_operation):
     """Tests initialization of an Operation."""
     assert test_operation.cache_inputs is True
