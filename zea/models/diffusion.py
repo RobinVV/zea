@@ -870,40 +870,66 @@ class DPS(DiffusionGuidance):
 
 @diffusion_guidance_registry(name="dds")
 class DDS(DiffusionGuidance):
-    """Decomposed Diffusion Sampling guidance."""
+    """
+    Decomposed Diffusion Sampling guidance.
 
-    def setup(self, n_inner=5):
-        """ Setup forward model for CG """
+    Reference paper: https://arxiv.org/pdf/2303.05754
+    """
 
-        # functions we need:
-        # CG function: (A, b, x, n_inner, eps) --> x_updated
-        # Acg(x) = AT(A(x))
-        # bcg = AT(measured)
-        # A = Acg
+    def setup(self):
+        """
+        Setup forward model for use in Conjugate Gradient Method
 
-        # self.operator.forward and .transpose
+        Args:
+            n_inner (int): number of conjugate gradient steps to take.
+            verbose (bool): controls whether measurement error is
+                calculated at each step.
+        """
 
         # we transform the operator from A(x) to A.T(A(x)) to get the normal equations,
         # so that it is suitable for conjugate gradient. (symmetric, positive definite)
         Acg = lambda x: self.operator.transpose(self.operator.forward(x))
         self.Acg = Acg
-        self.n_inner = n_inner
 
         def conjugate_gradient_inner_loop(i, loop_state):
+            """
+            A single iteration of the conjugate gradient method.
+            This involves minimizing the error of x along the current search
+            vector p, and then choosing the next search vector.
+            """
             p, rs_old, r, x = loop_state
-            Ap = Acg(p)
-            a = rs_old / ops.sum(p * Ap)
 
-            x = x + a * p # update x
-            r = r - a * Ap # shortcut to compute next residual
+            # compute alpha
+            Ap = Acg(p)  # transform search vector p by A
+            a = rs_old / ops.sum(p * Ap)  # minimize f along the line p
 
+            x = x + a * p  # set new x at the minimum of f along line p
+            r = r - a * Ap  # shortcut to compute next residual
+
+            # compute Gram-Schmidt coefficient beta to choose next search vector
+            # so that p_new is A-orthogonal to p_current.
             rs_new = ops.sum(r * r)
             p = r + (rs_new / rs_old) * p
             return (p, rs_new, r, x)
+
         self.conjugate_gradient_inner_loop = conjugate_gradient_inner_loop
         self.call = jit(self.call)
 
-    def call(self, noisy_images, measurements, noise_rates, signal_rates, **kwargs):
+    def call(self, noisy_images, measurements, noise_rates, signal_rates, n_inner, verbose):
+        """
+        Call the DDS guidance function
+
+        Args:
+            noisy_images: Noisy images.
+            measurement: Target measurement.
+            noise_rates: Current noise rates.
+            signal_rates: Current signal rates.
+            n_inner: Number of conjugate gradient steps.
+            verbose: Whether to calculate error.
+
+        Returns:
+            Tuple of (gradients, (measurement_error, (pred_noises, pred_images)))
+        """
         pred_noises, pred_images = self.diffusion_model.denoise(
             noisy_images,
             noise_rates,
@@ -911,32 +937,42 @@ class DDS(DiffusionGuidance):
             training=False,
         )
         measurements_cg = self.operator.transpose(measurements)
-        r = measurements_cg - self.Acg(pred_images) # residual
-        p = ops.copy(r) # search vector
-        rs_old = ops.sum(r * r) # residual dot product
+        r = measurements_cg - self.Acg(pred_images)  # residual
+        p = ops.copy(r)  # search vector
+        rs_old = ops.sum(r * r)  # residual dot product
         _, _, _, pred_images_updated_cg = fori_loop(
-            0,
-            self.n_inner,
-            self.conjugate_gradient_inner_loop,
-            (
-                p, rs_old, r, pred_images
-            )
+            0, n_inner, self.conjugate_gradient_inner_loop, (p, rs_old, r, pred_images)
         )
 
-        # x_updated_cg = self.conjugate_gradient_method(self.Acg, measurements_cg, pred_images, n_inner=self.n_inner)
-
         # Not strictly necessary, just for debugging
-        # error = L2(measurements - self.operator.forward(pred_images_updated_cg))
-        error = 0
+        error = ops.cond(
+            verbose,
+            lambda: L2(measurements - self.operator.forward(pred_images_updated_cg)),
+            lambda: 0.0,
+        )
 
         pred_images = pred_images_updated_cg
         # we have already performed the guidance steps in self.conjugate_gradient_method, so
         # we can set these gradients to zero.
-        gradients = ops.zeros_like(pred_images) 
+        gradients = ops.zeros_like(pred_images)
         return gradients, (error, (pred_noises, pred_images))
 
-    def __call__(self, noisy_images, measurements, noise_rates, signal_rates, **kwargs):
+    def __call__(
+        self, noisy_images, measurements, noise_rates, signal_rates, n_inner=5, verbose=False
+    ):
         """
-        ...
+        Call the DDS guidance function
+
+        Args:
+            noisy_images: Noisy images.
+            measurement: Target measurement.
+            noise_rates: Current noise rates.
+            signal_rates: Current signal rates.
+            n_inner: Number of conjugate gradient steps.
+            verbose: Whether to calculate error.
+            **kwargs: Additional arguments for the operator.
+
+        Returns:
+            Tuple of (gradients, (measurement_error, (pred_noises, pred_images)))
         """
-        return self.call(noisy_images, measurements, noise_rates, signal_rates, **kwargs)
+        return self.call(noisy_images, measurements, noise_rates, signal_rates, n_inner, verbose)

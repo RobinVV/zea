@@ -90,10 +90,9 @@ class FourierBlurOperator(Operator):
     Applies blurring by masking high frequencies in the Fourier domain.
 
     Formally defined as:
-        y = F^(-1)(M * F(x)) + n
+        y = F^(-1)(M * F(x))
 
-    where F is the FFT, F^(-1) is the inverse FFT, M is the frequency mask,
-    and n is the noise.
+    where F is the FFT, F^(-1) is the inverse FFT and M is the frequency mask.
     """
 
     def __init__(self, shape, cutoff_freq=0.5, smooth=True, **kwargs):
@@ -172,7 +171,11 @@ class FourierBlurOperator(Operator):
         return blurred_data
 
     def transpose(self, data):
+        """
+        transpose = forward because A^* (F^{-1} M F)^* = (F^* M^* (F^{-1})^*) = F^{-1} M F = A
+        i.e. this is a self-adjoint operator.
+        """
         return self.forward(data)
 
     def __str__(self):
-        return f"y = F^(-1)(M * F(x)) + n filter at {self.cutoff_freq}"
+        return f"y = F^(-1)(M * F(x)) filter at {self.cutoff_freq}"
