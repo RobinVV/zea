@@ -179,21 +179,27 @@ def interactive_selector(
     for mask in masks:
         patches.append(crop_array(data * mask, value=0))
 
-    like_selection = not bool(confirm_selection)
+    # Early return if no confirmation is required
+    if not confirm_selection:
+        return patches, masks
 
-    # tkinter yes / no dialog
     try:
-        from tkinter import messagebox
+        from tkinter import Tk, messagebox
     except ImportError as e:
         raise ImportError(
             log.error("Failed to import tkinter. Please install it with 'apt install python3-tk'.")
         ) from e
 
+    # Create root window once for messagebox dialogs
+    root = Tk()
+    root.withdraw()
+
+    like_selection = False
     while not like_selection:
         print(f"You have made {len(patches)} selection(s).")
         # draw masks on top of data
-        for mask in masks:
-            add_shape_from_mask(ax, mask, alpha=0.5)
+        for current_mask in masks:
+            add_shape_from_mask(ax, current_mask, alpha=0.5)
         plt.draw()
 
         like_selection = messagebox.askyesno("Like Selection", "Do you like your selection?")
@@ -206,8 +212,10 @@ def interactive_selector(
             _execute_selector()
 
             patches = []
-            for mask in masks:
-                patches.append(crop_array(data * mask, value=0))
+            for current_mask in masks:
+                patches.append(crop_array(data * current_mask, value=0))
+
+    root.destroy()
 
     return patches, masks
 
