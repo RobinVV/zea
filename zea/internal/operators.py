@@ -105,7 +105,7 @@ class FourierBlurOperator(Operator):
         Args:
             shape: Shape of the input data (H, W), (H, W, C), or (B, H, W, C).
             cutoff_freq: Cutoff frequency as fraction of Nyquist frequency (0.0 to 1.0).
-            blur_type: Type of blur filter ("lowpass", "highpass").
+            smooth: If True, use Gaussian rolloff; otherwise use hard cutoff.
             **kwargs: Additional arguments.
         """
         super().__init__(**kwargs)
