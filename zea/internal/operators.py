@@ -127,9 +127,7 @@ class FourierBlurOperator(Operator):
         elif len(shape) >= 3:
             H, W = shape[-3], shape[-2]
         else:
-            raise ValueError(
-                f"Invalid shape {shape}. Expected (H, W), (H, W, C), or (B, H, W, C)."
-            )
+            raise ValueError(f"Invalid shape {shape}. Expected (H, W), (H, W, C), or (B, H, W, C).")
         fy = np.fft.fftfreq(H)
         fx = np.fft.fftfreq(W)
         FX, FY = np.meshgrid(fx, fy)
