@@ -121,7 +121,15 @@ class FourierBlurOperator(Operator):
         cutoff: relative frequency radius (0 < cutoff < 0.5)
         smooth: if True, use Gaussian rolloff
         """
-        H, W = shape
+        # Accept (H, W), (H, W, C) or (B, H, W, C)
+        if len(shape) == 2:
+            H, W = shape
+        elif len(shape) >= 3:
+            H, W = shape[-3], shape[-2]
+        else:
+            raise ValueError(
+                f"Invalid shape {shape}. Expected (H, W), (H, W, C), or (B, H, W, C)."
+            )
         fy = np.fft.fftfreq(H)
         fx = np.fft.fftfreq(W)
         FX, FY = np.meshgrid(fx, fy)
