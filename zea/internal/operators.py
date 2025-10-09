@@ -78,7 +78,7 @@ class InpaintingOperator(Operator):
     def forward(self, data, mask):
         # return self.mask * data
         return ops.where(mask, data, self.min_val)
-    
+
     def transpose(self, data, mask):
         # masking operation is diagonal --> A.T = A
         return self.forward(data, mask)

@@ -891,6 +891,7 @@ class DDS(DiffusionGuidance):
         def Acg(x, **op_kwargs):
             # Normal equations: A^T y = A^T A x
             return self.operator.transpose(self.operator.forward(x, **op_kwargs), **op_kwargs)
+
         self.Acg = Acg
 
         def conjugate_gradient_inner_loop(i, loop_state, eps=1e-5):
@@ -919,9 +920,9 @@ class DDS(DiffusionGuidance):
             # is less than eps, then we just return the old
             # loop state rather than the updated one.
             next_loop_state = ops.cond(
-                ops.abs(ops.sqrt(rs_new)) < eps, 
+                ops.abs(ops.sqrt(rs_new)) < eps,
                 lambda: (p, rs_old, r, x, eps, op_kwargs),
-                lambda: (p_new, rs_new, r_new, x_new, eps, op_kwargs)
+                lambda: (p_new, rs_new, r_new, x_new, eps, op_kwargs),
             )
 
             return next_loop_state
@@ -929,7 +930,17 @@ class DDS(DiffusionGuidance):
         self.conjugate_gradient_inner_loop = conjugate_gradient_inner_loop
         self.call = jit(self.call)
 
-    def call(self, noisy_images, measurements, noise_rates, signal_rates, n_inner, eps, verbose, **op_kwargs):
+    def call(
+        self,
+        noisy_images,
+        measurements,
+        noise_rates,
+        signal_rates,
+        n_inner,
+        eps,
+        verbose,
+        **op_kwargs,
+    ):
         """
         Call the DDS guidance function
 
@@ -955,7 +966,10 @@ class DDS(DiffusionGuidance):
         p = ops.copy(r)  # initial search vector = residual
         rs_old = ops.sum(r * r)  # residual dot product
         _, _, _, pred_images_updated_cg, _, _ = fori_loop(
-            0, n_inner, self.conjugate_gradient_inner_loop, (p, rs_old, r, pred_images, eps, op_kwargs)
+            0,
+            n_inner,
+            self.conjugate_gradient_inner_loop,
+            (p, rs_old, r, pred_images, eps, op_kwargs),
         )
 
         # Not strictly necessary, just for debugging
@@ -972,7 +986,15 @@ class DDS(DiffusionGuidance):
         return gradients, (error, (pred_noises, pred_images))
 
     def __call__(
-        self, noisy_images, measurements, noise_rates, signal_rates, n_inner=5, eps=1e-5, verbose=False, **op_kwargs
+        self,
+        noisy_images,
+        measurements,
+        noise_rates,
+        signal_rates,
+        n_inner=5,
+        eps=1e-5,
+        verbose=False,
+        **op_kwargs,
     ):
         """
         Call the DDS guidance function
@@ -989,4 +1011,13 @@ class DDS(DiffusionGuidance):
         Returns:
             Tuple of (gradients, (measurement_error, (pred_noises, pred_images)))
         """
-        return self.call(noisy_images, measurements, noise_rates, signal_rates, n_inner, eps, verbose, **op_kwargs)
+        return self.call(
+            noisy_images,
+            measurements,
+            noise_rates,
+            signal_rates,
+            n_inner,
+            eps,
+            verbose,
+            **op_kwargs,
+        )
