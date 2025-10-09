@@ -78,6 +78,10 @@ class InpaintingOperator(Operator):
     def forward(self, data, mask):
         # return self.mask * data
         return ops.where(mask, data, self.min_val)
+    
+    def transpose(self, data, mask):
+        # masking operation is diagonal --> A.T = A
+        return self.forward(data, mask)
 
     def __str__(self):
         return "y = Ax + n, where A = I * M"
