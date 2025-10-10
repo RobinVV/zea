@@ -101,10 +101,8 @@ data from the file and returns a ``DatasetElement``. Then pass the function to t
 import argparse
 import os
 import sys
-import tkinter as tk
 import traceback
 from pathlib import Path
-from tkinter import filedialog
 
 import h5py
 import numpy as np
@@ -1096,10 +1094,19 @@ if __name__ == "__main__":
         log.info("Select a directory containing Verasonics matlab raw files.")
         # Create a Tkinter root window
         try:
+            import tkinter as tk
+            from tkinter import filedialog
+
             root = tk.Tk()
             root.withdraw()
             # Prompt the user to select a file or directory
             selected_path = filedialog.askdirectory()
+        except ImportError as e:
+            raise ImportError(
+                log.error(
+                    "tkinter is not installed. Please install it with 'apt install python3-tk'."
+                )
+            ) from e
         except Exception as e:
             raise ValueError(
                 log.error(
