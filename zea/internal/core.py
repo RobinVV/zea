@@ -2,12 +2,12 @@
 
 import enum
 import json
-import pickle
 from copy import deepcopy
 
 import keras
 import numpy as np
 
+from zea.internal.cache import serialize_elements
 from zea.utils import reduce_to_signature, update_dictionary
 
 CONVERT_TO_KERAS_TYPES = (np.ndarray, int, float, list, tuple, bool)
@@ -76,7 +76,7 @@ class Object:
             attributes.pop(
                 "_serialized", None
             )  # Remove the cached serialized attribute to avoid recursion
-            self._serialized = pickle.dumps(attributes)
+            self._serialized = serialize_elements([attributes])
         return self._serialized
 
     def __setattr__(self, name: str, value):

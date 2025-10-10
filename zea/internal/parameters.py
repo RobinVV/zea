@@ -10,7 +10,6 @@ See the Parameters class docstring for details on features and usage.
 
 import functools
 import inspect
-import pickle
 from copy import deepcopy
 
 import numpy as np
@@ -247,7 +246,7 @@ class Parameters(ZeaObject):
     def serialized(self):
         """Compute the checksum of the object only if not already done"""
         if self._serialized is None:
-            self._serialized = pickle.dumps(self._params)
+            self._serialized = serialize_elements([self._params])
         return self._serialized
 
     @classmethod
@@ -283,12 +282,16 @@ class Parameters(ZeaObject):
             raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
     def __getattr__(self, item):
+        # Handle case during unpickling when internal attributes may not be set yet
+        if "_params" not in self.__dict__:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+
         # First check regular params
         if item in self._params:
             return self._params[item]
 
         # Check if it's a property
-        if item not in self._properties:
+        if not hasattr(self, "_properties") or item not in self._properties:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
 
         self._assert_dependencies_met(item)

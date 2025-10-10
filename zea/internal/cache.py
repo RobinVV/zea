@@ -33,6 +33,7 @@ import joblib
 import keras
 
 from zea import log
+from zea.internal.core import Object as ZeaObject
 
 _DEFAULT_ZEA_CACHE_DIR = Path.home() / ".cache" / "zea"
 
@@ -83,9 +84,7 @@ _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 def serialize_elements(key_elements: list, shorten: bool = False) -> str:
     """Serialize elements of a list to generate a cache key.
 
-    In general uses the string representation of the elements unless
-    the element has a `serialized` attribute, in which case it uses that.
-    For instance this is useful for custom classes that inherit from `zea.core.Object`.
+    In general uses the pickle representation of the elements and optionally hashes it using MD5.
 
     Args:
         key_elements (list): List of elements to serialize. Can be nested lists
@@ -95,15 +94,23 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
 
     Returns:
         str: A serialized string representation of the elements, joined by underscores.
-
     """
+
+    def _serialize(element) -> str:
+        element = pickle.dumps(element)
+        if shorten:
+            element = hashlib.md5(element).hexdigest()
+        else:
+            element = element.hex()
+        return element
+
     serialized_elements = []
     for element in key_elements:
         if isinstance(element, (list, tuple)):
             # If element is a list or tuple, serialize its elements recursively
             serialized_elements.append(serialize_elements(element))
-        elif hasattr(element, "serialized"):
-            # Use the serialized attribute if it exists (e.g. for zea.core.Object)
+        elif isinstance(element, ZeaObject) and hasattr(element, "serialized"):
+            # Use the serialized attribute if it exists
             serialized_elements.append(str(element.serialized))
         elif isinstance(element, str):
             # If element is a string, use it as is
@@ -111,13 +118,19 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
         elif isinstance(element, keras.random.SeedGenerator):
             # If element is a SeedGenerator, use the state
             element = keras.ops.convert_to_numpy(element.state.value)
-            element = pickle.dumps(element)
-            element = hashlib.md5(element).hexdigest()
+            element = _serialize(element)
+            serialized_elements.append(element)
+        elif isinstance(element, dict):
+            # If element is a dictionary, sort its keys and serialize its values recursively.
+            # This is needed to ensure the internal state and ordering of the dictionary does
+            # not affect the serialization.
+            keys = sorted(element.keys())
+            elements = [_serialize(v) for v in element.values()]
+            element = "_".join([str(k) + ":" + v for k, v in zip(keys, elements)])
             serialized_elements.append(element)
         else:
-            # Otherwise, serialize the element using pickle and hash it
-            element = pickle.dumps(element)
-            element = hashlib.md5(element).hexdigest()
+            # Otherwise, serialize the element directly
+            element = _serialize(element)
             serialized_elements.append(element)
 
     serialized = "_".join(serialized_elements)
