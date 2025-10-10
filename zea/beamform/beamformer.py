@@ -102,7 +102,7 @@ def tof_correction(
 
     assert len(data.shape) == 4, (
         "The input data should have 4 dimensions, "
-        f"namely n_tx, n_el, n_ax, n_ch, got {len(data.shape)} dimensions: {data.shape}"
+        f"namely n_tx, n_ax, n_el, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
 
     n_tx, n_ax, n_el, _ = ops.shape(data)
