@@ -79,7 +79,7 @@ def tof_correction(
         initial_times (Tensor): The probe transmit time offsets of shape `(n_tx,)`.
         sampling_frequency (float): Sampling frequency.
         demodulation_frequency (float): Demodulation frequency.
-        f_number (int, optional): Focus number. Defaults to 1.
+        f_number (float): Focus number (ratio of focal depth to aperture size).
         polar_angles (ops.Tensor): The angles of the waves in radians of shape `(n_tx,)`
         focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
         apply_phase_rotation (bool, optional): Whether to apply phase rotation to
