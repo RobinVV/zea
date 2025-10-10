@@ -27,11 +27,14 @@ class Operator(abc.ABC, Object):
 
     """
 
-    sigma = 0.0
-
     @abc.abstractmethod
     def forward(self, data, *args, **kwargs):
         """Implements the forward operator A: x -> y."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def transpose(self, data, *args, **kwargs):
+        """Implements the transpose (or adjoint) of the operator A^T: y -> x."""
         raise NotImplementedError
 
     @abc.abstractmethod

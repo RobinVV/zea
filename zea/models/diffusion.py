@@ -776,7 +776,12 @@ register_presets(diffusion_model_presets, DiffusionModel)
 class DiffusionGuidance(abc.ABC, Object):
     """Base class for diffusion guidance methods."""
 
-    def __init__(self, diffusion_model, operator, disable_jit=False):
+    def __init__(
+        self,
+        diffusion_model: DiffusionModel,
+        operator: Operator,
+        disable_jit: bool = False,
+    ):
         """Initialize the diffusion guidance.
 
         Args:
@@ -877,58 +882,48 @@ class DDS(DiffusionGuidance):
     """
 
     def setup(self):
-        """
-        Setup forward model for use in Conjugate Gradient Method
+        """Setup DDS guidance function."""
+        if not self.disable_jit:
+            self.call = jit(self.call)
 
-        Args:
-            n_inner (int): number of conjugate gradient steps to take.
-            verbose (bool): controls whether measurement error is
-                calculated at each step.
-        """
-
+    def Acg(self, x, **op_kwargs):
         # we transform the operator from A(x) to A.T(A(x)) to get the normal equations,
         # so that it is suitable for conjugate gradient. (symmetric, positive definite)
-        def Acg(x, **op_kwargs):
-            # Normal equations: A^T y = A^T A x
-            return self.operator.transpose(self.operator.forward(x, **op_kwargs), **op_kwargs)
+        # Normal equations: A^T y = A^T A x
+        return self.operator.transpose(self.operator.forward(x, **op_kwargs), **op_kwargs)
 
-        self.Acg = Acg
+    def conjugate_gradient_inner_loop(self, i, loop_state, eps=1e-5):
+        """
+        A single iteration of the conjugate gradient method.
+        This involves minimizing the error of x along the current search
+        vector p, and then choosing the next search vector.
 
-        def conjugate_gradient_inner_loop(i, loop_state, eps=1e-5):
-            """
-            A single iteration of the conjugate gradient method.
-            This involves minimizing the error of x along the current search
-            vector p, and then choosing the next search vector.
+        Reference code from: https://github.com/svi-diffusion/
+        """
+        p, rs_old, r, x, eps, op_kwargs = loop_state
 
-            Reference code from: https://github.com/svi-diffusion/
-            """
-            p, rs_old, r, x, eps, op_kwargs = loop_state
+        # compute alpha
+        Ap = self.Acg(p, **op_kwargs)  # transform search vector p by A
+        a = rs_old / ops.sum(p * Ap)  # minimize f along the line p
 
-            # compute alpha
-            Ap = Acg(p, **op_kwargs)  # transform search vector p by A
-            a = rs_old / ops.sum(p * Ap)  # minimize f along the line p
+        x_new = x + a * p  # set new x at the minimum of f along line p
+        r_new = r - a * Ap  # shortcut to compute next residual
 
-            x_new = x + a * p  # set new x at the minimum of f along line p
-            r_new = r - a * Ap  # shortcut to compute next residual
+        # compute Gram-Schmidt coefficient beta to choose next search vector
+        # so that p_new is A-orthogonal to p_current.
+        rs_new = ops.sum(r_new * r_new)
+        p_new = r_new + (rs_new / rs_old) * p
 
-            # compute Gram-Schmidt coefficient beta to choose next search vector
-            # so that p_new is A-orthogonal to p_current.
-            rs_new = ops.sum(r_new * r_new)
-            p_new = r_new + (rs_new / rs_old) * p
+        # this is like a jittable 'break' -- if the residual
+        # is less than eps, then we just return the old
+        # loop state rather than the updated one.
+        next_loop_state = ops.cond(
+            ops.abs(ops.sqrt(rs_new)) < eps,
+            lambda: (p, rs_old, r, x, eps, op_kwargs),
+            lambda: (p_new, rs_new, r_new, x_new, eps, op_kwargs),
+        )
 
-            # this is like a jittable 'break' -- if the residual
-            # is less than eps, then we just return the old
-            # loop state rather than the updated one.
-            next_loop_state = ops.cond(
-                ops.abs(ops.sqrt(rs_new)) < eps,
-                lambda: (p, rs_old, r, x, eps, op_kwargs),
-                lambda: (p_new, rs_new, r_new, x_new, eps, op_kwargs),
-            )
-
-            return next_loop_state
-
-        self.conjugate_gradient_inner_loop = conjugate_gradient_inner_loop
-        self.call = jit(self.call)
+        return next_loop_state
 
     def call(
         self,
