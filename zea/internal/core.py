@@ -168,9 +168,7 @@ def _skip_to_tensor(value):
     # Skip str (because JIT does not support it)
     # Skip methods and functions
     # Skip byte strings
-    if isinstance(value, str) or callable(value) or isinstance(value, bytes):
-        return True
-    return False
+    return isinstance(value, str) or callable(value) or isinstance(value, bytes)
 
 
 def dict_to_tensor(dictionary, keep_as_is=None):
@@ -185,8 +183,9 @@ def dict_to_tensor(dictionary, keep_as_is=None):
         # Get the value from the dictionary
         value = dictionary[key]
 
-        if isinstance(value, Object):
+        if isinstance(value, Object) and hasattr(value, "to_tensor"):
             snapshot[key] = value.to_tensor(keep_as_is=keep_as_is)
+            continue
 
         # Skip certain types
         if _skip_to_tensor(value):
@@ -318,7 +317,7 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
     for element in key_elements:
         if isinstance(element, (list, tuple)):
             # If element is a list or tuple, serialize its elements recursively
-            serialized_elements.append(serialize_elements(element))
+            serialized_elements.append(serialize_elements(element, shorten=shorten))
         elif isinstance(element, Object) and hasattr(element, "serialized"):
             # Use the serialized attribute if it exists
             serialized_elements.append(str(element.serialized))
