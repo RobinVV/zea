@@ -15,9 +15,8 @@ from copy import deepcopy
 import numpy as np
 
 from zea import log
-from zea.internal.cache import serialize_elements
 from zea.internal.core import Object as ZeaObject
-from zea.internal.core import _to_tensor
+from zea.internal.core import _to_tensor, serialize_elements
 
 
 def cache_with_dependencies(*deps):
