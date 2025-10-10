@@ -75,7 +75,7 @@ def tof_correction(
             that the first element fires at t=0 of shape `(n_tx, n_el)`
         tx_apodizations (ops.Tensor): Transmit apodizations of shape `(n_tx, n_el)`
         sound_speed (float): Speed-of-sound.
-        probe_geometry (ops.Tensor): Element positions x, y, z of shape (num_samples, 3)
+        probe_geometry (ops.Tensor): Element positions x, y, z of shape (n_el, 3)
         initial_times (Tensor): The probe transmit time offsets of shape `(n_tx,)`.
         sampling_frequency (float): Sampling frequency.
         demodulation_frequency (float): Demodulation frequency.
@@ -97,14 +97,12 @@ def tof_correction(
 
     Returns:
         (ops.Tensor): time-of-flight corrected data
-        with shape: `(n_tx, n_pix, n_el, num_rf_iq_channels)`.
+        with shape: `(n_tx, n_pix, n_el, n_ch)`.
     """
 
     assert len(data.shape) == 4, (
         "The input data should have 4 dimensions, "
-        f"namely num_transmits, num_elements, num_samples, "
-        f"num_rf_iq_channels, got {len(data.shape)} dimensions: ."
-        f"{data.shape}"
+        f"namely n_tx, n_el, n_ax, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
 
     n_tx, n_ax, n_el, _ = ops.shape(data)
