@@ -597,10 +597,18 @@ def block_until_ready(func):
     if keras.backend.backend() == "jax":
         import jax
 
-        block_fn = jax.block_until_ready
+        def _block(value):
+            if hasattr(value, "__array__"):
+                return jax.block_until_ready(value)
+            else:
+                return value
     else:
-        # If not using jax backend, return to numpy
-        block_fn = ops.convert_to_numpy
+
+        def _block(value):
+            if hasattr(value, "__array__"):
+                # convert to numpy but return as original type
+                _ = ops.convert_to_numpy(value)
+            return value
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -609,14 +617,14 @@ def block_until_ready(func):
         # Handle different return types
         if isinstance(result, (list, tuple)):
             # For multiple outputs, block each one
-            blocked_results = [block_fn(r) if hasattr(r, "__array__") else r for r in result]
+            blocked_results = [_block(r) for r in result]
             return type(result)(blocked_results)
         elif isinstance(result, dict):
             # For dict outputs, block array values
-            return {k: block_fn(v) if hasattr(v, "__array__") else v for k, v in result.items()}
+            return {k: _block(v) for k, v in result.items()}
         else:
             # Single output
-            return block_fn(result) if hasattr(result, "__array__") else result
+            return _block(result)
 
     return wrapper
 
