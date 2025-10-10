@@ -290,9 +290,9 @@ class Parameters(ZeaObject):
             return self._params[item]
 
         # Check if it's a property
-        if not hasattr(self, "_properties") or item not in self._properties:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
-
+        props = self.__dict__.get("_properties")
+        if not props or item not in props:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
         self._assert_dependencies_met(item)
 
         # Return property value
