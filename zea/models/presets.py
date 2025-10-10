@@ -47,6 +47,34 @@ echonet_dynamic_presets = {
     },
 }
 
+augmented_camus_seg_presets = {
+    "augmented_camus_seg": {
+        "metadata": {
+            "description": (
+                "Augmented CAMUS segmentation model for cardiac ultrasound segmentation. "
+                "Original paper and code: https://arxiv.org/abs/2502.20100"
+            ),
+            "params": 33468899,
+            "path": "lv_segmentation",
+        },
+        "hf_handle": "hf://zeahub/augmented-camus-segmentation",
+    },
+}
+
+regional_quality_presets = {
+    "mobilenetv2_regional_quality": {
+        "metadata": {
+            "description": (
+                "MobileNetV2-based regional myocardial image quality scoring model. "
+                "Original GitHub repository and code: https://github.com/GillesVanDeVyver/arqee"
+            ),
+            "params": 2217064,
+            "path": "regional_quality",
+        },
+        "hf_handle": "hf://zeahub/mobilenetv2-regional-quality",
+    }
+}
+
 echonet_lvh_presets = {
     "echonetlvh": {
         "metadata": {
