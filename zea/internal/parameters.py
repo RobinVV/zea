@@ -11,7 +11,6 @@ See the Parameters class docstring for details on features and usage.
 import functools
 import inspect
 import pickle
-import types
 from copy import deepcopy
 
 import numpy as np
@@ -283,25 +282,6 @@ class Parameters(ZeaObject):
         else:
             raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
-    @staticmethod
-    def _make_immutable(val):
-        """Convert a value to an immutable type. This is needed because all parameters should
-        be updated through the Parameters interface (__setattr__), and not in-place."""
-        if isinstance(val, list):
-            return tuple(val)
-        if isinstance(val, dict):
-            return types.MappingProxyType(val)
-        if isinstance(val, np.ndarray):
-            arr = val.view()
-            arr.setflags(write=False)
-            return arr
-
-        if not isinstance(val, (int, float, str, tuple, type(None), types.MappingProxyType)):
-            log.debug(
-                f"Cannot make {type(val)}: {val} immutable, please do not change it in-place!"
-            )
-        return val
-
     def __getattr__(self, item):
         # First check regular params
         if item in self._params:
@@ -315,7 +295,7 @@ class Parameters(ZeaObject):
 
         # Return property value
         cls_attr = getattr(self.__class__, item, None)
-        return self._make_immutable(cls_attr.__get__(self, self.__class__))
+        return cls_attr.__get__(self, self.__class__)
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
