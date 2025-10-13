@@ -385,10 +385,10 @@ def complex_rotate(iq, theta):
         I- and Q-channels by the angle :math:`\\theta`. This function performs this
         rotation.
     """
-    # assert iq.shape[-1] == 2, (
-    #     "The last dimension of the input tensor should be 2, "
-    #     f"got {iq.shape[-1]} dimensions and shape {iq.shape}."
-    # )
+    assert iq.shape[-1] == 2, (
+        "The last dimension of the input tensor should be 2, "
+        f"got {iq.shape[-1]} dimensions and shape {iq.shape}."
+    )
     # Select i and q channels
     i = iq[..., 0]
     q = iq[..., 1]
