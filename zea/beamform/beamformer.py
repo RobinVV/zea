@@ -60,7 +60,6 @@ def tof_correction(
     fnum,
     angles,
     focus_distances,
-    apply_phase_rotation=False,
     apply_lens_correction=False,
     lens_thickness=1e-3,
     lens_sound_speed=1000,
@@ -86,8 +85,6 @@ def tof_correction(
         angles (ops.Tensor): The angles of the plane waves in radians of shape
             `(n_tx,)`
         focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
-        apply_phase_rotation (bool, optional): Whether to apply phase rotation to
-            time-of-flights. Defaults to False.
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             time-of-flights. This makes it slower, but more accurate in the near-field.
             Defaults to False.
@@ -148,6 +145,18 @@ def tof_correction(
     )
 
     def _apply_delays(data_tx, txdel):
+        """Applies the delays to TOF correct a single transmit.
+
+        Args:
+            data_tx (ops.Tensor): The RF/IQ data for a single transmit of shape
+                `(n_ax, n_el, n_ch)`.
+            txdel (ops.Tensor): The transmit delays for a single transmit in samples
+                (not in seconds) of shape `(n_pix, 1)`.
+
+        Returns:
+            ops.Tensor: The time-of-flight corrected data of shape
+            `(n_pix, n_el, n_ch)`.
+        """
         # data_tx is of shape (num_elements, num_samples, 1 or 2)
 
         # Take receive delays and add the transmit delays for this transmit
@@ -164,12 +173,15 @@ def tof_correction(
         # Apply the mask
         tof_tx = tof_tx * mask
 
-        # Phase correction
+        # Apply phase rotation if using IQ data
+        # This is needed because interpolating the IQ data without phase rotation
+        # is not equivalent to interpolating the RF data and then IQ demodulating
+        # See the docstring from complex_rotate for more details
+        apply_phase_rotation = data_tx.shape[-1] == 2
         if apply_phase_rotation:
-            tshift = delays[:, :] / sampling_frequency
-            tdemod = flatgrid[:, None, 2] * 2 / sound_speed
-            theta = 2 * np.pi * demodulation_frequency * (tshift - tdemod)
-            tof_tx = _complex_rotate(tof_tx, theta)
+            total_delay_seconds = delays[:, :] / sampling_frequency
+            theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
+            tof_tx = complex_rotate(tof_tx, theta)
         return tof_tx
 
     # Reshape to (n_tx, n_pix, 1)
@@ -227,10 +239,11 @@ def calculate_delays(
             of shape `(n_tx,)`.
 
     Returns:
-        transmit_delays (Tensor): The tensor of transmit delays to every pixel,
-            shape `(n_pix, n_tx)`.
+        transmit_delays (Tensor): The tensor of transmit delays to every pixel
+            in samples (not in seconds), of shape `(n_pix, n_tx)`.
         receive_delays (Tensor): The tensor of receive delays from every pixel
-            back to the transducer element, shape `(n_pix, n_el)`.
+            back to the transducer element in samples (not in seconds), of shape
+            `(n_pix, n_el)`.
     """
 
     def _tx_distances(polar_angles, t0_delays, tx_apodizations, focus_distances):
@@ -332,7 +345,7 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
     return reflection_samples
 
 
-def _complex_rotate(iq, theta):
+def complex_rotate(iq, theta):
     """Performs a simple phase rotation of I and Q component.
 
     Args:
@@ -341,6 +354,34 @@ def _complex_rotate(iq, theta):
 
     Returns:
         Tensor: The rotated tensor of shape `(..., 2)`.
+
+    .. dropdown:: Explanation
+
+        The IQ data is related to the RF data as follows:
+
+        .. math::
+
+            x(t) &= I(t)\\cos(\\omega_c t) + Q(t)\\cos(\\omega_c t + \\pi/2)\\\\
+            &= I(t)\\cos(\\omega_c t) - Q(t)\\sin(\\omega_c t)
+
+
+        If we want to delay the RF data x(t) by Δt we can substitute in :math:`t=t-\\Delta t`.
+        We also define :math:`I'(t) = I(t - \\Delta t)` and :math:`Q'(t) = Q(t - \\Delta t)`.
+        This gives us:
+
+        .. math::
+
+            x(t - \\Delta t) &= I'(t) \\cos(\\omega_c (t - \\Delta t)) 
+            - Q'(t) \\sin(\\omega_c (t - \\Delta t))\\\\
+            &=  \\overbrace{(I'(t)\\cos(\\omega_c \\Delta t)
+            - Q'(t)\\sin(\\omega_c \\Delta t) )}^{I_\\Delta(t)} \\cos(\\omega_c t)\\\\
+            &- \\overbrace{(Q'(t)\\cos(\\omega_c \\Delta t)
+            + I'(t)\\sin(\\omega_c \\Delta t))}^{Q_\\Delta(t)} \\sin(\\omega_c t)
+
+        This means that to correctly interpolate the IQ data to the new components
+        :math:`I_\\Delta(t)` and :math:`Q_\\Delta(t)`, just interpolating the I- and
+        Q-channels independently is not sufficient. We also need to rotate the
+        I- and Q-channels by the angle ω_c Δt. This function performs this rotation.
     """
     # assert iq.shape[-1] == 2, (
     #     "The last dimension of the input tensor should be 2, "
