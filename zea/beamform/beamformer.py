@@ -365,7 +365,7 @@ def complex_rotate(iq, theta):
             &= I(t)\\cos(\\omega_c t) - Q(t)\\sin(\\omega_c t)
 
 
-        If we want to delay the RF data x(t) by Δt we can substitute in
+        If we want to delay the RF data `x(t)` by `Δt` we can substitute in
         :math:`t=t+\\Delta t`. We also define :math:`I'(t) = I(t + \\Delta t)`,
         :math:`Q'(t) = Q(t + \\Delta t)`, and :math:`\\theta=\\omega_c\\Delta t`.
         This gives us:
