@@ -320,9 +320,6 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
         elif isinstance(element, Object) and hasattr(element, "serialized"):
             # Use the serialized attribute if it exists
             element = str(element.serialized)
-        elif isinstance(element, str):
-            # If element is a string, use it as is
-            return element
         elif isinstance(element, keras.random.SeedGenerator):
             # If element is a SeedGenerator, use the state
             element = keras.ops.convert_to_numpy(element.state.value)
