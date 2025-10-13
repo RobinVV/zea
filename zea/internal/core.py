@@ -313,35 +313,38 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
             element = element.hex()
         return element
 
-    serialized_elements = []
-    for element in key_elements:
+    def _serialize_element(element) -> str:
         if isinstance(element, (list, tuple)):
             # If element is a list or tuple, serialize its elements recursively
-            serialized_elements.append(serialize_elements(element, shorten=shorten))
+            element = serialize_elements(element, shorten=shorten)
         elif isinstance(element, Object) and hasattr(element, "serialized"):
             # Use the serialized attribute if it exists
-            serialized_elements.append(str(element.serialized))
+            element = str(element.serialized)
         elif isinstance(element, str):
             # If element is a string, use it as is
-            serialized_elements.append(element)
+            return element
         elif isinstance(element, keras.random.SeedGenerator):
             # If element is a SeedGenerator, use the state
             element = keras.ops.convert_to_numpy(element.state.value)
             element = _serialize(element)
-            serialized_elements.append(element)
         elif isinstance(element, dict):
             # If element is a dictionary, sort its keys and serialize its values recursively.
             # This is needed to ensure the internal state and ordering of the dictionary does
             # not affect the serialization.
-            keys = sorted(element.keys())
+            keys = list(sorted(element.keys()))
             values = [element[k] for k in keys]
-            elements = serialize_elements(values, shorten=shorten)
-            element = "_".join(f"{k}:{v}" for k, v in zip(keys, elements))
-            serialized_elements.append(element)
+            keys = serialize_elements(keys, shorten=shorten)
+            values = serialize_elements(values, shorten=shorten)
+            element = f"k_{keys}_v_{values}"
         else:
             # Otherwise, serialize the element directly
             element = _serialize(element)
-            serialized_elements.append(element)
+
+        return element
+
+    serialized_elements = []
+    for element in key_elements:
+        serialized_elements.append(_serialize_element(element))
 
     serialized = "_".join(serialized_elements)
     if shorten:
