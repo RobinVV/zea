@@ -334,7 +334,8 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
             # This is needed to ensure the internal state and ordering of the dictionary does
             # not affect the serialization.
             keys = sorted(element.keys())
-            elements = [_serialize(element[k]) for k in keys]
+            values = [element[k] for k in keys]
+            elements = serialize_elements(values, shorten=shorten)
             element = "_".join(f"{k}:{v}" for k, v in zip(keys, elements))
             serialized_elements.append(element)
         else:
