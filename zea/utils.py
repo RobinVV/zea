@@ -637,7 +637,7 @@ class FunctionTimer:
         >>> from zea.utils import FunctionTimer
         >>> timer = FunctionTimer()
         >>> my_function = lambda: sum(range(10))
-        >>> my_function = timer(my_function)
+        >>> my_function = timer(my_function, name="my_function")
         >>> _ = my_function()
         >>> print(timer.get_stats("my_function"))
     """
@@ -648,7 +648,7 @@ class FunctionTimer:
         self.decorated_functions = {}  # Track decorated functions
 
     def __call__(self, func, name=None):
-        _name = name if name is not None else str(func)
+        _name = name if name is not None else func.__name__
 
         # Create a unique identifier for this function
         func_id = id(func)
