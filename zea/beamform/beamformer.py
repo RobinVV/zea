@@ -365,23 +365,25 @@ def complex_rotate(iq, theta):
             &= I(t)\\cos(\\omega_c t) - Q(t)\\sin(\\omega_c t)
 
 
-        If we want to delay the RF data x(t) by Δt we can substitute in :math:`t=t-\\Delta t`.
-        We also define :math:`I'(t) = I(t - \\Delta t)` and :math:`Q'(t) = Q(t - \\Delta t)`.
+        If we want to delay the RF data x(t) by Δt we can substitute in
+        :math:`t=t+\\Delta t`. We also define :math:`I'(t) = I(t + \\Delta t)`,
+        :math:`Q'(t) = Q(t + \\Delta t)`, and :math:`\\theta=\\omega_c\\Delta t`.
         This gives us:
 
         .. math::
 
-            x(t - \\Delta t) &= I'(t) \\cos(\\omega_c (t - \\Delta t)) 
-            - Q'(t) \\sin(\\omega_c (t - \\Delta t))\\\\
-            &=  \\overbrace{(I'(t)\\cos(\\omega_c \\Delta t)
-            - Q'(t)\\sin(\\omega_c \\Delta t) )}^{I_\\Delta(t)} \\cos(\\omega_c t)\\\\
-            &- \\overbrace{(Q'(t)\\cos(\\omega_c \\Delta t)
-            + I'(t)\\sin(\\omega_c \\Delta t))}^{Q_\\Delta(t)} \\sin(\\omega_c t)
+            x(t + \\Delta t) &= I'(t) \\cos(\\omega_c (t + \\Delta t)) 
+            - Q'(t) \\sin(\\omega_c (t + \\Delta t))\\\\
+            &=  \\overbrace{(I'(t)\\cos(\\theta)
+            - Q'(t)\\sin(\\theta) )}^{I_\\Delta(t)} \\cos(\\omega_c t)\\\\
+            &- \\overbrace{(Q'(t)\\cos(\\theta)
+            + I'(t)\\sin(\\theta))}^{Q_\\Delta(t)} \\sin(\\omega_c t)
 
         This means that to correctly interpolate the IQ data to the new components
-        :math:`I_\\Delta(t)` and :math:`Q_\\Delta(t)`, just interpolating the I- and
-        Q-channels independently is not sufficient. We also need to rotate the
-        I- and Q-channels by the angle ω_c Δt. This function performs this rotation.
+        :math:`I_\\Delta(t)` and :math:`Q_\\Delta(t)`, it is not sufficient to just
+        interpolate the I- and Q-channels independently. We also need to rotate the
+        I- and Q-channels by the angle :math:`\\theta`. This function performs this
+        rotation.
     """
     # assert iq.shape[-1] == 2, (
     #     "The last dimension of the input tensor should be 2, "
