@@ -48,13 +48,15 @@ from zea.data.preset_utils import (
     _hf_resolve_path,
 )
 from zea.datapaths import format_data_path
+from zea.internal.utils import (
+    calculate_file_hash,
+    reduce_to_signature,
+)
 from zea.io_lib import search_file_tree
 from zea.tools.hf import HFPath
 from zea.utils import (
-    calculate_file_hash,
     date_string_to_readable,
     get_date_string,
-    reduce_to_signature,
 )
 
 _CHECK_MAX_DATASET_SIZE = 10000

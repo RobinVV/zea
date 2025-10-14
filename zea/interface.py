@@ -31,6 +31,7 @@ from zea.data.file import File
 from zea.datapaths import format_data_path
 from zea.display import to_8bit
 from zea.internal.core import DataTypes
+from zea.internal.utils import keep_trying
 from zea.internal.viewer import (
     ImageViewerMatplotlib,
     ImageViewerOpenCV,
@@ -39,7 +40,6 @@ from zea.internal.viewer import (
 )
 from zea.io_lib import matplotlib_figure_to_numpy, save_video
 from zea.ops import Pipeline
-from zea.utils import keep_trying
 
 
 class Interface:

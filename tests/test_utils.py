@@ -1,14 +1,19 @@
-"""Tests for the zea.utils module."""
+"""Tests for the zea.utils module.
+
+Contains both tests for zea.utils and zea.internal.utils.
+"""
 
 import re
 
 import numpy as np
 import pytest
 
-from zea.utils import (
+from zea.internal.utils import (
     find_first_nonzero_index,
     find_key,
     first_not_none_item,
+)
+from zea.utils import (
     get_date_string,
     strtobool,
     update_dictionary,
