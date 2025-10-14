@@ -918,7 +918,7 @@ class DDS(DiffusionGuidance):
         # is less than eps, then we just return the old
         # loop state rather than the updated one.
         next_loop_state = ops.cond(
-            ops.abs(ops.sqrt(rs_new)) < eps,
+            ops.abs(ops.sqrt(rs_old)) < eps,
             lambda: (p, rs_old, r, x, eps, op_kwargs),
             lambda: (p_new, rs_new, r_new, x_new, eps, op_kwargs),
         )
