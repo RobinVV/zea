@@ -274,12 +274,3 @@ def reduce_to_signature(func, kwargs):
     reduced_params = {key: kwargs[key] for key in sig.parameters if key in kwargs}
 
     return reduced_params
-
-
-def safe_initialize_class(cls, **kwargs):
-    """Safely initialize a class by removing any invalid arguments."""
-
-    # Filter out the arguments that are not part of the Scan class
-    reduced_params = reduce_to_signature(cls.__init__, kwargs)
-
-    return cls(**reduced_params)
