@@ -120,7 +120,7 @@ def default_pipeline_config():
         "operations": [
             {"name": "simulate_rf"},
             {"name": "demodulate"},
-            {"name": "tof_correction", "params": {"apply_phase_rotation": True}},
+            {"name": "tof_correction"},
             {"name": "pfield_weighting"},
             {"name": "delay_and_sum"},
             {"name": "envelope_detect"},
@@ -141,10 +141,7 @@ def patched_pipeline_config():
                 "name": "patched_grid",
                 "params": {"num_patches": 15},
                 "operations": [
-                    {
-                        "name": "tof_correction",
-                        "params": {"apply_phase_rotation": True},
-                    },
+                    {"name": "tof_correction"},
                     {"name": "pfield_weighting"},
                     {"name": "delay_and_sum"},
                 ],
@@ -168,20 +165,14 @@ def branched_pipeline_config():
                     "branch_1": [
                         {"name": "simulate_rf"},
                         {"name": "demodulate"},
-                        {
-                            "name": "tof_correction",
-                            "params": {"apply_phase_rotation": True},
-                        },
+                        {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
                         {"name": "delay_and_sum"},
                     ],
                     "branch_2": [
                         {"name": "simulate_rf"},
                         {"name": "demodulate"},
-                        {
-                            "name": "tof_correction",
-                            "params": {"apply_phase_rotation": False},
-                        },
+                        {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
                         {"name": "delay_and_sum"},
                     ],
