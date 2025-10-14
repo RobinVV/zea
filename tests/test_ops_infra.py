@@ -745,6 +745,19 @@ def test_default_ultrasound_pipeline(
     )
 
 
+def test_pipeline_parameter_tracing(ultrasound_scan: Scan):
+    """Tests that the pipeline can run without parameters that are not needed as input because they
+    are computed inside the pipeline."""
+
+    pipeline = ops.Pipeline([ops.Demodulate(), ops.TOFCorrection()])
+    ultrasound_scan._params.pop("n_ch", None)  # remove a parameter that is not needed
+    ultrasound_scan._params.pop("demodulation_frequency", None)
+    params = pipeline.prepare_parameters(scan=ultrasound_scan)
+    data = np.random.randn(1, ultrasound_scan.n_tx, ultrasound_scan.n_ax, ultrasound_scan.n_el, 1)
+    output = pipeline(data=data, **params)
+    assert "demodulation_frequency" in output
+
+
 def test_ops_pass_positional_arg():
     """Test that passing positional arguments to Operation raises a custom error."""
     op = AddOperation()
