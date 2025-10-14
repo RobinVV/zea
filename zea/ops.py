@@ -56,8 +56,6 @@ Example of a yaml file:
           params:
             operations:
               - name: tof_correction
-                params:
-                  apply_phase_rotation: true
               - name: pfield_weighting
               - name: delay_and_sum
             num_patches: 100
@@ -492,7 +490,7 @@ class Pipeline:
 
         # Get beamforming ops
         beamforming = [
-            TOFCorrection(apply_phase_rotation=True),
+            TOFCorrection(),
             DelayAndSum(),
         ]
         if pfield:
@@ -1460,18 +1458,16 @@ class TOFCorrection(Operation):
     STATIC_PARAMS = [
         "f_number",
         "apply_lens_correction",
-        "apply_phase_rotation",
         "grid_size_x",
         "grid_size_z",
     ]
 
-    def __init__(self, apply_phase_rotation=True, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(
             input_data_type=DataTypes.RAW_DATA,
             output_data_type=DataTypes.ALIGNED_DATA,
             **kwargs,
         )
-        self.apply_phase_rotation = apply_phase_rotation
 
     def call(
         self,
@@ -1528,7 +1524,6 @@ class TOFCorrection(Operation):
             "f_number": f_number,
             "polar_angles": polar_angles,
             "focus_distances": focus_distances,
-            "apply_phase_rotation": self.apply_phase_rotation,
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,
