@@ -12,7 +12,7 @@ from zea.backend import func_on_device
 from zea.internal.registry import metrics_registry
 from zea.internal.utils import reduce_to_signature
 from zea.models.lpips import LPIPS
-from zea.ops import translate
+from zea.tensor_ops import translate
 
 
 def get_metric(name, **kwargs):

@@ -15,9 +15,7 @@ from pathlib import Path
 
 from schema import And, Optional, Or, Regex, Schema
 
-import zea.metrics  # noqa: F401
 from zea.internal.checks import _DATA_TYPES
-from zea.internal.registry import metrics_registry
 
 # predefined checks, later used in schema to check validity of parameter
 any_number = Or(
@@ -116,7 +114,9 @@ plot_schema = Schema(
         Optional("tag", default=None): Or(None, str),
         Optional("headless", default=False): bool,
         Optional("selector", default=None): Or(None, "rectangle", "lasso"),
-        Optional("selector_metric", default="gcnr"): Or(*metrics_registry.registered_names()),
+        Optional("selector_metric", default="gcnr"): Or(
+            "mse", "mae", "psnr", "ssim", "lpips", "gcnr"
+        ),
         Optional("fliplr", default=False): bool,
         Optional("image_extension", default="png"): Or("png", "jpg"),
         Optional("video_extension", default="gif"): Or("mp4", "gif"),

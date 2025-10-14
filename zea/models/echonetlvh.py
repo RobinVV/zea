@@ -8,7 +8,7 @@ from zea.models.base import BaseModel
 from zea.models.deeplabv3 import DeeplabV3Plus
 from zea.models.preset_utils import register_presets
 from zea.models.presets import echonet_lvh_presets
-from zea.ops import translate
+from zea.tensor_ops import translate
 
 
 @model_registry(name="echonetlvh")

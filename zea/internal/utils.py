@@ -18,7 +18,7 @@ def find_key(dictionary, contains, case_sensitive=False):
 
     Args:
         dictionary (dict): Dictionary to find key in.
-        contains (str): String which the key should .
+        contains (str): String which the key should contain.
         case_sensitive (bool, optional): Whether the search is case sensitive.
             Defaults to False.
 
@@ -36,7 +36,7 @@ def find_key(dictionary, contains, case_sensitive=False):
     if case_sensitive:
         key = [k for k in dictionary.keys() if contains in k]
     else:
-        key = [k for k in dictionary.keys() if contains in k.lower()]
+        key = [k for k in dictionary.keys() if contains.lower() in k.lower()]
 
     if len(key) == 0:
         raise KeyError(f"Key containing '{contains}' not found in dictionary.")

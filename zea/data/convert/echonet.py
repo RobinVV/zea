@@ -18,7 +18,7 @@ from tqdm import tqdm
 from zea.config import Config
 from zea.data import generate_zea_dataset
 from zea.io_lib import load_video
-from zea.ops import translate
+from zea.tensor_ops import translate
 
 
 def get_args():
