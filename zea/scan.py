@@ -213,8 +213,9 @@ class Scan(Parameters):
     }
 
     def __init__(self, **kwargs):
-        # Store the current selection state before initialization
-        selected_transmits_input = kwargs.pop("selected_transmits", None)
+        # Ensure that selected_transmits is present and set to None by default
+        selected_transmits_input = kwargs.get("selected_transmits", None)
+        kwargs["selected_transmits"] = None
 
         # Initialize parent class
         super().__init__(**kwargs)
@@ -688,5 +689,5 @@ class Scan(Parameters):
         if key == "selected_transmits":
             # If setting selected_transmits, call set_transmits to handle logic
             self.set_transmits(value)
-            return
+            return super().__setattr__(key, self.selected_transmits)
         return super().__setattr__(key, value)
