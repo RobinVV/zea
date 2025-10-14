@@ -661,27 +661,15 @@ def plot_rectangle_from_mask(ax, mask, **kwargs):
         linewidth (int): width of the shape's edge
 
     Returns:
-        list[matplotlib.patches.Rectangle]: list of matplotlib patch objects
-            added to the axis.
+        matplotlib.patches.Rectangle: the added rectangle patch, or None if mask is empty.
     """
-    # Pad mask to ensure edge contours are found
-    padded_mask = np.pad(mask, pad_width=1, mode="constant", constant_values=0)
-
-    # Create a Rectangle patch
-    y1, y2 = np.where(np.diff(padded_mask, axis=0).sum(axis=1))[0]
-    x1, x2 = np.where(np.diff(padded_mask, axis=1).sum(axis=0))[0]
-
-    # Remove padding offset
-    rect = Rectangle(
-        (x1 - 1, y1 - 1),
-        (x2 - x1),
-        (y2 - y1),
-        **kwargs,
-    )
-
-    # Add the patch to the Axes
-    rect_obj = ax.add_patch(rect)
-    return rect_obj
+    ys, xs = np.where(mask)
+    if ys.size == 0 or xs.size == 0:
+        return None
+    y1, y2 = ys.min(), ys.max()
+    x1, x2 = xs.min(), xs.max()
+    rect = Rectangle((x1, y1), x2 - x1 + 1, y2 - y1 + 1, **kwargs)
+    return ax.add_patch(rect)
 
 
 def plot_shape_from_mask(ax, mask, **kwargs):

@@ -149,7 +149,7 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
         log.warning(f"Cannot set fps ({fps}) > 50. Setting it automatically to 50.")
         fps = 50
 
-    duration = 1 / (fps) * 1000  # milliseconds per frame
+    duration = int(round(1000 / fps))  # milliseconds per frame
 
     pillow_imgs = [Image.fromarray(img) for img in images]
 
