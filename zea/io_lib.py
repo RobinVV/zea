@@ -540,4 +540,8 @@ def preprocess_for_saving(images):
         images = [grayscale_to_rgb(image) for image in images]
         images = np.array(images)
 
+    # drop alpha channel if present (RGBA -> RGB)
+    if images.ndim == 4 and images.shape[-1] == 4:
+        images = images[..., :3]
+
     return images
