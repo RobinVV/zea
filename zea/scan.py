@@ -200,6 +200,10 @@ class Scan(Parameters):
         "focus_distances": {"type": np.ndarray},
         "initial_times": {"type": np.ndarray},
         "time_to_next_transmit": {"type": np.ndarray},
+        "tgc_gain_curve": {"type": np.ndarray},
+        "waveforms_one_way": {"type": np.ndarray},
+        "waveforms_two_way": {"type": np.ndarray},
+        "tx_waveform_indices": {"type": np.ndarray},
         # scan conversion parameters
         "theta_range": {"type": (tuple, list)},
         "phi_range": {"type": (tuple, list)},
