@@ -37,9 +37,9 @@ from zea.internal.viewer import (
     filename_from_window_dialog,
     running_in_notebook,
 )
-from zea.io_lib import matplotlib_figure_to_numpy
+from zea.io_lib import matplotlib_figure_to_numpy, save_video
 from zea.ops import Pipeline
-from zea.utils import keep_trying, save_to_gif, save_to_mp4
+from zea.utils import keep_trying
 
 
 class Interface:
@@ -520,10 +520,7 @@ class Interface:
 
         fps = self.config.plot.fps
 
-        if self.config.plot.video_extension == "gif":
-            save_to_gif(images, path, fps=fps)
-        elif self.config.plot.video_extension == "mp4":
-            save_to_mp4(images, path, fps=fps)
+        save_video(images, path, fps=fps)
 
         if self.verbose:
             log.info(f"Video saved to {log.yellow(path)}")

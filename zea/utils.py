@@ -8,44 +8,13 @@ import inspect
 import platform
 import time
 from functools import wraps
-from pathlib import Path
 from statistics import mean, median, stdev
 
 import numpy as np
 import yaml
 from keras import ops
-from PIL import Image
 
 from zea import log
-
-
-def _assert_uint8_images(images: np.ndarray):
-    """
-    Asserts that the input images have the correct properties.
-
-    Args:
-        images (np.ndarray): The input images.
-
-    Raises:
-        AssertionError: If the dtype of images is not uint8.
-        AssertionError: If the shape of images is not (n_frames, height, width, channels)
-            or (n_frames, height, width) for grayscale images.
-        AssertionError: If images have anything other than 1 (grayscale),
-            3 (rgb) or 4 (rgba) channels.
-    """
-    assert images.dtype == np.uint8, f"dtype of images should be uint8, got {images.dtype}"
-
-    assert images.ndim in (3, 4), (
-        "images must have shape (n_frames, height, width, channels),"
-        f" or (n_frames, height, width) for grayscale images. Got {images.shape}"
-    )
-
-    if images.ndim == 4:
-        assert images.shape[-1] in (1, 3, 4), (
-            "Grayscale images must have 1 channel, "
-            "RGB images must have 3 channels, and RGBA images must have 4 channels. "
-            f"Got shape: {images.shape}, channels: {images.shape[-1]}"
-        )
 
 
 def translate(array, range_from=None, range_to=(0, 255)):
@@ -137,148 +106,6 @@ def strtobool(val: str):
         return False
     else:
         raise ValueError(f"invalid truth value {val}")
-
-
-def grayscale_to_rgb(image):
-    """Converts a grayscale image to an RGB image.
-
-    Args:
-        image (ndarray): Grayscale image. Must have shape (height, width).
-
-    Returns:
-        ndarray: RGB image.
-    """
-    assert image.ndim == 2, "Input image must be grayscale."
-    # Stack the grayscale image into 3 channels (RGB)
-    return np.stack([image] * 3, axis=-1)
-
-
-def preprocess_for_saving(images):
-    """Preprocesses images for saving to GIF or MP4.
-
-    Args:
-        images (ndarray, list[ndarray]): Images. Must have shape (n_frames, height, width, channels)
-            or (n_frames, height, width).
-    """
-    images = np.array(images)
-    _assert_uint8_images(images)
-
-    # Remove channel axis if it is 1 (grayscale image)
-    if images.ndim == 4 and images.shape[-1] == 1:
-        images = np.squeeze(images, axis=-1)
-
-    # convert grayscale images to RGB
-    if images.ndim == 3:
-        images = [grayscale_to_rgb(image) for image in images]
-        images = np.array(images)
-
-    return images
-
-
-def save_to_gif(images, filename, fps=20, shared_color_palette=False):
-    """Saves a sequence of images to a GIF file.
-
-    Args:
-        images (list or np.ndarray): List or array of images. Must have shape
-            (n_frames, height, width, channels) or (n_frames, height, width).
-            If channel axis is not present, or is 1, grayscale image is assumed,
-            which is then converted to RGB. Images should be uint8.
-        filename (str or Path): Filename to which data should be written.
-        fps (int): Frames per second of rendered format.
-        shared_color_palette (bool, optional): If True, creates a global
-            color palette across all frames, ensuring consistent colors
-            throughout the GIF. Defaults to False, which is default behavior
-            of PIL.Image.save. Note: True can cause slow saving for longer sequences.
-
-    """
-    images = preprocess_for_saving(images)
-
-    if fps > 50:
-        log.warning(f"Cannot set fps ({fps}) > 50. Setting it automatically to 50.")
-        fps = 50
-
-    duration = 1 / (fps) * 1000  # milliseconds per frame
-
-    pillow_imgs = [Image.fromarray(img) for img in images]
-
-    if shared_color_palette:
-        # Apply the same palette to all frames without dithering for consistent color mapping
-        # Convert all images to RGB and combine their colors for palette generation
-        all_colors = np.vstack([np.array(img.convert("RGB")).reshape(-1, 3) for img in pillow_imgs])
-        combined_image = Image.fromarray(all_colors.reshape(-1, 1, 3))
-
-        # Generate palette from all frames
-        global_palette = combined_image.quantize(
-            colors=256,
-            method=Image.MEDIANCUT,
-            kmeans=1,
-        )
-
-        # Apply the same palette to all frames without dithering
-        pillow_imgs = [
-            img.convert("RGB").quantize(
-                palette=global_palette,
-                dither=Image.NONE,
-            )
-            for img in pillow_imgs
-        ]
-
-    pillow_img, *pillow_imgs = pillow_imgs
-
-    pillow_img.save(
-        fp=filename,
-        format="GIF",
-        append_images=pillow_imgs,
-        save_all=True,
-        loop=0,
-        duration=duration,
-        interlace=False,
-        optimize=False,
-    )
-    log.success(f"Succesfully saved GIF to -> {log.yellow(filename)}")
-
-
-def save_to_mp4(images, filename, fps=20):
-    """Saves a sequence of images to an MP4 file.
-
-    Args:
-        images (list or np.ndarray): List or array of images. Must have shape
-            (n_frames, height, width, channels) or (n_frames, height, width).
-            If channel axis is not present, or is 1, grayscale image is assumed,
-            which is then converted to RGB. Images should be uint8.
-        filename (str or Path): Filename to which data should be written.
-        fps (int): Frames per second of rendered format.
-
-    Returns:
-        str: Success message.
-
-    """
-    images = preprocess_for_saving(images)
-
-    filename = str(filename)
-
-    parent_dir = Path(filename).parent
-    if not parent_dir.exists():
-        raise FileNotFoundError(f"Directory '{parent_dir}' does not exist.")
-
-    try:
-        import cv2
-    except ImportError as exc:
-        raise ImportError(
-            "OpenCV is required to save MP4 files. "
-            "Please install it with 'pip install opencv-python' or "
-            "'pip install opencv-python-headless'."
-        ) from exc
-
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    _, height, width, _ = images.shape
-    video_writer = cv2.VideoWriter(filename, fourcc, fps, (width, height))
-
-    for image in images:
-        video_writer.write(image)
-
-    video_writer.release()
-    return log.success(f"Successfully saved MP4 to -> {filename}")
 
 
 def update_dictionary(dict1: dict, dict2: dict, keep_none: bool = False) -> dict:
