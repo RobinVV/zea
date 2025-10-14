@@ -53,7 +53,7 @@ from zea.internal.viewer import (
 )
 from zea.io_lib import _SUPPORTED_VID_TYPES, load_image, load_video
 from zea.metrics import get_metric
-from zea.utils import translate
+from zea.ops import translate
 from zea.visualize import plot_rectangle_from_mask, plot_shape_from_mask
 
 

@@ -11,23 +11,8 @@ from zea.utils import (
     first_not_none_item,
     get_date_string,
     strtobool,
-    translate,
     update_dictionary,
 )
-
-
-@pytest.mark.parametrize(
-    "range_from, range_to",
-    [((0, 100), (2, 5)), ((-60, 0), (0, 255))],
-)
-def test_translate(range_from, range_to):
-    """Tests the translate function by providing a test array with its range_from and
-    a range to."""
-    arr = np.random.randint(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
-    right_min, right_max = range_to
-    result = translate(arr, range_from, range_to)
-    assert right_min <= np.min(result), "Minimum value is too small"
-    assert np.max(result) <= right_max, "Maximum value is too large"
 
 
 @pytest.mark.parametrize(

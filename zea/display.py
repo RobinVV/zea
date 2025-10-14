@@ -9,8 +9,8 @@ from keras import ops
 from PIL import Image
 
 from zea import log
+from zea.ops import translate
 from zea.tools.fit_scan_cone import fit_and_crop_around_scan_cone
-from zea.utils import translate
 
 
 def to_8bit(image, dynamic_range: Union[None, tuple] = None, pillow: bool = True):

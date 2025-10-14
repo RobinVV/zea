@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from zea.io_lib import save_video
-from zea.utils import translate
+from zea.ops import translate
 
 
 def get_args():
