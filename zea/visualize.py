@@ -6,8 +6,11 @@ from typing import List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.ops.image import crop_images
+from matplotlib.patches import PathPatch, Rectangle
+from matplotlib.path import Path as pltPath
 from mpl_toolkits.axes_grid1 import ImageGrid
 from scipy.ndimage import zoom
+from skimage import measure
 
 from zea.display import frustum_convert_rtp2xyz
 
@@ -640,3 +643,82 @@ def pad_or_crop_extent(image, extent, target_extent):
         constant_values=0,
     )
     return image_padded
+
+
+def plot_rectangle_from_mask(ax, mask, **kwargs):
+    """Plots a rectangle box to axis from mask array.
+
+    Is a simplified version of plot_shape_from_mask for rectangles.
+    Useful for displaying bounding boxes on top of images.
+
+    Args:
+        ax (plt.ax): matplotlib axis
+        mask (ndarray): numpy array with rectangle non-zero
+            box defining the region of interest.
+    Kwargs:
+        edgecolor (str): color of the shape's edge
+        facecolor (str): color of the shape's face
+        linewidth (int): width of the shape's edge
+
+    Returns:
+        plt.ax: matplotlib axis with rectangle added
+    """
+    # Create a Rectangle patch
+    y1, y2 = np.where(np.diff(mask, axis=0).sum(axis=1))[0]
+    x1, x2 = np.where(np.diff(mask, axis=1).sum(axis=0))[0]
+    rect = Rectangle(
+        (x1, y1),
+        (x2 - x1),
+        (y2 - y1),
+        **kwargs,
+    )
+
+    # Add the patch to the Axes
+    rect_obj = ax.add_patch(rect)
+    return rect_obj
+
+
+def plot_shape_from_mask(ax, mask, **kwargs):
+    """Plots a shape to axis from mask array.
+
+    Is useful for displaying irregular shapes such as segmentations
+    on top of images.
+
+    Args:
+        ax (plt.ax): matplotlib axis
+        mask (ndarray): numpy array with non-zero
+            shape defining the region of interest.
+    Kwargs:
+        edgecolor (str): color of the shape's edge
+        facecolor (str): color of the shape's face
+        linewidth (int): width of the shape's edge
+
+    Returns:
+        plt.ax: matplotlib axis with shape added
+
+    Example:
+
+        .. code-block:: python
+
+            import matplotlib.pyplot as plt
+            import numpy as np
+
+            from zea.visualize import plot_shape_from_mask
+
+            y, x = np.ogrid[-50:50, -50:50]
+            mask = x**2 + y**2 <= 30**2
+            fig, ax = plt.subplots()
+            ax.imshow(np.random.rand(100, 100), cmap="gray")
+            plot_shape_from_mask(ax, mask, edgecolor="red", alpha=0.5)
+    """
+    # Pad mask to ensure edge contours are found
+    padded_mask = np.pad(mask, pad_width=1, mode="constant", constant_values=0)
+    contours = measure.find_contours(padded_mask, 0.5)
+    patches = []
+    for contour in contours:
+        # Remove padding offset
+        contour -= 1
+        path = pltPath(contour[:, ::-1])
+        patch = PathPatch(path, **kwargs)
+        patches.append(ax.add_patch(patch))
+    return patches

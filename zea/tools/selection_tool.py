@@ -42,7 +42,6 @@ from matplotlib.path import Path as pltPath
 from matplotlib.widgets import LassoSelector, RectangleSelector
 from PIL import Image, ImageDraw
 from scipy.interpolate import interp1d
-from skimage import measure
 from skimage.measure import approximate_polygon, find_contours
 from sklearn.metrics import pairwise_distances
 
@@ -55,6 +54,7 @@ from zea.internal.viewer import (
 from zea.io_lib import _SUPPORTED_VID_TYPES, load_image, load_video
 from zea.metrics import get_metric
 from zea.utils import translate
+from zea.visualize import plot_rectangle_from_mask, plot_shape_from_mask
 
 
 def crop_array(array, value=None):
@@ -199,7 +199,7 @@ def interactive_selector(
         print(f"You have made {len(patches)} selection(s).")
         # draw masks on top of data
         for current_mask in masks:
-            add_shape_from_mask(ax, current_mask, alpha=0.5)
+            plot_shape_from_mask(ax, current_mask, alpha=0.5)
         plt.draw()
 
         like_selection = messagebox.askyesno("Like Selection", "Do you like your selection?")
@@ -218,64 +218,6 @@ def interactive_selector(
     root.destroy()
 
     return patches, masks
-
-
-def add_rectangle_from_mask(ax, mask, **kwargs):
-    """add a rectangle box to axis from mask array.
-
-    Args:
-        ax (plt.ax): matplotlib axis
-        mask (ndarray): numpy array with rectangle non-zero
-            box defining the region of interest.
-    Kwargs:
-        edgecolor (str): color of the shape's edge
-        facecolor (str): color of the shape's face
-        linewidth (int): width of the shape's edge
-
-    Returns:
-        plt.ax: matplotlib axis with rectangle added
-    """
-    # Create a Rectangle patch
-    y1, y2 = np.where(np.diff(mask, axis=0).sum(axis=1))[0]
-    x1, x2 = np.where(np.diff(mask, axis=1).sum(axis=0))[0]
-    rect = Rectangle(
-        (x1, y1),
-        (x2 - x1),
-        (y2 - y1),
-        **kwargs,
-    )
-
-    # Add the patch to the Axes
-    rect_obj = ax.add_patch(rect)
-    return rect_obj
-
-
-def add_shape_from_mask(ax, mask, **kwargs):
-    """add a shape to axis from mask array.
-
-    Args:
-        ax (plt.ax): matplotlib axis
-        mask (ndarray): numpy array with non-zero
-            shape defining the region of interest.
-    Kwargs:
-        edgecolor (str): color of the shape's edge
-        facecolor (str): color of the shape's face
-        linewidth (int): width of the shape's edge
-
-    Returns:
-        plt.ax: matplotlib axis with shape added
-    """
-    # Pad mask to ensure edge contours are found
-    padded_mask = np.pad(mask, pad_width=1, mode="constant", constant_values=0)
-    contours = measure.find_contours(padded_mask, 0.5)
-    patches = []
-    for contour in contours:
-        # Remove padding offset
-        contour -= 1
-        path = pltPath(contour[:, ::-1])
-        patch = PathPatch(path, **kwargs)
-        patches.append(ax.add_patch(patch))
-    return patches
 
 
 def interactive_selector_with_plot_and_metric(
@@ -349,9 +291,9 @@ def interactive_selector_with_plot_and_metric(
             _ax.set_title(title + "\n" + f"{metric}: {score:.3f}")
             for mask in masks:
                 if selector == "rectangle":
-                    add_rectangle_from_mask(_ax, mask, alpha=0.5)
+                    plot_rectangle_from_mask(_ax, mask, alpha=0.5)
                 else:
-                    add_shape_from_mask(_ax, mask, alpha=0.5)
+                    plot_shape_from_mask(_ax, mask, alpha=0.5)
             plt.tight_layout()
 
     # plot patches and masks
@@ -365,7 +307,7 @@ def interactive_selector_with_plot_and_metric(
             ax_new[2].imshow(mask, aspect="auto")
 
             if selector == "rectangle":
-                add_rectangle_from_mask(ax_base, mask)
+                plot_rectangle_from_mask(ax_base, mask)
 
             for _ax in ax_new:
                 _ax.axis("off")
@@ -738,9 +680,9 @@ def update_imshow_with_mask(
     imshow_obj.set_array(images[frame_no])
     remove_masks_from_axs(axs)
     if selector == "rectangle":
-        mask_obj = add_rectangle_from_mask(axs, masks[frame_no])
+        mask_obj = plot_rectangle_from_mask(axs, masks[frame_no])
     else:
-        mask_obj = add_shape_from_mask(axs, masks[frame_no], alpha=0.5)
+        mask_obj = plot_shape_from_mask(axs, masks[frame_no], alpha=0.5)
     return imshow_obj, mask_obj
 
 
@@ -836,9 +778,9 @@ def main():
                 pos, size = get_matplotlib_figure_props(fig)
 
                 if selector == "rectangle":
-                    add_rectangle_from_mask(axs, mask[0], alpha=0.5)
+                    plot_rectangle_from_mask(axs, mask[0], alpha=0.5)
                 else:
-                    add_shape_from_mask(axs, mask[0], alpha=0.5)
+                    plot_shape_from_mask(axs, mask[0], alpha=0.5)
                 plt.close()
                 selection_masks.append(mask[0])
 
@@ -855,9 +797,9 @@ def main():
         imshow_obj = axs.imshow(images[0], cmap="gray")
 
         if selector == "rectangle":
-            add_rectangle_from_mask(axs, interpolated_masks[0])
+            plot_rectangle_from_mask(axs, interpolated_masks[0])
         else:
-            add_shape_from_mask(axs, interpolated_masks[0], alpha=0.5)
+            plot_shape_from_mask(axs, interpolated_masks[0], alpha=0.5)
 
         filestem = Path(file.parent / f"{file.stem}_{title}_annotations.gif")
         np.save(filestem.with_suffix(".npy"), interpolated_masks)
