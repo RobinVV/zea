@@ -250,7 +250,7 @@ def keep_trying(fn, args=None, required_set=None):
                 assert out in required_set, f"Output {out} not in {required_set}"
             return out
         except Exception as e:
-            print(e)
+            log.warning(f"Function {fn.__name__} failed with error: {e}. Retrying...")
 
 
 def reduce_to_signature(func, kwargs):
