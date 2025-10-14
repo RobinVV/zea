@@ -11,7 +11,14 @@ from zea.data.data_format import (
     generate_example_dataset,
     generate_zea_dataset,
 )
-from zea.data.file import File, validate_file
+from zea.data.file import File, load_file, validate_file
+from zea.data.file_operations import (
+    compound_frames,
+    compound_transmits,
+    resave,
+    subselect_frames_transmits,
+    sum_raw_data,
+)
 from zea.internal.checks import _REQUIRED_SCAN_KEYS
 
 n_frames = 2
@@ -21,7 +28,7 @@ n_ax = 128
 n_ch = 1
 
 DATASET_PARAMETERS = {
-    "raw_data": np.zeros((n_frames, n_tx, n_ax, n_el, n_ch), dtype=np.float32),
+    "raw_data": np.ones((n_frames, n_tx, n_ax, n_el, n_ch), dtype=np.float32),
     "probe_geometry": np.zeros((n_el, 3), dtype=np.float32),
     "sampling_frequency": 30e6,
     "center_frequency": 6e6,
@@ -178,3 +185,61 @@ def test_additional_dataset_element(tmp_hdf5_path):
         )
 
     generate_zea_dataset(path=tmp_hdf5_path, **DATASET_PARAMETERS, additional_elements=elements)
+
+
+def test_file_operations_sum(tmp_hdf5_path):
+    """Tests the sum_raw_data function by creating two example datasets,
+    summing them and checking if the result is correct."""
+
+    # Create two example datasets
+    path1 = tmp_hdf5_path.parent / "test_case_dataset1.hdf5"
+    path2 = tmp_hdf5_path.parent / "test_case_dataset2.hdf5"
+    generate_example_dataset(path1)
+    generate_example_dataset(path2)
+
+    data1, scan1, probe1 = load_file(path1)
+    data2, scan2, probe2 = load_file(path2)
+
+    # Sum the datasets
+    output_path = tmp_hdf5_path.parent / "summed_dataset.hdf5"
+
+    sum_raw_data([path1, path2], output_path)
+
+    # Load the summed dataset and check if the data is correct
+    with File(output_path) as f:
+        raw_data = f["data/raw_data"][:]
+        assert raw_data[0, 0, 0, 0, 0] == data1[0, 0, 0, 0, 0] + data2[0, 0, 0, 0, 0]
+
+
+def test_file_operations_subselect(tmp_hdf5_path):
+    """Tests the load_data function by creating an example dataset and
+    loading a subset of the data."""
+
+    input_path = tmp_hdf5_path.parent / "test_case_dataset.hdf5"
+    output_path = tmp_hdf5_path.parent / "subselected_dataset.hdf5"
+
+    # Create an example dataset
+    generate_example_dataset(input_path)
+
+    subselect_frames_transmits(
+        input_path, output_path, frame_indices=slice(2), transmit_indices=[0]
+    )
+    data, scan, probe = load_file(output_path)
+    assert data.shape[0] == 2
+    assert data.shape[1] == 1
+
+
+def test_file_operations_resave(tmp_hdf5_path):
+    """Tests the resave operation by creating an example dataset and
+    resaving it to a new file."""
+
+    input_path = tmp_hdf5_path.parent / "test_case_dataset.hdf5"
+    output_path = tmp_hdf5_path.parent / "resaved_dataset.hdf5"
+
+    # Create an example dataset
+    generate_example_dataset(input_path)
+
+    resave(input_path, output_path)
+
+    # Validate the resaved dataset
+    validate_file(output_path)
