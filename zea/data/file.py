@@ -337,7 +337,7 @@ class File(h5py.File):
         Returns:
             Scan: The scan object.
         """
-        return Scan.merge(self.get_scan_parameters(event), kwargs, safe=safe)
+        return Scan.merge(_reformat_waveforms(self.get_scan_parameters(event)), kwargs, safe=safe)
 
     def get_probe_parameters(self, event=None) -> dict:
         """Returns a dictionary of probe parameters to initialize a probe
@@ -772,3 +772,47 @@ def _assert_unit_and_description_present(hdf5_file, _prefix=""):
             assert "description" in hdf5_file[key].attrs.keys(), (
                 f"The file {_prefix}/{key} does not have a description attribute."
             )
+
+
+def _reformat_waveforms(scan_kwargs: dict) -> dict:
+    """Reformat waveforms from dict to array if needed. This is for backwards compatibility and will
+    be removed in a future version of zea.
+
+    Args:
+        scan_kwargs (dict): The scan parameters.
+
+    Returns:
+        scan_kwargs (dict): The scan parameters with the keys waveforms_one_way and
+            waveforms_two_way reformatted to arrays if they were stored as dicts.
+    """
+
+    # TODO: remove this in a future version of zea
+    if "waveforms_one_way" in scan_kwargs and isinstance(scan_kwargs["waveforms_one_way"], dict):
+        log.warning(
+            "The waveforms_one_way parameter is stored as a dictionary in the file. "
+            "Converting to array. This will be deprecated in future versions of zea. "
+            "Please update your files to store waveforms as arrays of shape `(n_tx, n_samples)`."
+        )
+        scan_kwargs["waveforms_one_way"] = _waveforms_dict_to_array(
+            scan_kwargs["waveforms_one_way"]
+        )
+
+    if "waveforms_two_way" in scan_kwargs and isinstance(scan_kwargs["waveforms_two_way"], dict):
+        log.warning(
+            "The waveforms_two_way parameter is stored as a dictionary in the file. "
+            "Converting to array. This will be deprecated in future versions of zea. "
+            "Please update your files to store waveforms as arrays of shape `(n_tx, n_samples)`."
+        )
+        scan_kwargs["waveforms_two_way"] = _waveforms_dict_to_array(
+            scan_kwargs["waveforms_two_way"]
+        )
+    return scan_kwargs
+
+
+def _waveforms_dict_to_array(waveforms_dict: dict):
+    from zea.data.data_format import _stack_waveforms
+
+    waveforms = []
+    for key in sorted(waveforms_dict.keys()):
+        waveforms.append(waveforms_dict[key])
+    return _stack_waveforms(waveforms)
