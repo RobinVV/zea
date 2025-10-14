@@ -540,6 +540,15 @@ class Scan(Parameters):
         selected = self.selected_transmits
         return value[:, selected]
 
+    @cache_with_dependencies("selected_transmits")
+    def tx_waveform_indices(self):
+        """Indices of the waveform used for each transmit event of shape (n_tx,)."""
+        value = self._params.get("tx_waveform_indices")
+        if value is None:
+            return None
+
+        return value[self.selected_transmits]
+
     @cache_with_dependencies(
         "sound_speed",
         "center_frequency",
