@@ -187,7 +187,7 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
         interlace=False,
         optimize=False,
     )
-    log.success(f"Succesfully saved GIF to -> {log.yellow(filename)}")
+    log.success(f"Successfully saved GIF to -> {log.yellow(filename)}")
 
 
 def save_to_mp4(images, filename, fps=20):

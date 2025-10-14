@@ -243,7 +243,7 @@ class Folder:
             return
 
         num_frames_per_file = []
-        validated_succesfully = True
+        validated_successfully = True
         for file_path in tqdm.tqdm(
             self.file_paths,
             total=self.n_files,
@@ -255,9 +255,9 @@ class Folder:
                 validation_error_log.append(f"File {file_path} is not a valid zea dataset.\n{e}\n")
                 # convert into warning
                 log.warning(f"Error in file {file_path}.\n{e}")
-                validated_succesfully = False
+                validated_successfully = False
 
-        if not validated_succesfully:
+        if not validated_successfully:
             log.warning(
                 "Check warnings above for details. No validation file was created. "
                 f"See {validation_error_file_path} for details."
