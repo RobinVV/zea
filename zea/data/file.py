@@ -233,7 +233,7 @@ class File(h5py.File):
         if self._simple_index(key):
             data = self[key]
             try:
-                data = data[indices]
+                data = self._index_data(data, indices)
             except (OSError, IndexError) as exc:
                 raise ValueError(
                     f"Invalid indices {indices} for key {key}. {key} has shape {data.shape}."
@@ -245,6 +245,33 @@ class File(h5py.File):
             raise NotImplementedError
 
         return data
+
+    def _index_data(self, data, indices):
+        """Index the data with the given indices. This function allows for advanced indexing
+        for both frames and transmits.
+
+        Args:
+            data (h5py.Dataset): The data to index.
+            indices (str, int, list, tuple): The indices to use for indexing.
+
+        Returns:
+            np.ndarray: The indexed data.
+        """
+
+        if self._indices_is_frames_transmits_pair(indices):
+            frame_indices, transmit_indices = indices
+            return data[frame_indices][:, transmit_indices]
+
+        return data[indices]
+
+    @staticmethod
+    def _indices_is_frames_transmits_pair(indices):
+        """Check if the indices are a pair of frame and transmit indices."""
+        return (
+            isinstance(indices, (list, tuple))
+            and len(indices) == 2
+            and not any(isinstance(idx, (int, np.integer)) for idx in indices)
+        )
 
     @property
     def probe_name(self):

@@ -103,14 +103,24 @@ def test_file_attributes():
         file.validate()
 
 
-def test_load_file_function(dummy_file):
+@pytest.mark.parametrize(
+    "selected_frames, selected_transmits, expected_shape",
+    [
+        (slice(0, 2), slice(1, 4), (2, 3)),
+        ([0, 1], slice(0, 3), (2, 3)),
+        ([0, 1], [0, 2, 4], (2, 3)),
+        ([2], [1, 2, 3], (1, 3)),
+    ],
+)
+def test_load_file_function(dummy_file, selected_frames, selected_transmits, expected_shape):
     """Test the load_file function."""
 
-    selected_transmits = [0, 2, 4]
-    data, scan, probe = load_file(dummy_file, indices=[slice(2), selected_transmits])
+    data, scan, probe = load_file(dummy_file, indices=[selected_frames, selected_transmits])
 
-    assert data.shape[0] == 2, "Data should have 2 frames"
-    assert data.shape[1] == 3, "Data should have 3 selected transmits"
+    selected_transmits = np.arange(5)[selected_transmits].tolist()
+
+    assert data.shape[0] == expected_shape[0], "Data should have 2 frames"
+    assert data.shape[1] == expected_shape[1], "Data should have 3 selected transmits"
     assert isinstance(scan, Scan), "Scan should be an instance of Scan class"
     assert isinstance(probe, Probe), "Probe should be an instance of Probe class"
     assert scan.selected_transmits == selected_transmits, (
