@@ -470,32 +470,30 @@ def _write_datasets(
         )
 
         if waveforms_one_way is not None:
-            for n in range(len(waveforms_one_way)):
-                _add_dataset(
-                    group_name=scan_group_name + "/waveforms_one_way",
-                    name=f"waveform_{str(n).zfill(3)}",
-                    data=waveforms_one_way[n],
-                    description=(
-                        "One-way waveform as simulated by the Verasonics system, "
-                        "sampled at 250MHz. This is the waveform after being filtered "
-                        "by the tranducer bandwidth once."
-                    ),
-                    unit="V",
-                )
+            _add_dataset(
+                group_name=scan_group_name,
+                name="waveforms_one_way",
+                data=_convert_datatype(_stack_waveforms(waveforms_one_way), astype=np.float32),
+                description=(
+                    "One-way waveform as simulated by the Verasonics system, "
+                    "sampled at 250MHz. This is the waveform after being filtered "
+                    "by the tranducer bandwidth once."
+                ),
+                unit="V",
+            )
 
         if waveforms_two_way is not None:
-            for n in range(len(waveforms_two_way)):
-                _add_dataset(
-                    group_name=scan_group_name + "/waveforms_two_way",
-                    name=f"waveform_{str(n).zfill(3)}",
-                    data=waveforms_two_way[n],
-                    description=(
-                        "Two-way waveform as simulated by the Verasonics system, "
-                        "sampled at 250MHz. This is the waveform after being filtered "
-                        "by the tranducer bandwidth twice."
-                    ),
-                    unit="V",
-                )
+            _add_dataset(
+                group_name=scan_group_name,
+                name="waveforms_two_way",
+                data=_convert_datatype(_stack_waveforms(waveforms_two_way), astype=np.float32),
+                description=(
+                    "Two-way waveform as simulated by the Verasonics system, "
+                    "sampled at 250MHz. This is the waveform after being filtered "
+                    "by the tranducer bandwidth twice."
+                ),
+                unit="V",
+            )
 
     # Add additional elements
     if additional_elements is not None:
@@ -720,3 +718,22 @@ def generate_zea_dataset(
 
     validate_file(path)
     log.info(f"zea dataset written to {log.yellow(path)}")
+
+
+def _stack_waveforms(waveforms):
+    """Stacks a list of waveforms into a 2D numpy array.
+
+    Args:
+        waveforms (list): List of 1D numpy arrays.
+
+    Returns:
+        np.ndarray: 2D numpy array of shape (n_waveforms, max_length).
+    """
+    if waveforms is None:
+        return None
+
+    max_length = max([len(w) for w in waveforms])
+    stacked_waveforms = np.zeros((len(waveforms), max_length), dtype=np.float32)
+    for i, w in enumerate(waveforms):
+        stacked_waveforms[i, : len(w)] = w
+    return stacked_waveforms
