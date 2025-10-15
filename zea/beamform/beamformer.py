@@ -57,8 +57,8 @@ def tof_correction(
     initial_times,
     sampling_frequency,
     demodulation_frequency,
-    fnum,
-    angles,
+    f_number,
+    polar_angles,
     focus_distances,
     apply_lens_correction=False,
     lens_thickness=1e-3,
@@ -72,18 +72,14 @@ def tof_correction(
         flatgrid (ops.Tensor): Pixel locations x, y, z of shape `(n_pix, 3)`
         t0_delays (ops.Tensor): Times at which the elements fire shifted such
             that the first element fires at t=0 of shape `(n_tx, n_el)`
-        tx_apodizations (ops.Tensor): Transmit apodizations of shape
-            `(n_tx, n_el)`
+        tx_apodizations (ops.Tensor): Transmit apodizations of shape `(n_tx, n_el)`
         sound_speed (float): Speed-of-sound.
-        probe_geometry (ops.Tensor): Element positions x, y, z of shape
-        (num_samples, 3)
-        initial_times (ops.Tensor): Time-ofsampling_frequencyet per transmission of shape
-            `(n_tx,)`.
+        probe_geometry (ops.Tensor): Element positions x, y, z of shape (n_el, 3)
+        initial_times (Tensor): The probe transmit time offsets of shape `(n_tx,)`.
         sampling_frequency (float): Sampling frequency.
         demodulation_frequency (float): Demodulation frequency.
-        fnum (int, optional): Focus number. Defaults to 1.
-        angles (ops.Tensor): The angles of the plane waves in radians of shape
-            `(n_tx,)`
+        f_number (float): Focus number (ratio of focal depth to aperture size).
+        polar_angles (ops.Tensor): The angles of the waves in radians of shape `(n_tx,)`
         focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             time-of-flights. This makes it slower, but more accurate in the near-field.
@@ -98,14 +94,12 @@ def tof_correction(
 
     Returns:
         (ops.Tensor): time-of-flight corrected data
-        with shape: `(n_tx, n_pix, n_el, num_rf_iq_channels)`.
+        with shape: `(n_tx, n_pix, n_el, n_ch)`.
     """
 
     assert len(data.shape) == 4, (
         "The input data should have 4 dimensions, "
-        f"namely num_transmits, num_elements, num_samples, "
-        f"num_rf_iq_channels, got {len(data.shape)} dimensions: ."
-        f"{data.shape}"
+        f"namely n_tx, n_ax, n_el, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
 
     n_tx, n_ax, n_el, _ = ops.shape(data)
@@ -132,16 +126,16 @@ def tof_correction(
         n_tx,
         n_el,
         focus_distances,
-        angles,
+        polar_angles,
         lens_thickness=lens_thickness,
         lens_sound_speed=lens_sound_speed,
     )
 
     n_pix = ops.shape(flatgrid)[0]
     mask = ops.cond(
-        fnum == 0,
+        f_number == 0,
         lambda: ops.ones((n_pix, n_el, 1)),
-        lambda: fnumber_mask(flatgrid, probe_geometry, fnum, fnum_window_fn=fnum_window_fn),
+        lambda: fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn),
     )
 
     def _apply_delays(data_tx, txdel):
@@ -301,11 +295,11 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
 
     Returns:
         ops.Tensor: The samples received by each transducer element corresponding to the
-            reflections of each pixel in the image of shape `(n_el, n_pix, n_ch)`.
+            reflections of each pixel in the image of shape `(n_pix, n_el, n_ch)`.
     """
 
     # Add a dummy channel dimension to the delays tensor to ensure it has the
-    # same number of dimensions as the data. The new shape is (1, n_el, n_pix)
+    # same number of dimensions as the data. The new shape is (n_pix, n_el, 1)
     delays = delays[..., None]
 
     # Get the integer values above and below the exact delay values
@@ -331,7 +325,7 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
 
     # Gather pixel values
     # Here we extract for each transducer element the sample containing the
-    # reflection from each pixel. These are of shape `(n_el, n_pix, n_ch)`.
+    # reflection from each pixel. These are of shape `(n_pix, n_el, n_ch)`.
     data0 = ops.take_along_axis(data, d0, 0)
     data1 = ops.take_along_axis(data, d1, 0)
 
@@ -528,8 +522,8 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
 
     alpha = ops.arccos(grid_relative_to_probe_z)
 
-    # The f-number is fnum = z/aperture = 1/(2 * tan(alpha))
-    # Rearranging gives us alpha = arctan(1/(2 * fnum))
+    # The f-number is f_number = z/aperture = 1/(2 * tan(alpha))
+    # Rearranging gives us alpha = arctan(1/(2 * f_number))
     # We can use this to compute the maximum angle alpha that is allowed
     max_alpha = ops.arctan(1 / (2 * f_number + keras.backend.epsilon()))
 
