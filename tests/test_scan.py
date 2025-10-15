@@ -143,6 +143,13 @@ def test_set_attributes():
         scan.grid = np.zeros((10, 10))
 
 
+def test_accessing_valid_but_unset_attributes():
+    """Test accessing valid but unset attributes of Scan class."""
+
+    scan = Scan(n_tx=5)
+    scan.focus_distances
+
+
 def test_scan_pickle():
     """Test pickling and unpickling of Scan class."""
     import pickle
