@@ -31,7 +31,7 @@ import joblib
 import keras
 
 from zea import log
-from zea.internal.core import serialize_elements
+from zea.internal.core import hash_elements
 
 _DEFAULT_ZEA_CACHE_DIR = Path.home() / ".cache" / "zea"
 
@@ -141,7 +141,7 @@ def generate_cache_key(func, args, kwargs, arg_names):
     # Add keras backend
     key_elements.append(keras.backend.backend())
 
-    return f"{func.__qualname__}_" + serialize_elements(key_elements, shorten=True)
+    return f"{func.__qualname__}_" + hash_elements(key_elements, shorten=True)
 
 
 def cache_output(*arg_names, verbose=False):

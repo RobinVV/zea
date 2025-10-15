@@ -16,7 +16,7 @@ import numpy as np
 
 from zea import log
 from zea.internal.core import Object as ZeaObject
-from zea.internal.core import _to_tensor, serialize_elements
+from zea.internal.core import _to_tensor, hash_elements, serialize_elements
 
 
 def cache_with_dependencies(*deps):
@@ -390,7 +390,7 @@ class Parameters(ZeaObject):
 
     def _current_dependency_hash(self, deps) -> str:
         values = [self._params.get(dep, None) for dep in deps]
-        return serialize_elements(values)
+        return hash_elements(values)
 
     def _assert_dependencies_met(self, name):
         """Assert that all dependencies for a computed property are met."""

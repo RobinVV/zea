@@ -290,33 +290,26 @@ class ZEADecoderJSON(json.JSONDecoder):
         return obj
 
 
-def serialize_elements(key_elements: list, shorten: bool = False) -> str:
-    """Serialize elements of a list to generate a cache key.
+def serialize_elements(key_elements: list) -> str:
+    """Serialize elements of a list to a string.
 
-    In general uses the pickle representation of the elements and optionally hashes it using MD5.
+    Generally, uses the pickle representation of the elements.
 
     Args:
         key_elements (list): List of elements to serialize. Can be nested lists
             or tuples. In this case the elements are serialized recursively.
-        shorten (bool): If True, the serialized string is hashed to a shorter
-            representation using MD5. Defaults to False.
 
     Returns:
         str: A serialized string representation of the elements, joined by underscores.
     """
 
     def _serialize(element) -> str:
-        element = pickle.dumps(element)
-        if shorten:
-            element = hashlib.md5(element).hexdigest()
-        else:
-            element = element.hex()
-        return element
+        return pickle.dumps(element).hex()
 
     def _serialize_element(element) -> str:
         if isinstance(element, (list, tuple)):
             # If element is a list or tuple, serialize its elements recursively
-            element = serialize_elements(element, shorten=shorten)
+            element = serialize_elements(element)
         elif isinstance(element, Object) and hasattr(element, "serialized"):
             # Use the serialized attribute if it exists
             element = str(element.serialized)
@@ -330,8 +323,8 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
             # not affect the serialization.
             keys = list(sorted(element.keys()))
             values = [element[k] for k in keys]
-            keys = serialize_elements(keys, shorten=shorten)
-            values = serialize_elements(values, shorten=shorten)
+            keys = serialize_elements(keys)
+            values = serialize_elements(values)
             element = f"k_{keys}_v_{values}"
         else:
             # Otherwise, serialize the element directly
@@ -343,7 +336,17 @@ def serialize_elements(key_elements: list, shorten: bool = False) -> str:
     for element in key_elements:
         serialized_elements.append(_serialize_element(element))
 
-    serialized = "_".join(serialized_elements)
-    if shorten:
-        return hashlib.md5(serialized.encode()).hexdigest()
-    return serialized
+    return "_".join(serialized_elements)
+
+
+def hash_elements(key_elements: list) -> str:
+    """Generate an MD5 hash of the elements.
+
+    Args:
+        key_elements (list): List of elements to serialize and hash.
+
+    Returns:
+        str: An MD5 hash of the serialized elements.
+    """
+    serialized = serialize_elements(key_elements)
+    return hashlib.md5(serialized.encode()).hexdigest()
