@@ -542,6 +542,7 @@ class Scan(Parameters):
         "tx_apodizations",
         "grid",
         "t0_delays",
+        "pfield_kwargs",
     )
     def pfield(self):
         """Compute or return the pressure field (pfield) for weighting."""
