@@ -454,8 +454,6 @@ class Pipeline:
         """
         self._call_pipeline = self.call
         self.name = name
-        self.timer = FunctionTimer()
-        self.timed = timed
 
         self._pipeline_layers = operations
 
@@ -465,6 +463,24 @@ class Pipeline:
         self.with_batch_dim = with_batch_dim
         self._validate_flag = validate
 
+        # Setup timer
+        if jit_options == "pipeline" and timed:
+            raise ValueError(
+                "timed=True cannot be used with jit_options='pipeline' as the entire "
+                "pipeline is compiled into a single function. Try setting jit_options to "
+                "'ops' or None."
+            )
+        if timed:
+            log.warning(
+                "Timer has been initialized for the pipeline. To get an accurate timing estimate, "
+                "the `block_until_ready()` is used, which will slow down the execution, so "
+                "do not use for regular processing!"
+            )
+            self._callable_layers = self._get_timed_operations()
+        else:
+            self._callable_layers = self._pipeline_layers
+        self._timed = timed
+
         if validate:
             self.validate()
         else:
@@ -473,7 +489,7 @@ class Pipeline:
         if jit_kwargs is None:
             jit_kwargs = {}
 
-        if keras.backend.backend() == "jax" and self.static_params:
+        if keras.backend.backend() == "jax" and self.static_params != []:
             jit_kwargs = {"static_argnames": self.static_params}
 
         self.jit_kwargs = jit_kwargs
@@ -579,57 +595,60 @@ class Pipeline:
             jit_kwargs=self.jit_kwargs,
             name=self.name,
             validate=self._validate_flag,
+            timed=self._timed,
+        )
+
+    def reinitialize(self):
+        """Reinitialize the pipeline in place."""
+        self.__init__(
+            self._pipeline_layers,
+            with_batch_dim=self.with_batch_dim,
+            jit_options=self.jit_options,
+            jit_kwargs=self.jit_kwargs,
+            name=self.name,
+            validate=self._validate_flag,
+            timed=self._timed,
         )
 
     def prepend(self, operation: Operation):
         """Prepend an operation to the pipeline."""
         self._pipeline_layers.insert(0, operation)
-        self.copy()
+        self.reinitialize()
 
     def append(self, operation: Operation):
         """Append an operation to the pipeline."""
         self._pipeline_layers.append(operation)
-        self.copy()
+        self.reinitialize()
 
     def insert(self, index: int, operation: Operation):
         """Insert an operation at a specific index in the pipeline."""
         if index < 0 or index > len(self._pipeline_layers):
             raise IndexError("Index out of bounds for inserting operation.")
         self._pipeline_layers.insert(index, operation)
-        return self.copy()
+        self.reinitialize()
 
     @property
     def operations(self):
         """Alias for self.layers to match the zea naming convention"""
         return self._pipeline_layers
 
-    def timed_call(self, **inputs):
-        """Process input data through the pipeline."""
+    def reset_timer(self):
+        """Reset the timer for timed operations."""
+        if self._timed:
+            self._callable_layers = self._get_timed_operations()
+        else:
+            log.warning(
+                "Timer has not been initialized. Set timed=True when initializing the pipeline."
+            )
 
-        for op in self._pipeline_layers:
-            timed_op = self.timer(op, name=op.__class__.__name__)
-            try:
-                outputs = timed_op(**inputs)
-            except KeyError as exc:
-                raise KeyError(
-                    f"[zea.Pipeline] Operation '{op.__class__.__name__}' "
-                    f"requires input key '{exc.args[0]}', "
-                    "but it was not provided in the inputs.\n"
-                    "Check whether the objects (such as `zea.Scan`) passed to "
-                    "`pipeline.prepare_parameters()` contain all required keys.\n"
-                    f"Current list of all passed keys: {list(inputs.keys())}\n"
-                    f"Valid keys for this pipeline: {self.valid_keys}"
-                ) from exc
-            except Exception as exc:
-                raise RuntimeError(
-                    f"[zea.Pipeline] Error in operation '{op.__class__.__name__}': {exc}"
-                ) from exc
-            inputs = outputs
-        return outputs
+    def _get_timed_operations(self):
+        """Get a list of timed operations."""
+        self.timer = FunctionTimer()
+        return [self.timer(op, name=op.__class__.__name__) for op in self._pipeline_layers]
 
     def call(self, **inputs):
         """Process input data through the pipeline."""
-        for operation in self._pipeline_layers:
+        for operation in self._callable_layers:
             try:
                 outputs = operation(**inputs)
             except KeyError as exc:
@@ -652,14 +671,9 @@ class Pipeline:
     def __call__(self, return_numpy=False, **inputs):
         """Process input data through the pipeline."""
 
-        if any(key in inputs for key in ["probe", "scan", "config"]):
-            raise ValueError(
-                "Probe, Scan and Config objects should be first processed with "
-                "`Pipeline.prepare_parameters` before calling the pipeline. "
-                "e.g. inputs = Pipeline.prepare_parameters(probe, scan, config)"
-            )
-
-        if any(isinstance(arg, ZEAObject) for arg in inputs.values()):
+        if any(key in inputs for key in ["probe", "scan", "config"]) or any(
+            isinstance(arg, ZEAObject) for arg in inputs.values()
+        ):
             raise ValueError(
                 "Probe, Scan and Config objects should be first processed with "
                 "`Pipeline.prepare_parameters` before calling the pipeline. "
@@ -713,18 +727,13 @@ class Pipeline:
                 if operation.jittable and operation._jit_compile:
                     operation.set_jit(value == "ops")
 
-    @property
-    def _call_fn(self):
-        """Get the call function of the pipeline."""
-        return self.call if not self.timed else self.timed_call
-
     def jit(self):
         """JIT compile the pipeline."""
-        self._call_pipeline = jit(self._call_fn, **self.jit_kwargs)
+        self._call_pipeline = jit(self.call, **self.jit_kwargs)
 
     def unjit(self):
         """Un-JIT compile the pipeline."""
-        self._call_pipeline = self._call_fn
+        self._call_pipeline = self.call
 
     @property
     def jittable(self):
@@ -1385,7 +1394,7 @@ class Identity(Operation):
 
     def call(self, **kwargs) -> Dict:
         """Returns the input as is."""
-        return kwargs
+        return {}
 
 
 @ops_registry("merge")
@@ -1581,28 +1590,28 @@ class TOFCorrection(Operation):
 
         raw_data = kwargs[self.key]
 
-        kwargs = {
+        tof_kwargs = {
             "flatgrid": flatgrid,
-            "sound_speed": sound_speed,
-            "angles": polar_angles,
-            "focus_distances": focus_distances,
-            "sampling_frequency": sampling_frequency,
-            "fnum": f_number,
-            "demodulation_frequency": demodulation_frequency,
             "t0_delays": t0_delays,
             "tx_apodizations": tx_apodizations,
-            "initial_times": initial_times,
+            "sound_speed": sound_speed,
             "probe_geometry": probe_geometry,
+            "initial_times": initial_times,
+            "sampling_frequency": sampling_frequency,
+            "demodulation_frequency": demodulation_frequency,
+            "f_number": f_number,
+            "polar_angles": polar_angles,
+            "focus_distances": focus_distances,
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,
         }
 
         if not self.with_batch_dim:
-            tof_corrected = tof_correction(raw_data, **kwargs)
+            tof_corrected = tof_correction(raw_data, **tof_kwargs)
         else:
             tof_corrected = ops.map(
-                lambda data: tof_correction(data, **kwargs),
+                lambda data: tof_correction(data, **tof_kwargs),
                 raw_data,
             )
 
@@ -3153,6 +3162,6 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     iq_data_signal_complex = analytical_signal * ops.exp(phasor_exponent)
 
     # Split the complex signal into two channels
-    iq_data_two_channel = complex_to_channels(iq_data_signal_complex[..., 0])
+    iq_data_two_channel = complex_to_channels(ops.squeeze(iq_data_signal_complex, axis=-1))
 
     return iq_data_two_channel
