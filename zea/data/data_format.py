@@ -729,8 +729,8 @@ def _stack_waveforms(waveforms):
     Returns:
         np.ndarray: 2D numpy array of shape (n_waveforms, max_length).
     """
-    if waveforms is None:
-        return None
+    if waveforms is None or len(waveforms) == 0:
+        return np.zeros((0, 0), dtype=np.float32)
 
     max_length = max([len(w) for w in waveforms])
     stacked_waveforms = np.zeros((len(waveforms), max_length), dtype=np.float32)
