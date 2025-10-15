@@ -10,29 +10,49 @@ Available operations
 
 - `compound_transmits`: Compound transmits in a raw data file to increase SNR.
 
-- `resave`: Resave a zea data file. This can be useful to change the file format version.
+- `resave`: Resave a zea data file. This can be used to change the file format version.
 
-- `subselect`: Subselect frames and transmits in a raw data file.
+- `extract`: extract frames and transmits in a raw data file.
 
 Command-line usage
 ------------------
 
+Sum two input files
+^^^^^^^^^^^^^^^^^^^^^
 .. code-block:: console
 
-    # Sum two input files
     python -m zea.data.file_operations sum input1.hdf5 input2.hdf5 output.hdf5
 
-    # Compound frames in an input file to increase SNR
+Compound frames/transmits
+^^^^^^^^^^^^^^^
+This can be used to increase the SNR of static acquisitions.
+
+.. code-block:: console
+
     python -m zea.data.file_operations compound_frames input.hdf5 output.hdf5
 
-    # Compound transmits in an input file to increase SNR
+
+.. code-block:: console
+
     python -m zea.data.file_operations compound_transmits input.hdf5 output.hdf5
 
-    # Resave a zea data file
+    
+Resave
+^^^^^^
+Loads a zea data file and saves it again. This can be used to change the file format version.
+
+.. code-block:: console
+
     python -m zea.data.file_operations resave input.hdf5 output.hdf5
 
-    # Subselect frames and transmits in an input file
-    python -m zea.data.file_operations subselect input.hdf5 output.hdf5 --frames 0-9 --transmits 0 2 4 6-8
+Extract frames and transmits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This can be used when you want to extract a subset of the data.
+
+.. code-block:: console
+
+    python -m zea.data.file_operations extract input.hdf5 output.hdf5 --frames 0-9 \
+--transmits 0 2 4 6-8
 
 """
 
@@ -44,13 +64,14 @@ import numpy as np
 from zea import Probe, Scan
 from zea.data.data_format import generate_zea_dataset
 from zea.data.file import load_file
+from zea.log import logger
 
 OPERATION_NAMES = [
     "sum",
     "compound_frames",
     "compound_transmits",
     "resave",
-    "subselect",
+    "extract",
 ]
 
 
@@ -93,33 +114,43 @@ def save_file(path, data: np.ndarray, scan: Scan, probe: Probe, data_type="raw_d
     )
 
 
-def sum_raw_data(input_paths: list[Path], output_path: Path):
+def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
     """
     Sums multiple raw data files and saves the result to a new file.
 
     Args:
         input_paths (list[Path]): List of paths to the input raw data files.
         output_path (Path): Path to the output file where the summed data will be saved.
+        overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
+            False.
     """
 
     data, scan, probe = load_file(input_paths[0])
 
     for file in input_paths[1:]:
         new_data, new_scan, new_probe = load_file(file)
+        assert data.shape == new_data.shape, (
+            f"Data shapes do not match. Got {data.shape} and {new_data.shape}."
+        )
         data += new_data
         assert scan == new_scan, "Scan parameters do not match."
         assert probe == new_probe, "Probe parameters do not match."
 
+    if overwrite:
+        _delete_file_if_exists(output_path)
+
     save_file(output_path, data, scan, probe)
 
 
-def compound_frames(input_path: Path, output_path: Path):
+def compound_frames(input_path: Path, output_path: Path, overwrite=False):
     """
     Compounds frames in a raw data file by averaging them.
 
     Args:
         input_path (Path): Path to the input raw data file.
         output_path (Path): Path to the output file where the compounded data will be saved.
+        overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
+            False.
     """
 
     data, scan, probe = load_file(input_path)
@@ -129,69 +160,117 @@ def compound_frames(input_path: Path, output_path: Path):
 
     scan = _scan_reduce_frames(scan, [0])
 
+    if overwrite:
+        _delete_file_if_exists(output_path)
+
     save_file(output_path, compounded_data, scan, probe)
 
 
-def compound_transmits(input_path: Path, output_path: Path):
+def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
     """
     Compounds transmits in a raw data file by averaging them.
+
+    Note
+    ----
+    This function assumes that all transmits are identical. If this is not the case the function
+    will result in incorrect scan parameters.
 
     Args:
         input_path (Path): Path to the input raw data file.
         output_path (Path): Path to the output file where the compounded data will be saved.
+        overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
+            False.
     """
 
     data, scan, probe = load_file(input_path)
 
+    if not _all_tx_are_identical(scan):
+        logger.warning(
+            "Not all transmits are identical. Compounding transmits may lead to unexpected results."
+        )
+
     # Assuming the second dimension is the transmit dimension
     compounded_data = np.mean(data, axis=1, keepdims=True)
 
-    # Update scan parameters
-    scan.n_tx = 1
-    scan.polar_angles = np.array([np.mean(scan.polar_angles)])
-    scan.azimuth_angles = np.array([np.mean(scan.azimuth_angles)])
-    scan.t0_delays = np.mean(scan.t0_delays, axis=0, keepdims=True)
-    scan.tx_apodizations = np.mean(scan.tx_apodizations, axis=0, keepdims=True)
-    scan.focus_distances = np.array([np.mean(scan.focus_distances)])
-    scan.initial_times = np.array([np.mean(scan.initial_times)])
+    scan.set_transmits([0])
+
+    if overwrite:
+        _delete_file_if_exists(output_path)
 
     save_file(output_path, compounded_data, scan, probe)
 
 
-def resave(input_path: Path, output_path: Path):
+def _all_tx_are_identical(scan: Scan):
+    """Checks if all transmits in a Scan object are identical."""
+    attributes_to_check = [
+        scan.polar_angles,
+        scan.azimuth_angles,
+        scan.t0_delays,
+        scan.tx_apodizations,
+        scan.focus_distances,
+        scan.initial_times,
+    ]
+
+    for attr in attributes_to_check:
+        if attr is not None and not _check_all_identical(attr, axis=0):
+            return False
+    return True
+
+
+def _check_all_identical(array, axis=0):
+    """Checks if all elements along a given axis are identical."""
+    first = array.take(0, axis=axis)
+    return np.all(np.equal(array, first), axis=axis).all()
+
+
+def resave(input_path: Path, output_path: Path, overwrite=False):
     """
     Resaves a zea data file to a new location.
 
     Args:
         input_path (Path): Path to the input zea data file.
         output_path (Path): Path to the output file where the data will be saved.
+        overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
+            False.
     """
 
-    data, scan, probe = load_file(
-        input_path, scan_kwargs={"time_to_next_transmit": np.ones((800, 5))}
-    )
+    data, scan, probe = load_file(input_path)
     scan.set_transmits("all")
+
+    if overwrite:
+        _delete_file_if_exists(output_path)
     save_file(output_path, data, scan, probe)
 
 
-def subselect_frames_transmits(
-    input_path: Path, output_path: Path, frame_indices, transmit_indices
+def extract_frames_transmits(
+    input_path: Path, output_path: Path, frame_indices, transmit_indices, overwrite=False
 ):
     """
-    Subselects frames and transmits in a raw data file.
+    extracts frames and transmits in a raw data file.
 
     Args:
         input_path (Path): Path to the input raw data file.
-        output_path (Path): Path to the output file where the subselected data will be saved.
+        output_path (Path): Path to the output file where the extracted data will be saved.
         frame_indices (list or array-like): Indices of the frames to keep.
         transmit_indices (list or array-like): Indices of the transmits to keep.
+        overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
+            False.
     """
 
     data, scan, probe = load_file(input_path, indices=(frame_indices, transmit_indices))
 
     scan = _scan_reduce_frames(scan, frame_indices)
 
+    if overwrite:
+        _delete_file_if_exists(output_path)
+
     save_file(output_path, data, scan, probe)
+
+
+def _delete_file_if_exists(path: Path):
+    """Deletes a file if it exists."""
+    if path.exists():
+        path.unlink()
 
 
 def _interpret_index(input_str):
@@ -264,24 +343,33 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.output_path.exists():
-        if args.overwrite:
-            args.output_path.unlink()
-        else:
-            raise FileExistsError(f"Output file {args.output_path} already exists.")
+    if args.output_path.exists() and not args.overwrite:
+        logger.error(
+            f"Output file {args.output_path} already exists. Use --overwrite to overwrite it."
+        )
+        exit(1)
 
     if args.operation == "compound_frames":
-        compound_frames(args.input_paths[0], args.output_path)
+        compound_frames(
+            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
+        )
     elif args.operation == "compound_transmits":
-        compound_transmits(args.input_paths[0], args.output_path)
+        compound_transmits(
+            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
+        )
     elif args.operation == "resave":
-        resave(args.input_paths[0], args.output_path)
-    elif args.operation == "subselect":
-        subselect_frames_transmits(
-            args.input_paths[0],
-            args.output_path,
-            _interpret_indices(args.frames),
-            _interpret_indices(args.transmits),
+        resave(
+            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
+        )
+    elif args.operation == "extract":
+        extract_frames_transmits(
+            input_path=args.input_paths[0],
+            output_path=args.output_path,
+            frame_indices=_interpret_indices(args.frames),
+            transmit_indices=_interpret_indices(args.transmits),
+            overwrite=args.overwrite,
         )
     else:
-        sum_raw_data(args.input_paths, args.output_path)
+        sum_raw_data(
+            input_paths=args.input_paths, output_path=args.output_path, overwrite=args.overwrite
+        )
