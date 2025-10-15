@@ -1,11 +1,15 @@
 """Tests for the zea.utils module."""
 
 import re
+import time
 
 import numpy as np
 import pytest
+from keras import ops
 
+from zea.backend import jit
 from zea.utils import (
+    block_until_ready,
     find_first_nonzero_index,
     find_key,
     first_not_none_item,
@@ -178,3 +182,35 @@ def test_first_not_none_item(arr, expected):
     """Tests the find_first_nonzero_index function."""
     result = first_not_none_item(arr)
     np.testing.assert_equal(result, expected)
+
+
+def test_block_until_ready_timing():
+    """Tests that block_until_ready actually waits for the computation to finish."""
+
+    @jit
+    def slow_computation(x):
+        # Force some computation that takes time
+        for _ in range(1000):
+            x = ops.sin(x) + ops.cos(x)
+        return x
+
+    x = ops.ones(1000)
+
+    # Compile first (call twice to ensure compilation is done)
+    _ = slow_computation(x)
+    _ = slow_computation(x)
+
+    # Measure time without block_until_ready (might return before completion)
+    start = time.perf_counter()
+    _ = slow_computation(x)
+    no_block_time = time.perf_counter() - start
+
+    # Measure time with block_until_ready (ensures completion)
+    start = time.perf_counter()
+    _ = block_until_ready(slow_computation)(x)
+    with_block_time = time.perf_counter() - start
+
+    print(f"Without block_until_ready: {no_block_time:.4f}s")
+    print(f"With block_until_ready: {with_block_time:.4f}s")
+    print("Timing test completed!")
+    assert with_block_time >= no_block_time, "block_until_ready did not wait for completion"
