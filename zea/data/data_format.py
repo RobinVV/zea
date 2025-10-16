@@ -19,15 +19,15 @@ class DatasetElement:
     """Class to store a dataset element with a name, data, description and unit. Used to
     supply additional dataset elements to the generate_zea_dataset function."""
 
-    # The group name to store the dataset under. This can be a nested group, e.g.
-    # "scan/waveforms"
-    group_name: str
     # The name of the dataset. This will be the key in the group.
     dataset_name: str
     # The data to store in the dataset.
     data: np.ndarray
     description: str
     unit: str
+    # The group name to store the dataset under. This can be a nested group, e.g.
+    # "lens/profiles"
+    group_name: str = ""
 
 
 def generate_example_dataset(
@@ -497,9 +497,18 @@ def _write_datasets(
 
     # Add additional elements
     if additional_elements is not None:
+        # Write scan group
+        non_standard_elements_group_name = "non_standard_elements"
+        non_standard_elements_group = dataset.create_group(non_standard_elements_group_name)
+        non_standard_elements_group.attrs["description"] = (
+            "This group contains non-standard elements that can be added by the user."
+        )
         for element in additional_elements:
+            group_name = non_standard_elements_group_name
+            if element.group_name != "":
+                group_name += f"/{element.group_name}"
             _add_dataset(
-                group_name=element.group_name,
+                group_name=group_name,
                 name=element.dataset_name,
                 data=element.data,
                 description=element.description,
