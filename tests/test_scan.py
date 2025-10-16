@@ -160,3 +160,39 @@ def test_scan_pickle():
 
     assert scan == scan_unpickled, "Unpickled Scan object does not match the original"
     assert scan is not scan_unpickled, "Unpickled Scan object is the same instance as the original"
+
+
+def test_valid_params_default():
+    """Test that modifying pfield_kwargs in one Scan instance does not affect another.
+
+    The origin of this test is a bug where in VALID_PARAMS, the default value for pfield_kwargs
+    was a mutable dictionary, leading to shared state across instances.
+    """
+    from zea.internal.dummy_scan import get_scan
+
+    scan1 = get_scan()
+    scan1.pfield_kwargs["norm"] = False
+
+    scan2 = get_scan()
+    assert scan2.pfield_kwargs == {}, (
+        "scan2.pfield_kwargs seems to be affected by scan1 modification"
+    )
+    assert scan1 != scan2, "scan1 and scan2 should be different after modification of scan1"
+
+
+def test_inplace_modification():
+    """Test that modifying pfield_kwargs in-place, will update the pfield."""
+    from zea.internal.dummy_scan import get_scan
+
+    # Get the a dummy pfield
+    scan = get_scan()
+    original_pfield = scan.pfield.copy()
+
+    # Modify pfield_kwargs in-place
+    scan.pfield_kwargs["norm"] = False
+
+    # Check that the pfield has been updated
+    modified_pfield = scan.pfield
+    assert not np.array_equal(original_pfield, modified_pfield), (
+        "scan.pfield did not change after modifying pfield_kwargs"
+    )
