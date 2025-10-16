@@ -62,7 +62,7 @@ from pathlib import Path
 import numpy as np
 
 from zea import Probe, Scan
-from zea.data.data_format import generate_zea_dataset
+from zea.data.data_format import generate_zea_dataset, load_additional_elements, load_description
 from zea.data.file import load_file
 from zea.log import logger
 
@@ -75,7 +75,15 @@ OPERATION_NAMES = [
 ]
 
 
-def save_file(path, data: np.ndarray, scan: Scan, probe: Probe, data_type="raw_data"):
+def save_file(
+    path,
+    data: np.ndarray,
+    scan: Scan,
+    probe: Probe,
+    data_type="raw_data",
+    additional_elements=None,
+    description="",
+):
     """Saves data to a zea data file (h5py file).
 
     Args:
@@ -86,6 +94,8 @@ def save_file(path, data: np.ndarray, scan: Scan, probe: Probe, data_type="raw_d
         data_type (str, optional): The type of data to save. Defaults to
             'raw_data'. Other options are 'aligned_data', 'beamformed_data',
             'envelope_data', 'image' and 'image_sc'.
+        additional_elements (list of DatasetElement, optional): Additional elements to save in the
+            file. Defaults to None.
     """
 
     data_args = {data_type: data}
@@ -111,6 +121,8 @@ def save_file(path, data: np.ndarray, scan: Scan, probe: Probe, data_type="raw_d
         tx_waveform_indices=scan.tx_waveform_indices,
         waveforms_one_way=scan.waveforms_one_way,
         waveforms_two_way=scan.waveforms_two_way,
+        description=description,
+        additional_elements=additional_elements,
     )
 
 
@@ -126,6 +138,8 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
     """
 
     data, scan, probe = load_file(input_paths[0])
+    description = load_description(input_paths[0])
+    additional_elements = load_additional_elements(input_paths[0])
 
     for file in input_paths[1:]:
         new_data, new_scan, new_probe = load_file(file)
@@ -139,7 +153,14 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
     if overwrite:
         _delete_file_if_exists(output_path)
 
-    save_file(output_path, data, scan, probe)
+    save_file(
+        output_path,
+        data,
+        scan,
+        probe,
+        additional_elements=additional_elements,
+        description=description,
+    )
 
 
 def compound_frames(input_path: Path, output_path: Path, overwrite=False):
@@ -154,6 +175,8 @@ def compound_frames(input_path: Path, output_path: Path, overwrite=False):
     """
 
     data, scan, probe = load_file(input_path)
+    additional_elements = load_additional_elements(input_path)
+    description = load_description(input_path)
 
     # Assuming the first dimension is the frame dimension
     compounded_data = np.mean(data, axis=0, keepdims=True)
@@ -163,7 +186,14 @@ def compound_frames(input_path: Path, output_path: Path, overwrite=False):
     if overwrite:
         _delete_file_if_exists(output_path)
 
-    save_file(output_path, compounded_data, scan, probe)
+    save_file(
+        output_path,
+        compounded_data,
+        scan,
+        probe,
+        additional_elements=additional_elements,
+        description=description,
+    )
 
 
 def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
@@ -183,6 +213,8 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
     """
 
     data, scan, probe = load_file(input_path)
+    additional_elements = load_additional_elements(input_path)
+    description = load_description(input_path)
 
     if not _all_tx_are_identical(scan):
         logger.warning(
@@ -197,7 +229,14 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
     if overwrite:
         _delete_file_if_exists(output_path)
 
-    save_file(output_path, compounded_data, scan, probe)
+    save_file(
+        output_path,
+        compounded_data,
+        scan,
+        probe,
+        additional_elements=additional_elements,
+        description=description,
+    )
 
 
 def _all_tx_are_identical(scan: Scan):
@@ -235,11 +274,20 @@ def resave(input_path: Path, output_path: Path, overwrite=False):
     """
 
     data, scan, probe = load_file(input_path)
+    additional_elements = load_additional_elements(input_path)
+    description = load_description(input_path)
     scan.set_transmits("all")
 
     if overwrite:
         _delete_file_if_exists(output_path)
-    save_file(output_path, data, scan, probe)
+    save_file(
+        output_path,
+        data,
+        scan,
+        probe,
+        additional_elements=additional_elements,
+        description=description,
+    )
 
 
 def extract_frames_transmits(
@@ -258,13 +306,22 @@ def extract_frames_transmits(
     """
 
     data, scan, probe = load_file(input_path, indices=(frame_indices, transmit_indices))
+    additional_elements = load_additional_elements(input_path)
+    description = load_description(input_path)
 
     scan = _scan_reduce_frames(scan, frame_indices)
 
     if overwrite:
         _delete_file_if_exists(output_path)
 
-    save_file(output_path, data, scan, probe)
+    save_file(
+        output_path,
+        data,
+        scan,
+        probe,
+        additional_elements=additional_elements,
+        description=description,
+    )
 
 
 def _delete_file_if_exists(path: Path):
