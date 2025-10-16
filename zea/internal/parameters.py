@@ -30,15 +30,15 @@ def cache_with_dependencies(*deps):
             self._assert_dependencies_met(func.__name__)
 
             if func.__name__ in self._cache:
-                # Check if dependencies changed
-                current_hash = self._current_dependency_hash(deps)
+                # Check if dependencies changed for mutable parameters
+                current_hash = self._current_dependency_hash(func.__name__)
                 if current_hash == self._dependency_versions.get(func.__name__):
                     return self._cache[func.__name__]
 
             result = func(self)
             self._computed.add(func.__name__)
             self._cache[func.__name__] = result
-            self._dependency_versions[func.__name__] = self._current_dependency_hash(deps)
+            self._dependency_versions[func.__name__] = self._current_dependency_hash(func.__name__)
             return result
 
         return property(wrapper)
@@ -159,7 +159,6 @@ class Parameters(ZeaObject):
         self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
-        self._hashed_params = {}
 
         # Tensor cache stores converted tensors for parameters and computed properties
         # to avoid converting them multiple times if there are no changes.
@@ -283,18 +282,6 @@ class Parameters(ZeaObject):
         else:
             raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
-    def _invalidate_on_change(self, key):
-        """Check if the hash of a parameter has changed since last access.
-        This is needed because mutable parameters (e.g. np.ndarray) can be changed
-        in-place without going through __setattr__. In that case, we need to
-        detect the change and invalidate dependent properties.
-        """
-        value = self._params.get(key, None)
-        hash_value = hash_elements([value])
-        if hash_value != self._hashed_params.get(value, None):
-            self._hashed_params[key] = hash_value
-            self._invalidate(key)
-
     def __getattr__(self, item):
         # Handle case during unpickling when internal attributes may not be set yet
         if "_params" not in self.__dict__:
@@ -304,22 +291,7 @@ class Parameters(ZeaObject):
         if item in self._params:
             return self._params[item]
 
-        # Check if it's a property
-        props = self.__dict__.get("_properties")
-        if not props or item not in props:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
-        self._assert_dependencies_met(item)
-
-        # At this point, it must be a property, with met dependencies
-        # Now we check if any mutable leaf dependencies have changed
-        if self._is_property_with_dependencies(item):
-            leaves = self._find_leaf_params(item)
-            for leaf in leaves:
-                self._invalidate_on_change(leaf)
-
-        # Return property value
-        cls_attr = getattr(self.__class__, item, None)
-        return cls_attr.__get__(self, self.__class__)
+        return super().__getattr__(item)
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
@@ -348,7 +320,6 @@ class Parameters(ZeaObject):
 
         # Set the parameter
         self._params[key] = value
-        self._hashed_params[key] = hash_elements([value])
 
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)
@@ -360,6 +331,8 @@ class Parameters(ZeaObject):
             self._invalidate(name)
         elif name in self.VALID_PARAMS:
             raise AttributeError(f"Cannot delete parameter '{name}' because it is not set.")
+
+        super().__delattr__(name)
 
     @classmethod
     def _check_for_circular_dependencies(cls, name, seen=None):
@@ -411,8 +384,13 @@ class Parameters(ZeaObject):
         for key in self._find_all_dependents(changed_key):
             self._invalidate(key)
 
-    def _current_dependency_hash(self, deps) -> str:
-        values = [self._params.get(dep, None) for dep in deps]
+    def _current_dependency_hash(self, key) -> str:
+        """Compute a hash representing the current state of the dependencies of key."""
+        if not self._is_property_with_dependencies(key):
+            raise AttributeError(f"'{key}' is not a computed property with dependencies.")
+        values = []
+        deps = self._find_leaf_params(key)
+        values = [self._params.get(dep) for dep in sorted(deps)]
         return hash_elements(values)
 
     def _assert_dependencies_met(self, name):
