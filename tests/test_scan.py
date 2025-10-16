@@ -148,3 +148,15 @@ def test_accessing_valid_but_unset_attributes():
 
     scan = Scan(n_tx=5)
     scan.focus_distances
+
+
+def test_scan_pickle():
+    """Test pickling and unpickling of Scan class."""
+    import pickle
+
+    scan = Scan(**scan_args)
+    scan_pickled = pickle.dumps(scan)
+    scan_unpickled = pickle.loads(scan_pickled)
+
+    assert scan == scan_unpickled, "Unpickled Scan object does not match the original"
+    assert scan is not scan_unpickled, "Unpickled Scan object is the same instance as the original"
