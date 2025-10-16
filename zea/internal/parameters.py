@@ -34,9 +34,10 @@ def cache_with_dependencies(*deps):
                 current_hash = self._current_dependency_hash(func.__name__)
                 if current_hash == self._dependency_versions.get(func.__name__):
                     return self._cache[func.__name__]
+                else:
+                    self._invalidate(func.__name__)
 
             result = func(self)
-            self._computed.add(func.__name__)
             self._cache[func.__name__] = result
             self._dependency_versions[func.__name__] = self._current_dependency_hash(func.__name__)
             return result
@@ -156,7 +157,6 @@ class Parameters(ZeaObject):
         # Internal state
         self._params = {}
         self._properties = self.get_properties()
-        self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
 
@@ -292,7 +292,9 @@ class Parameters(ZeaObject):
         if "_params" not in self.__dict__:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
 
-        # First check regular params
+        # Only have to handle _params here
+        # -> properties are handled through __getattribute__
+        # -> properties with dependencies are handled through cache_with_dependencies
         if item in self._params:
             return self._params[item]
 
@@ -375,7 +377,6 @@ class Parameters(ZeaObject):
     def _invalidate(self, key):
         """Invalidate a specific cached computed property and its dependencies."""
         self._cache.pop(key, None)
-        self._computed.discard(key)
         self._dependency_versions.pop(key, None)
         self._tensor_cache.pop(key, None)
         self._serialized = None  # see core object
