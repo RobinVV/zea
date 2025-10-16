@@ -3174,7 +3174,7 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     return iq_data_two_channel
 
 
-def compute_t_peak(waveforms, center_frequency, waveform_sampling_frequency=250e6):
+def compute_time_to_peak(waveforms, center_frequency, waveform_sampling_frequency=250e6):
     """Compute the time of the peak of the waveform.
 
     Args:
