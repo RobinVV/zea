@@ -18,13 +18,13 @@ Command-line usage
 ------------------
 
 Sum two input files
-^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 .. code-block:: console
 
     python -m zea.data.file_operations sum input1.hdf5 input2.hdf5 output.hdf5
 
 Compound frames/transmits
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 This can be used to increase the SNR of static acquisitions.
 
 .. code-block:: console
@@ -46,7 +46,7 @@ Loads a zea data file and saves it again. This can be used to change the file fo
     python -m zea.data.file_operations resave input.hdf5 output.hdf5
 
 Extract frames and transmits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 This can be used when you want to extract a subset of the data.
 
 .. code-block:: console
