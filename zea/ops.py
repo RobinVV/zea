@@ -99,7 +99,7 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import patched_map, resample, reshape_axis
+from zea.tensor_ops import extend_n_dims, patched_map, resample, reshape_axis
 from zea.utils import (
     FunctionTimer,
     deep_compare,
@@ -1638,7 +1638,7 @@ class PfieldWeighting(Operation):
         Returns:
             dict: Dictionary containing weighted data
         """
-        data = kwargs[self.key]
+        data = kwargs[self.key]  # must start with (n_pix, n_tx, ...)
 
         if flat_pfield is None:
             return {self.output_key: data}
@@ -1653,7 +1653,7 @@ class PfieldWeighting(Operation):
         else:
             pfield_expanded = flat_pfield
 
-        pfield_expanded = pfield_expanded[..., None, None]
+        pfield_expanded = extend_n_dims(pfield_expanded, axis=-1, n_dims=ops.ndim(data) - 2)
         weighted_data = data * pfield_expanded
 
         return {self.output_key: weighted_data}
