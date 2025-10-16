@@ -11,6 +11,8 @@ from zea.data.data_format import (
     DatasetElement,
     generate_example_dataset,
     generate_zea_dataset,
+    load_additional_elements,
+    load_description,
 )
 from zea.data.file import File, load_file, validate_file
 from zea.data.file_operations import (
@@ -61,18 +63,20 @@ def test_file_operations_sum(tmp_hdf5_path):
     summing them and checking if the result is correct."""
 
     # Create two example datasets
-    path1 = tmp_hdf5_path.parent / "test_case_dataset1.hdf5"
-    path2 = tmp_hdf5_path.parent / "test_case_dataset2.hdf5"
-    generate_example_dataset(path1)
-    generate_example_dataset(path2)
+    input_path1 = tmp_hdf5_path.parent / "test_case_dataset1.hdf5"
+    input_path2 = tmp_hdf5_path.parent / "test_case_dataset2.hdf5"
+    generate_example_dataset(input_path1)
+    generate_example_dataset(input_path2)
 
-    data1, scan1, probe1 = load_file(path1)
-    data2, scan2, probe2 = load_file(path2)
+    data1, scan1, probe1 = load_file(input_path1)
+    data2, scan2, probe2 = load_file(input_path2)
 
     # Sum the datasets
     output_path = tmp_hdf5_path.parent / "summed_dataset.hdf5"
 
-    sum_raw_data([path1, path2], output_path)
+    sum_raw_data([input_path1, input_path2], output_path)
+
+    _assert_descriptions_and_additional_elements_equal(input_path1, output_path)
 
     # Load the summed dataset and check if the data is correct
     with File(output_path) as f:
@@ -92,6 +96,9 @@ def test_file_operations_extract(tmp_hdf5_path):
 
     extract_frames_transmits(input_path, output_path, frame_indices=slice(2), transmit_indices=[0])
     data, scan, probe = load_file(output_path)
+
+    _assert_descriptions_and_additional_elements_equal(input_path, output_path)
+
     assert data.shape[0] == 2
     assert data.shape[1] == 1
 
@@ -107,6 +114,8 @@ def test_file_operations_resave(tmp_hdf5_path):
     generate_example_dataset(input_path)
 
     resave(input_path, output_path)
+
+    _assert_descriptions_and_additional_elements_equal(input_path, output_path)
 
     # Validate the resaved dataset
     validate_file(output_path)
@@ -124,6 +133,8 @@ def test_file_operations_compound_frames(tmp_hdf5_path):
 
     compound_frames(input_path, output_path)
 
+    _assert_descriptions_and_additional_elements_equal(input_path, output_path)
+
     data, scan, probe = load_file(output_path)
     assert data.shape[0] == 1  # Only one frame should remain
 
@@ -139,6 +150,8 @@ def test_file_operations_compound_transmits(tmp_hdf5_path):
     generate_example_dataset(input_path)
 
     compound_transmits(input_path, output_path)
+
+    _assert_descriptions_and_additional_elements_equal(input_path, output_path)
 
     data, scan, probe = load_file(output_path)
     assert data.shape[1] == 1  # Only one transmit should remain
@@ -194,9 +207,24 @@ def test_file_operations_cli_extract(tmp_hdf5_path):
         + str(input_path)
         + " "
         + str(output_path)
-        + " --frame_indices 0-1 --transmit_indices 0 3 4"
+        + " --frames 0-1 --transmits 0 3 4"
     )
 
     data, scan, probe = load_file(output_path)
     assert data.shape[0] == 2
     assert data.shape[1] == 3
+
+
+def _load_description_and_additional_elements(path: Path):
+    description = load_description(path)
+    additional_elements = load_additional_elements(path)
+    return description, additional_elements
+
+
+def _assert_descriptions_and_additional_elements_equal(path, other_path: Path):
+    description, additional_elements = _load_description_and_additional_elements(path)
+    other_description, other_additional_elements = _load_description_and_additional_elements(
+        other_path
+    )
+    assert description == other_description
+    assert len(additional_elements) == len(other_additional_elements)
