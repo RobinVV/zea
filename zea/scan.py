@@ -137,6 +137,8 @@ class Scan(Parameters):
             (n_waveforms, n_samples).
         tx_waveform_indices (np.ndarray): Indices of the waveform used for each
             transmit event of shape (n_tx,).
+        t_peak (np.ndarray, optional): The time of the peak of the pulse of every transmit waveform
+            of shape (n_tw,).
         pixels_per_wavelength (int, optional): Number of pixels per wavelength.
             Defaults to 4.
         element_width (float, optional): Width of each transducer element in meters.
@@ -167,6 +169,7 @@ class Scan(Parameters):
             Can be "cartesian" or "polar". Defaults to "cartesian".
         dynamic_range (tuple, optional): Dynamic range for image display.
             Defined in dB as (min_dB, max_dB). Defaults to (-60, 0).
+
     """
 
     VALID_PARAMS = {
