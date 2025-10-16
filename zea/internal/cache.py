@@ -141,7 +141,7 @@ def generate_cache_key(func, args, kwargs, arg_names):
     # Add keras backend
     key_elements.append(keras.backend.backend())
 
-    return f"{func.__qualname__}_" + hash_elements(key_elements, shorten=True)
+    return f"{func.__qualname__}_" + hash_elements(key_elements)
 
 
 def cache_output(*arg_names, verbose=False):
