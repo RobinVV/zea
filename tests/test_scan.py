@@ -184,15 +184,38 @@ def test_inplace_modification():
     """Test that modifying pfield_kwargs in-place, will update the pfield."""
     from zea.internal.dummy_scan import get_scan
 
-    # Get the a dummy pfield
-    scan = get_scan()
-    original_pfield = scan.pfield.copy()
+    def edit1(scan):
+        """edit direct dependency (dict) in-place"""
+        scan.pfield_kwargs["norm"] = False
+        return scan
 
-    # Modify pfield_kwargs in-place
-    scan.pfield_kwargs["norm"] = False
+    def edit2(scan):
+        """edit another indirect dependency (np.ndarray) in-place"""
+        scan.probe_geometry[:, 0] += 0.001
+        return scan
 
-    # Check that the pfield has been updated
-    modified_pfield = scan.pfield
-    assert not np.array_equal(original_pfield, modified_pfield), (
-        "scan.pfield did not change after modifying pfield_kwargs"
-    )
+    def edit3(scan):
+        """edit indirect dependency (list) in-place
+        pfield -> grid -> zlims"""
+        # convert to list to allow in-place edit
+        # this will invalidate pfield
+        scan.zlims = list(scan.zlims)
+        # therefore we need to force a computation of pfield to cache it
+        _ = scan.pfield.copy()
+        # and then edit in-place
+        scan.zlims[1] += 0.01
+        return scan
+
+    for edit_fn in (edit1, edit2, edit3):
+        scan = get_scan()
+        scan.pfield_kwargs = {"norm": True}
+        original_pfield = scan.pfield.copy()
+        assert "pfield" in scan._cache, "pfield should be cached after first access"
+
+        # Modify something in-place
+        scan = edit_fn(scan)
+
+        # Check that the grid has been updated
+        assert not np.array_equal(original_pfield, scan.pfield), (
+            f"scan.pfield seems to be unaffected by in-place modification in {edit_fn.__name__}"
+        )

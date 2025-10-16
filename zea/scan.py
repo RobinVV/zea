@@ -642,6 +642,7 @@ class Scan(Parameters):
         """The width of each transducer element in meters."""
         value = self._params.get("element_width")
         if value is None:
+            # assume uniform spacing
             return np.linalg.norm(self.probe_geometry[1] - self.probe_geometry[0])
         return value
 

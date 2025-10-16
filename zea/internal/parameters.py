@@ -262,25 +262,30 @@ class Parameters(ZeaObject):
             raise AttributeError(f"'{name}' is not a computed property with dependencies.")
         return getattr(cls, name).fget._dependencies
 
-    @classmethod
-    def _find_leaf_params(cls, name, seen=None):
-        """Recursively find all leaf parameters that a property depends on."""
+    def _find_leaf_params(self, name, seen=None):
+        """Recursively find all leaf parameters that a property depends on.
+
+        If it is an optional dependency parameter, it will be included as a leaf. Not the ones it
+        depends on.
+        """
         if seen is None:
             seen = set()
         if name in seen:
             return set()
         seen.add(name)
-        # If the name is a property with dependencies, find its leaf parameters
-        if cls._is_property_with_dependencies(name):
-            leaves = set()
-            for dep in cls._get_dependencies(name):
-                leaves |= cls._find_leaf_params(dep, seen)  # union
-            return leaves
-        # If it's a regular parameter, return it as a leaf
-        elif name in cls.VALID_PARAMS:
+
+        # If the name is already a leaf parameter, return it
+        if name in self._params or name in self.VALID_PARAMS:
             return {name}
-        else:
-            raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
+
+        # If the name is a property with dependencies, find its leaf parameters
+        if self._is_property_with_dependencies(name):
+            leaves = set()
+            for dep in self._get_dependencies(name):
+                leaves |= self._find_leaf_params(dep, seen)  # union
+            return leaves
+
+        raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
     def __getattr__(self, item):
         # Handle case during unpickling when internal attributes may not be set yet
@@ -385,10 +390,12 @@ class Parameters(ZeaObject):
             self._invalidate(key)
 
     def _current_dependency_hash(self, key) -> str:
-        """Compute a hash representing the current state of the dependencies of key."""
+        """Compute a hash representing the current state of the dependencies of key.
+
+        Mainly needed to track changes in mutable parameters.
+        """
         if not self._is_property_with_dependencies(key):
             raise AttributeError(f"'{key}' is not a computed property with dependencies.")
-        values = []
         deps = self._find_leaf_params(key)
         values = [self._params.get(dep) for dep in sorted(deps)]
         return hash_elements(values)
