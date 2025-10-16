@@ -212,7 +212,7 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
         input_path (Path): Path to the input raw data file.
         output_path (Path): Path to the output file where the compounded data will be saved.
         overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
-            False.
+        False.
     """
 
     raw_data, scan, probe = load_file(input_path)
