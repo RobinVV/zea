@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Generator
 
+import h5py
 import numpy as np
 import pytest
 
@@ -20,33 +21,6 @@ from zea.data.file_operations import (
     resave,
     sum_raw_data,
 )
-
-n_frames = 3
-n_tx = 4
-n_el = 16
-n_ax = 128
-n_ch = 1
-
-DATASET_PARAMETERS = {
-    "raw_data": np.ones((n_frames, n_tx, n_ax, n_el, n_ch), dtype=np.float32),
-    "probe_geometry": np.zeros((n_el, 3), dtype=np.float32),
-    "sampling_frequency": 30e6,
-    "center_frequency": 6e6,
-    "initial_times": np.zeros((n_tx), dtype=np.float32),
-    "t0_delays": np.zeros((n_tx, n_el), dtype=np.float32),
-    "sound_speed": 1540.0,
-    "probe_name": "generic",
-    "description": "Dataset parameters for testing",
-    "focus_distances": np.zeros((n_tx,), dtype=np.float32),
-    "polar_angles": np.linspace(-np.pi / 2, np.pi / 2, n_tx, dtype=np.float32),
-    "azimuth_angles": np.zeros((n_tx), np.float32),
-    "tx_apodizations": np.ones((n_tx, n_el), dtype=np.float32),
-    "time_to_next_transmit": np.ones((n_frames, n_tx), dtype=np.float32),
-    "bandwidth_percent": 200.0,
-    "waveforms_one_way": [np.zeros((512), dtype=np.float32)],
-    "waveforms_two_way": [np.zeros((512,), dtype=np.float32)],
-    "tx_waveform_indices": np.zeros((n_tx,), dtype=np.int32),
-}
 
 
 @pytest.fixture
@@ -89,7 +63,7 @@ def test_file_operations_extract(tmp_hdf5_path):
     output_path = tmp_hdf5_path.parent / "extracted_dataset.hdf5"
 
     # Create an example dataset
-    generate_example_dataset(input_path)
+    generate_example_dataset(input_path, add_optional_dtypes=True)
 
     extract_frames_transmits(input_path, output_path, frame_indices=slice(2), transmit_indices=[0])
     data, scan, probe = load_file(output_path)
@@ -98,6 +72,8 @@ def test_file_operations_extract(tmp_hdf5_path):
 
     assert data.shape[0] == 2
     assert data.shape[1] == 1
+    _assert_beamformed_data_still_exists(output_path)
+    _assert_descriptions_and_additional_elements_equal(input_path, output_path)
 
 
 def test_file_operations_resave(tmp_hdf5_path):
@@ -225,3 +201,8 @@ def _assert_descriptions_and_additional_elements_equal(path, other_path: Path):
     )
     assert description == other_description
     assert len(additional_elements) == len(other_additional_elements)
+
+
+def _assert_beamformed_data_still_exists(path: Path):
+    with h5py.File(path, "r") as f:
+        assert "data/beamformed_data" in f
