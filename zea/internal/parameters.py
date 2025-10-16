@@ -159,6 +159,7 @@ class Parameters(ZeaObject):
         self._computed = set()
         self._cache = {}
         self._dependency_versions = {}
+        self._hashed_params = {}
 
         # Tensor cache stores converted tensors for parameters and computed properties
         # to avoid converting them multiple times if there are no changes.
@@ -167,7 +168,8 @@ class Parameters(ZeaObject):
         # Initialize parameters with defaults
         for param, config in self.VALID_PARAMS.items():
             if param not in kwargs and "default" in config:
-                kwargs[param] = config["default"]
+                # need to deepcopy in case default is mutable
+                kwargs[param] = deepcopy(config["default"])
 
         # Set provided parameters
         for key, value in kwargs.items():
@@ -263,6 +265,7 @@ class Parameters(ZeaObject):
 
     @classmethod
     def _find_leaf_params(cls, name, seen=None):
+        """Recursively find all leaf parameters that a property depends on."""
         if seen is None:
             seen = set()
         if name in seen:
@@ -280,6 +283,18 @@ class Parameters(ZeaObject):
         else:
             raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
+    def _invalidate_on_change(self, key):
+        """Check if the hash of a parameter has changed since last access.
+        This is needed because mutable parameters (e.g. np.ndarray) can be changed
+        in-place without going through __setattr__. In that case, we need to
+        detect the change and invalidate dependent properties.
+        """
+        value = self._params.get(key, None)
+        hash_value = hash_elements([value])
+        if hash_value != self._hashed_params.get(value, None):
+            self._hashed_params[key] = hash_value
+            self._invalidate(key)
+
     def __getattr__(self, item):
         # Handle case during unpickling when internal attributes may not be set yet
         if "_params" not in self.__dict__:
@@ -294,6 +309,13 @@ class Parameters(ZeaObject):
         if not props or item not in props:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
         self._assert_dependencies_met(item)
+
+        # At this point, it must be a property, with met dependencies
+        # Now we check if any mutable leaf dependencies have changed
+        if self._is_property_with_dependencies(item):
+            leaves = self._find_leaf_params(item)
+            for leaf in leaves:
+                self._invalidate_on_change(leaf)
 
         # Return property value
         cls_attr = getattr(self.__class__, item, None)
@@ -326,6 +348,7 @@ class Parameters(ZeaObject):
 
         # Set the parameter
         self._params[key] = value
+        self._hashed_params[key] = hash_elements([value])
 
         # Invalidate cache for this parameter if it is also a computed property
         self._invalidate(key)

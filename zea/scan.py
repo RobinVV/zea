@@ -544,7 +544,7 @@ class Scan(Parameters):
         "t0_delays",
         "pfield_kwargs",
     )
-    def pfield(self):
+    def pfield(self) -> np.ndarray:
         """Compute or return the pressure field (pfield) for weighting."""
         pfield = compute_pfield(
             sound_speed=self.sound_speed,
