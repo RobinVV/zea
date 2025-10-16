@@ -543,7 +543,7 @@ class Scan(Parameters):
         """The time of the peak of the pulse in seconds of shape (n_tw,)."""
         t_peak = self._params.get("t_peak")
         if t_peak is None:
-            t_peak = ops.array([1 / self.center_frequency])
+            t_peak = np.array([1 / self.center_frequency])
 
         return t_peak
 
