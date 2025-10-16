@@ -3174,25 +3174,43 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     return iq_data_two_channel
 
 
-def compute_time_to_peak(waveforms, center_frequency, waveform_sampling_frequency=250e6):
-    """Compute the time of the peak of the waveform.
+def compute_time_to_peak_stack(waveforms, center_frequencies, waveform_sampling_frequency=250e6):
+    """Compute the time of the peak of each waveform in a stack of waveforms.
 
     Args:
-        waveforms (ndarray): The waveform of shape (n_waveforms, n_samples).
-        waveform_sampling_frequency (float): The sampling frequency of the waveform in Hz.
+        waveforms (ndarray): The waveforms of shape (n_waveforms, n_samples).
+        center_frequencies (ndarray): The center frequencies of the waveforms in Hz.
+        waveform_sampling_frequency (float): The sampling frequency of the waveforms in Hz.
 
     Returns:
         ndarray: The time to peak for each waveform in seconds.
     """
-    n_waveforms, n_samples = waveforms.shape
-    if n_waveforms == 0 or n_samples == 0:
+    t_peak = []
+    for waveform, center_frequency in zip(waveforms, center_frequencies):
+        t_peak.append(compute_time_to_peak(waveform, center_frequency, waveform_sampling_frequency))
+    return ops.stack(t_peak)
+
+
+def compute_time_to_peak(waveform, center_frequency, waveform_sampling_frequency=250e6):
+    """Compute the time of the peak of the waveform.
+
+    Args:
+        waveform (ndarray): The waveform of shape (n_samples).
+        center_frequency (float): The center frequency of the waveform in Hz.
+        waveform_sampling_frequency (float): The sampling frequency of the waveform in Hz.
+
+    Returns:
+        float: The time to peak for the waveform in seconds.
+    """
+    n_samples = waveform.shape[0]
+    if n_samples == 0:
         return 0.0
 
     waveforms_iq_complex_channels = demodulate(
-        waveforms[..., None], center_frequency, waveform_sampling_frequency, axis=-1
+        waveform[..., None], center_frequency, waveform_sampling_frequency, axis=-1
     )
     waveforms_iq_complex = channels_to_complex(waveforms_iq_complex_channels)
     envelope = ops.abs(waveforms_iq_complex)
     peak_idx = ops.argmax(envelope, axis=-1)
-    t_peak = peak_idx / waveform_sampling_frequency
+    t_peak = ops.cast(peak_idx, dtype="float32") / waveform_sampling_frequency
     return t_peak
