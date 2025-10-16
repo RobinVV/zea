@@ -284,7 +284,9 @@ def calculate_delays(
     # The units here are ([m]/[m/s]-[s])*[1/s] resulting in a unitless quantity
     # TODO: Add pulse width to transmit delays
     tx_delays = (
-        tx_distances / sound_speed - initial_times[None] + t_peak[tx_waveform_indices][None]
+        tx_distances / sound_speed
+        - initial_times[None]
+        + ops.take(t_peak, tx_waveform_indices)[None]
     ) * sampling_frequency
     rx_delays = (rx_distances / sound_speed) * sampling_frequency
 
