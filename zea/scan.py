@@ -204,6 +204,7 @@ class Scan(Parameters):
         "waveforms_one_way": {"type": np.ndarray},
         "waveforms_two_way": {"type": np.ndarray},
         "tx_waveform_indices": {"type": np.ndarray},
+        "t_peak": {"type": np.ndarray},
         # scan conversion parameters
         "theta_range": {"type": (tuple, list)},
         "phi_range": {"type": (tuple, list)},
@@ -530,6 +531,15 @@ class Scan(Parameters):
 
         return value[self.selected_transmits]
 
+    @property
+    def t_peak(self):
+        """The time of the peak of the pulse in seconds of shape (n_tw,)."""
+        t_peak = self._params.get("t_peak")
+        if t_peak is None:
+            t_peak = ops.array([1 / self.center_frequency])
+
+        return t_peak
+
     @cache_with_dependencies("selected_transmits")
     def time_to_next_transmit(self):
         """The time between subsequent transmit events of shape (n_frames, n_tx)."""
@@ -569,7 +579,7 @@ class Scan(Parameters):
         """Indices of the waveform used for each transmit event of shape (n_tx,)."""
         value = self._params.get("tx_waveform_indices")
         if value is None:
-            return None
+            return np.zeros(self.n_tx_total, dtype=int)
 
         return value[self.selected_transmits]
 

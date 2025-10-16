@@ -1473,6 +1473,8 @@ class TOFCorrection(Operation):
         tx_apodizations,
         initial_times,
         probe_geometry,
+        t_peak,
+        tx_waveform_indices,
         apply_lens_correction=None,
         lens_thickness=None,
         lens_sound_speed=None,
@@ -1493,6 +1495,9 @@ class TOFCorrection(Operation):
             tx_apodizations (ops.Tensor): Transmit apodizations
             initial_times (ops.Tensor): Initial times
             probe_geometry (ops.Tensor): Probe element positions
+            t_peak (float): Time to peak of the transmit pulse
+            tx_waveform_indices (ops.Tensor): Index of the transmit waveform for each
+                transmit. (All zero if there is only one waveform)
             apply_lens_correction (bool): Whether to apply lens correction
             lens_thickness (float): Lens thickness
             lens_sound_speed (float): Sound speed in the lens
@@ -1515,6 +1520,8 @@ class TOFCorrection(Operation):
             "tx_apodizations": tx_apodizations,
             "initial_times": initial_times,
             "probe_geometry": probe_geometry,
+            "t_peak": t_peak,
+            "tx_waveform_indices": tx_waveform_indices,
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,
@@ -3093,3 +3100,27 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     iq_data_two_channel = complex_to_channels(iq_data_signal_complex[..., 0])
 
     return iq_data_two_channel
+
+
+def compute_t_peak(waveforms, center_frequency, waveform_sampling_frequency=250e6):
+    """Compute the time of the peak of the waveform.
+
+    Args:
+        waveforms (ndarray): The waveform of shape (n_waveforms, n_samples).
+        waveform_sampling_frequency (float): The sampling frequency of the waveform in Hz.
+
+    Returns:
+        ndarray: The time to peak for each waveform in seconds.
+    """
+    n_waveforms, n_samples = waveforms.shape
+    if n_waveforms == 0 or n_samples == 0:
+        return 0.0
+
+    waveforms_iq_complex_channels = demodulate(
+        waveforms[..., None], center_frequency, waveform_sampling_frequency, axis=-1
+    )
+    waveforms_iq_complex = channels_to_complex(waveforms_iq_complex_channels)
+    envelope = ops.abs(waveforms_iq_complex)
+    peak_idx = ops.argmax(envelope, axis=-1)
+    t_peak = peak_idx / waveform_sampling_frequency
+    return t_peak

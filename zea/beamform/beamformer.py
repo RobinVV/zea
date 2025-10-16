@@ -60,6 +60,8 @@ def tof_correction(
     fnum,
     angles,
     focus_distances,
+    t_peak,
+    tx_waveform_indices,
     apply_lens_correction=False,
     lens_thickness=1e-3,
     lens_sound_speed=1000,
@@ -85,6 +87,10 @@ def tof_correction(
         angles (ops.Tensor): The angles of the plane waves in radians of shape
             `(n_tx,)`
         focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
+        t_peak (ops.Tensor): Time of the peak of the pulse in seconds.
+            Shape `(n_tw,)`.
+        tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
+            transmit of shape `(n_tx,)`.
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             time-of-flights. This makes it slower, but more accurate in the near-field.
             Defaults to False.
@@ -133,6 +139,8 @@ def tof_correction(
         n_el,
         focus_distances,
         angles,
+        t_peak=t_peak,
+        tx_waveform_indices=tx_waveform_indices,
         lens_thickness=lens_thickness,
         lens_sound_speed=lens_sound_speed,
     )
@@ -206,6 +214,8 @@ def calculate_delays(
     n_el,
     focus_distances,
     polar_angles,
+    t_peak,
+    tx_waveform_indices,
     **kwargs,
 ):
     """Calculates the delays in samples to every pixel in the grid.
@@ -237,6 +247,10 @@ def calculate_delays(
             assume plane wave transmission.
         polar_angles (Tensor): The polar angles of the plane waves in radians
             of shape `(n_tx,)`.
+        t_peak (Tensor): Time of the peak of the pulse in seconds of shape `(n_tw,)`.
+        tx_waveform_indices (Tensor): The indices of the waveform used for each
+            transmit of shape `(n_tx,)`.
+
 
     Returns:
         transmit_delays (Tensor): The tensor of transmit delays to every pixel
@@ -275,7 +289,9 @@ def calculate_delays(
     # Compute the delays [in samples] from the distances
     # The units here are ([m]/[m/s]-[s])*[1/s] resulting in a unitless quantity
     # TODO: Add pulse width to transmit delays
-    tx_delays = (tx_distances / sound_speed - initial_times[None]) * sampling_frequency
+    tx_delays = (
+        tx_distances / sound_speed - initial_times[None] + t_peak[tx_waveform_indices][None]
+    ) * sampling_frequency
     rx_delays = (rx_distances / sound_speed) * sampling_frequency
 
     return tx_delays, rx_delays
