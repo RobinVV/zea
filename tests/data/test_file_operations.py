@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Generator
 
 import h5py
-import numpy as np
 import pytest
 
 from zea.data.data_format import (
