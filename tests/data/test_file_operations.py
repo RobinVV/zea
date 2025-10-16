@@ -1,4 +1,4 @@
-"""Test generating and validating zea data format."""
+"""Test the file operations module."""
 
 import os
 from pathlib import Path
@@ -8,9 +8,7 @@ import numpy as np
 import pytest
 
 from zea.data.data_format import (
-    DatasetElement,
     generate_example_dataset,
-    generate_zea_dataset,
     load_additional_elements,
     load_description,
 )
@@ -22,7 +20,6 @@ from zea.data.file_operations import (
     resave,
     sum_raw_data,
 )
-from zea.internal.checks import _REQUIRED_SCAN_KEYS
 
 n_frames = 3
 n_tx = 4
