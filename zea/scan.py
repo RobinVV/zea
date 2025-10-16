@@ -130,6 +130,13 @@ class Scan(Parameters):
         demodulation_frequency (float, optional): Demodulation frequency in Hz.
         time_to_next_transmit (np.ndarray): The time between subsequent
             transmit events of shape (n_frames, n_tx).
+        tgc_gain_curve (np.ndarray): Time gain compensation (TGC) curve of shape (n_ax,).
+        waveforms_one_way (np.ndarray): The one-way transmit waveforms of shape
+            (n_waveforms, n_samples).
+        waveforms_two_way (np.ndarray): The two-way transmit waveforms of shape
+            (n_waveforms, n_samples).
+        tx_waveform_indices (np.ndarray): Indices of the waveform used for each
+            transmit event of shape (n_tx,).
         pixels_per_wavelength (int, optional): Number of pixels per wavelength.
             Defaults to 4.
         element_width (float, optional): Width of each transducer element in meters.
