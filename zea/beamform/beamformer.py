@@ -84,7 +84,7 @@ def tof_correction(
         polar_angles (ops.Tensor): The angles of the waves in radians of shape `(n_tx,)`
         focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
         t_peak (ops.Tensor): Time of the peak of the pulse in seconds.
-            Shape `(n_tw,)`.
+            Shape `(n_waveforms,)`.
         tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
             transmit of shape `(n_tx,)`.
         apply_lens_correction (bool, optional): Whether to apply lens correction to
@@ -241,7 +241,8 @@ def calculate_delays(
             assume plane wave transmission.
         polar_angles (Tensor): The polar angles of the plane waves in radians
             of shape `(n_tx,)`.
-        t_peak (Tensor): Time of the peak of the pulse in seconds of shape `(n_tw,)`.
+        t_peak (Tensor): Time of the peak of the pulse in seconds of shape
+            `(n_waveforms,)`.
         tx_waveform_indices (Tensor): The indices of the waveform used for each
             transmit of shape `(n_tx,)`.
 
