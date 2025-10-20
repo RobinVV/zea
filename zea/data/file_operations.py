@@ -340,9 +340,6 @@ def _load_all_data_types_except_raw(file: File, indices=None):
     return data
 
 
-OPERATION_NAMES = ["sum", "compound_frames", "compound_transmits", "resave", "extract"]
-
-
 def get_parser():
     """Command line argument parser with subcommands"""
 
