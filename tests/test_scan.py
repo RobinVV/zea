@@ -26,6 +26,10 @@ scan_args = {
     "tx_apodizations": np.ones((10, 10)),
     "focus_distances": np.ones(10) * 0.04,
     "initial_times": np.zeros((10,)),
+    "tx_waveform_indices": np.zeros(10, dtype=int),
+    "waveforms_one_way": np.zeros((2, 64)),
+    "waveforms_two_way": np.zeros((2, 64)),
+    "tgc_gain_curve": np.ones((3328,)),
 }
 
 
@@ -85,6 +89,7 @@ def test_initialization():
         ("tx_apodizations", (10, 10)),
         ("focus_distances", (10,)),
         ("initial_times", (10,)),
+        ("tx_waveform_indices", (10,)),
     ],
 )
 def test_selected_transmits_affects_shape(attr, expected_shape):
