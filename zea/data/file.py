@@ -832,7 +832,33 @@ def _reformat_waveforms(scan_kwargs: dict) -> dict:
 
 
 def _waveforms_dict_to_array(waveforms_dict: dict):
-    waveforms = []
-    for key in sorted(waveforms_dict.keys()):
-        waveforms.append(waveforms_dict[key])
+    """Convert waveforms stored as a dictionary to a padded numpy array."""
+    waveforms = dict_to_sorted_list(waveforms_dict)
     return pad_sequences(waveforms, dtype=np.float32, padding="post")
+
+
+def dict_to_sorted_list(dictionary: dict):
+    """Convert a dictionary with integer keys to a sorted list of values.
+
+    .. note::
+
+        This function operates on the top level of the dictionary only.
+        If the dictionary contains nested dictionaries, those will not be sorted.
+
+    .. code-block:: python
+
+        # Example usage
+        input_dict = {"number_000": 5, "number_001": 1, "number_002": 23}
+        output_list = dict_to_sorted_list(input_dict)
+        # output_list will be:
+        # [
+        #     5, 1, 23
+        # ]
+
+    Args:
+        dictionary (dict): The dictionary to convert.
+
+    Returns:
+        list: The sorted list of values.
+    """
+    return [value for _, value in sorted(dictionary.items())]
