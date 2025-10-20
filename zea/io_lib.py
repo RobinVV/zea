@@ -19,7 +19,7 @@ from PIL import Image, ImageSequence
 from zea import log
 from zea.data.file import File
 
-_SUPPORTED_VID_TYPES = [".avi", ".mp4", ".gif"]
+_SUPPORTED_VID_TYPES = [".mp4", ".gif"]
 _SUPPORTED_IMG_TYPES = [".jpg", ".png", ".JPEG", ".PNG", ".jpeg"]
 _SUPPORTED_ZEA_TYPES = [".hdf5", ".h5"]
 
@@ -27,7 +27,7 @@ _SUPPORTED_ZEA_TYPES = [".hdf5", ".h5"]
 def load_video(filename, mode="L"):
     """Load a video file and return a numpy array of frames.
 
-    Supported file types: avi, mp4, gif.
+    Supported file types: mp4, gif.
 
     Args:
         filename (str): The path to the video file.
@@ -57,12 +57,24 @@ def load_video(filename, mode="L"):
         with Image.open(filename) as im:
             for frame in ImageSequence.Iterator(im):
                 frames.append(_convert_image_mode(frame, mode=mode))
-    else:  # .mp4, .avi
-        reader = imageio.get_reader(filename)
-        for frame in reader:
-            img = Image.fromarray(frame)
-            frames.append(_convert_image_mode(img, mode=mode))
-        reader.close()
+    elif ext == ".mp4":
+        # Use imageio with FFMPEG format for MP4 files
+        try:
+            reader = imageio.get_reader(filename, format="FFMPEG")
+        except (ImportError, ValueError) as exc:
+            raise ImportError(
+                "FFMPEG plugin is required to load MP4 files. "
+                "Please install it with 'pip install imageio-ffmpeg'."
+            ) from exc
+
+        try:
+            for frame in reader:
+                img = Image.fromarray(frame)
+                frames.append(_convert_image_mode(img, mode=mode))
+        finally:
+            reader.close()
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
 
     return np.stack(frames, axis=0)
 
@@ -101,7 +113,7 @@ def load_image(filename, mode="L"):
 def save_video(images, filename, fps=20, **kwargs):
     """Saves a sequence of images to a video file.
 
-    Supported file types: avi, mp4, gif.
+    Supported file types: mp4, gif.
 
     Args:
         images (list or np.ndarray): List or array of images. Must have shape
@@ -111,6 +123,7 @@ def save_video(images, filename, fps=20, **kwargs):
         filename (str or Path): Filename to which data should be written.
         fps (int): Frames per second of rendered format.
         **kwargs: Additional keyword arguments passed to the specific save function.
+            For GIF files, this includes `shared_color_palette` (bool).
 
     Raises:
         ValueError: If the file extension is not supported.
@@ -119,7 +132,7 @@ def save_video(images, filename, fps=20, **kwargs):
     filename = Path(filename)
     ext = filename.suffix.lower()
 
-    if ext in {".avi", ".mp4"}:
+    if ext == ".mp4":
         return save_to_mp4(images, filename, fps=fps)
     elif ext == ".gif":
         return save_to_gif(images, filename, fps=fps, **kwargs)
@@ -129,6 +142,10 @@ def save_video(images, filename, fps=20, **kwargs):
 
 def save_to_gif(images, filename, fps=20, shared_color_palette=False):
     """Saves a sequence of images to a GIF file.
+
+    .. note::
+        It's recommended to use :func:`save_video` for a more general interface
+        that supports multiple formats.
 
     Args:
         images (list or np.ndarray): List or array of images. Must have shape
@@ -193,6 +210,10 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
 def save_to_mp4(images, filename, fps=20):
     """Saves a sequence of images to an MP4 file.
 
+    .. note::
+        It's recommended to use :func:`save_video` for a more general interface
+        that supports multiple formats.
+
     Args:
         images (list or np.ndarray): List or array of images. Must have shape
             (n_frames, height, width, channels) or (n_frames, height, width).
@@ -200,6 +221,9 @@ def save_to_mp4(images, filename, fps=20):
             which is then converted to RGB. Images should be uint8.
         filename (str or Path): Filename to which data should be written.
         fps (int): Frames per second of rendered format.
+
+    Raises:
+        ImportError: If imageio-ffmpeg is not installed.
 
     Returns:
         str: Success message.
@@ -210,26 +234,25 @@ def save_to_mp4(images, filename, fps=20):
     filename = str(filename)
 
     parent_dir = Path(filename).parent
-    if not parent_dir.exists():
-        raise FileNotFoundError(f"Directory '{parent_dir}' does not exist.")
+    parent_dir.mkdir(parents=True, exist_ok=True)
 
+    # Use imageio with FFMPEG format for MP4 files
     try:
-        import cv2
-    except ImportError as exc:
+        writer = imageio.get_writer(
+            filename, fps=fps, format="FFMPEG", codec="libx264", pixelformat="yuv420p"
+        )
+    except (ImportError, ValueError) as exc:
         raise ImportError(
-            "OpenCV is required to save MP4 files. "
-            "Please install it with 'pip install opencv-python' or "
-            "'pip install opencv-python-headless'."
+            "FFMPEG plugin is required to save MP4 files. "
+            "Please install it with 'pip install imageio-ffmpeg'."
         ) from exc
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    _, height, width, _ = images.shape
-    video_writer = cv2.VideoWriter(filename, fourcc, fps, (width, height))
+    try:
+        for image in images:
+            writer.append_data(image)
+    finally:
+        writer.close()
 
-    for image in images:
-        video_writer.write(image)
-
-    video_writer.release()
     return log.success(f"Successfully saved MP4 to -> {filename}")
 
 
