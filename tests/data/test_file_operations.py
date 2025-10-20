@@ -187,6 +187,66 @@ def test_file_operations_cli_extract(tmp_hdf5_path):
     assert data.shape[1] == 3
 
 
+def test_file_operations_cli_resave(tmp_hdf5_path):
+    """Tests the resave operation CLI by creating an example dataset and
+    resaving it to a new file."""
+
+    input_path = tmp_hdf5_path.parent / "test_case_dataset.hdf5"
+    output_path = tmp_hdf5_path.parent / "resaved_dataset.hdf5"
+
+    # Create an example dataset
+    generate_example_dataset(input_path)
+
+    os.system(
+        "python -m zea.data.file_operations resave " + str(input_path) + " " + str(output_path)
+    )
+
+    # Validate the resaved dataset
+    validate_file(output_path)
+
+
+def test_file_operations_cli_compound_frames(tmp_hdf5_path):
+    """Tests the compound_frames function CLI by creating an example dataset and
+    compounding frames."""
+
+    input_path = tmp_hdf5_path.parent / "test_case_dataset.hdf5"
+    output_path = tmp_hdf5_path.parent / "compounded_frames_dataset.hdf5"
+
+    # Create an example dataset
+    generate_example_dataset(input_path)
+
+    os.system(
+        "python -m zea.data.file_operations compound_frames "
+        + str(input_path)
+        + " "
+        + str(output_path)
+    )
+
+    data, scan, probe = load_file(output_path)
+    assert data.shape[0] == 1  # Only one frame should remain
+
+
+def test_file_operations_cli_compound_transmits(tmp_hdf5_path):
+    """Tests the compound_transmits function CLI by creating an example dataset and
+    compounding transmits."""
+
+    input_path = tmp_hdf5_path.parent / "test_case_dataset.hdf5"
+    output_path = tmp_hdf5_path.parent / "compounded_transmits_dataset.hdf5"
+
+    # Create an example dataset
+    generate_example_dataset(input_path)
+
+    os.system(
+        "python -m zea.data.file_operations compound_transmits "
+        + str(input_path)
+        + " "
+        + str(output_path)
+    )
+
+    data, scan, probe = load_file(output_path)
+    assert data.shape[1] == 1  # Only one transmit should remain
+
+
 def _load_description_and_additional_elements(path: Path):
     description = load_description(path)
     additional_elements = load_additional_elements(path)
