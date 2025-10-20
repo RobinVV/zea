@@ -139,7 +139,7 @@ def test_set_attributes():
 
     scan.selected_transmits = [0]
 
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         scan.grid = np.zeros((10, 10))
 
 
