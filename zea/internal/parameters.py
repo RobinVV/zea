@@ -469,6 +469,7 @@ class Parameters(ZeaObject):
         # Convert parameters and computed properties to tensors
         for key in keys:
             # Get the value from params or computed properties
+            # This is essential to trigger dependency checks
             try:
                 val = getattr(self, key)
             except MissingDependencyError as exc:

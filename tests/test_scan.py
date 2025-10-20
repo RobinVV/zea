@@ -207,8 +207,7 @@ def test_inplace_modification():
         return scan
 
     for edit_fn in (edit1, edit2, edit3):
-        scan = get_scan()
-        scan.pfield_kwargs = {"norm": True}
+        scan = get_scan(pfield_kwargs={"norm": True})
         original_pfield = scan.pfield.copy()
         assert "pfield" in scan._cache, "pfield should be cached after first access"
 
@@ -219,3 +218,17 @@ def test_inplace_modification():
         assert not np.array_equal(original_pfield, scan.pfield), (
             f"scan.pfield seems to be unaffected by in-place modification in {edit_fn.__name__}"
         )
+
+
+def test_inplace_modification_tensor_cache():
+    """Test that modifying pfield_kwargs in-place, will update the pfield_tensor."""
+    from zea.internal.dummy_scan import get_scan
+
+    scan = get_scan(pfield_kwargs={"norm": True})
+    tensor_dict = scan.to_tensor(include=["pfield"])
+    scan.pfield_kwargs["norm"] = False  # in-place modification
+    tensor_dict2 = scan.to_tensor(include=["pfield"])
+
+    assert not np.array_equal(tensor_dict["pfield"], tensor_dict2["pfield"]), (
+        "_tensor_cache['pfield'] seems to be unaffected by in-place modification"
+    )

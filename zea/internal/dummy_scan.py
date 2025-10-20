@@ -93,7 +93,7 @@ def _get_lims_and_gridsize(center_frequency, sound_speed):
     return {"xlims": xlims, "zlims": zlims, "grid_size_x": gridsize[0], "grid_size_z": gridsize[1]}
 
 
-def _get_planewave_scan(ultrasound_probe, grid_type):
+def _get_planewave_scan(ultrasound_probe, grid_type, **kwargs):
     """Returns a scan for ultrasound simulation tests."""
     constant_scan_kwargs = _get_constant_scan_kwargs()
     n_el = ultrasound_probe.n_el
@@ -126,10 +126,11 @@ def _get_planewave_scan(ultrasound_probe, grid_type):
         grid_type=grid_type,
         **_get_lims_and_gridsize(ultrasound_probe.center_frequency, sound_speed),
         **constant_scan_kwargs,
+        **kwargs,
     )
 
 
-def _get_multistatic_scan(ultrasound_probe, grid_type):
+def _get_multistatic_scan(ultrasound_probe, grid_type, **kwargs):
     n_el = ultrasound_probe.n_el
     n_tx = 8
 
@@ -161,10 +162,11 @@ def _get_multistatic_scan(ultrasound_probe, grid_type):
             ultrasound_probe.center_frequency, constant_scan_kwargs["sound_speed"]
         ),
         **constant_scan_kwargs,
+        **kwargs,
     )
 
 
-def _get_diverging_scan(ultrasound_probe, grid_type):
+def _get_diverging_scan(ultrasound_probe, grid_type, **kwargs):
     """Returns a scan for ultrasound simulation tests."""
     constant_scan_kwargs = _get_constant_scan_kwargs()
     n_el = ultrasound_probe.n_el
@@ -203,10 +205,11 @@ def _get_diverging_scan(ultrasound_probe, grid_type):
         grid_type=grid_type,
         **_get_lims_and_gridsize(ultrasound_probe.center_frequency, sound_speed),
         **constant_scan_kwargs,
+        **kwargs,
     )
 
 
-def _get_focused_scan(ultrasound_probe, grid_type):
+def _get_focused_scan(ultrasound_probe, grid_type, **kwargs):
     """Returns a scan for ultrasound simulation tests."""
     constant_scan_kwargs = _get_constant_scan_kwargs()
     n_el = ultrasound_probe.n_el
@@ -245,10 +248,11 @@ def _get_focused_scan(ultrasound_probe, grid_type):
         grid_type=grid_type,
         **_get_lims_and_gridsize(ultrasound_probe.center_frequency, sound_speed),
         **constant_scan_kwargs,
+        **kwargs,
     )
 
 
-def _get_linescan_scan(ultrasound_probe, grid_type):
+def _get_linescan_scan(ultrasound_probe, grid_type, **kwargs):
     """Returns a scan for ultrasound simulation tests."""
     constant_scan_kwargs = _get_constant_scan_kwargs()
     n_el = ultrasound_probe.n_el
@@ -301,25 +305,26 @@ def _get_linescan_scan(ultrasound_probe, grid_type):
         grid_type=grid_type,
         **_get_lims_and_gridsize(ultrasound_probe.center_frequency, sound_speed),
         **constant_scan_kwargs,
+        **kwargs,
     )
 
 
-def _get_scan(ultrasound_probe, kind, grid_type="cartesian") -> Scan:
+def _get_scan(ultrasound_probe, kind, grid_type="cartesian", **kwargs) -> Scan:
     if kind == "planewave":
-        return _get_planewave_scan(ultrasound_probe, grid_type)
+        return _get_planewave_scan(ultrasound_probe, grid_type, **kwargs)
     elif kind == "multistatic":
-        return _get_multistatic_scan(ultrasound_probe, grid_type)
+        return _get_multistatic_scan(ultrasound_probe, grid_type, **kwargs)
     elif kind == "diverging":
-        return _get_diverging_scan(ultrasound_probe, grid_type)
+        return _get_diverging_scan(ultrasound_probe, grid_type, **kwargs)
     elif kind == "focused":
-        return _get_focused_scan(ultrasound_probe, grid_type)
+        return _get_focused_scan(ultrasound_probe, grid_type, **kwargs)
     elif kind == "linescan":
-        return _get_linescan_scan(ultrasound_probe, grid_type)
+        return _get_linescan_scan(ultrasound_probe, grid_type, **kwargs)
     else:
         raise ValueError(f"Unknown scan kind: {kind}")
 
 
-def get_scan(kind="planewave", probe_kind="linear", grid_type="cartesian") -> Scan:
+def get_scan(kind="planewave", probe_kind="linear", grid_type="cartesian", **kwargs) -> Scan:
     """Returns a scan for ultrasound simulation tests."""
     ultrasound_probe = _get_probe(probe_kind)
-    return _get_scan(ultrasound_probe, kind, grid_type)
+    return _get_scan(ultrasound_probe, kind, grid_type, **kwargs)
