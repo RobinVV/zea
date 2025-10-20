@@ -47,7 +47,7 @@ def cache_with_dependencies(*deps):
     return decorator
 
 
-class MissingDependencyError(AttributeError):
+class MissingDependencyError(ValueError):
     """Exception indicating that a dependency of an attribute was not met."""
 
     def __init__(self, attribute: str, missing_dependencies: set):
@@ -287,18 +287,23 @@ class Parameters(ZeaObject):
 
         raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
 
-    def __getattr__(self, item):
-        # Handle case during unpickling when internal attributes may not be set yet
-        if "_params" not in self.__dict__:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+    def _has_param(self, name):
+        """Check if a parameter is set (i.e., exists in _params)."""
+        # Check for existence of _params to avoid issues during unpickling
+        return "_params" in self.__dict__ and name in self._params
 
-        # Only have to handle _params here
-        # -> properties are handled through __getattribute__
-        # -> properties with dependencies are handled through cache_with_dependencies
-        if item in self._params:
+    def __getattr__(self, item):
+        """Handle attribute access for parameters only.
+
+        Properties with dependencies are handled by cache_with_dependencies decorator.
+        Regular properties are handled by normal Python descriptor protocol.
+        """
+        # Return parameter value if it exists
+        if self._has_param(item):
             return self._params[item]
 
-        return super().__getattr__(item)
+        # Attribute not found
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
@@ -317,7 +322,7 @@ class Parameters(ZeaObject):
         # Give clear error message on assignment to computed properties
         if self._is_property_with_dependencies(key) and key not in self.VALID_PARAMS:
             leaf_params = sorted(self._find_leaf_params(key))
-            raise AttributeError(
+            raise ValueError(
                 f"Cannot set computed property '{key}'. Only leaf parameters can be set. "
                 f"To change '{key}', set one or more of its leaf parameters: {leaf_params}"
             )
