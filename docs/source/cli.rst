@@ -23,7 +23,7 @@ Data copying
    :nodefaultconst:
 
 -------------------------------
-Zea data file manipulation
+Data file manipulation
 -------------------------------
 
 .. argparse::
