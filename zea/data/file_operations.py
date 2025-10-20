@@ -13,47 +13,6 @@ Available operations
 - `resave`: Resave a zea data file. This can be used to change the file format version.
 
 - `extract`: extract frames and transmits in a raw data file.
-
-Command-line usage
-------------------
-
-Sum two input files
-^^^^^^^^^^^^^^^^^^^
-.. code-block:: console
-
-    python -m zea.data.file_operations sum input1.hdf5 input2.hdf5 output.hdf5
-
-Compound frames/transmits
-^^^^^^^^^^^^^^^^^^^^^^^^^
-This can be used to increase the SNR of static acquisitions.
-
-.. code-block:: console
-
-    python -m zea.data.file_operations compound_frames input.hdf5 output.hdf5
-
-
-.. code-block:: console
-
-    python -m zea.data.file_operations compound_transmits input.hdf5 output.hdf5
-
-    
-Resave
-^^^^^^
-Loads a zea data file and saves it again. This can be used to change the file format version.
-
-.. code-block:: console
-
-    python -m zea.data.file_operations resave input.hdf5 output.hdf5
-
-Extract frames and transmits
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-This can be used when you want to extract a subset of the data.
-
-.. code-block:: console
-
-    python -m zea.data.file_operations extract input.hdf5 output.hdf5 --frames 0-9 \
---transmits 0 2 4 6-8
-
 """
 
 import argparse
@@ -381,43 +340,89 @@ def _load_all_data_types_except_raw(file: File, indices=None):
     return data
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Sum multiple raw data files into one.")
-    parser.add_argument(
-        "operation",
-        type=str,
-        choices=OPERATION_NAMES,
-        help="The operation to perform on the input files.",
+OPERATION_NAMES = ["sum", "compound_frames", "compound_transmits", "resave", "extract"]
+
+
+def get_parser():
+    """Command line argument parser with subcommands"""
+
+    parser = argparse.ArgumentParser(
+        description="Manipulate zea data files.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "input_paths", type=Path, nargs="+", help="Paths to the input raw data files."
-    )
-    parser.add_argument(
-        "output_path",
-        type=Path,
-        help="Path to the output file where the summed data will be saved.",
+    subparsers = parser.add_subparsers(dest="operation", required=True)
+    _add_parser_sum(subparsers)
+    _add_parser_compound_frames(subparsers)
+    _add_parser_compound_transmits(subparsers)
+    _add_parser_resave(subparsers)
+    _add_parser_extract(subparsers)
+
+    return parser
+
+
+def _add_parser_sum(subparsers):
+    sum_parser = subparsers.add_parser("sum", help="Sum the raw data of multiple files.")
+    sum_parser.add_argument("input_paths", type=Path, nargs="+", help="Paths to the input files.")
+    sum_parser.add_argument("output_path", type=Path, help="Output HDF5 file.")
+    sum_parser.add_argument(
+        "--overwrite", action="store_true", default=False, help="Overwrite existing output file."
     )
 
-    parser.add_argument(
+
+def _add_parser_compound_frames(subparsers):
+    cf_parser = subparsers.add_parser("compound_frames", help="Compound frames to increase SNR.")
+    cf_parser.add_argument("input_path", type=Path, help="Input HDF5 file.")
+    cf_parser.add_argument("output_path", type=Path, help="Output HDF5 file.")
+    cf_parser.add_argument(
+        "--overwrite", action="store_true", default=False, help="Overwrite existing output file."
+    )
+
+
+def _add_parser_compound_transmits(subparsers):
+    ct_parser = subparsers.add_parser(
+        "compound_transmits", help="Compound transmits to increase SNR."
+    )
+    ct_parser.add_argument("input_path", type=Path, help="Input HDF5 file.")
+    ct_parser.add_argument("output_path", type=Path, help="Output HDF5 file.")
+    ct_parser.add_argument(
+        "--overwrite", action="store_true", default=False, help="Overwrite existing output file."
+    )
+
+
+def _add_parser_resave(subparsers):
+    resave_parser = subparsers.add_parser("resave", help="Resave a file to change format version.")
+    resave_parser.add_argument("input_path", type=Path, help="Input HDF5 file.")
+    resave_parser.add_argument("output_path", type=Path, help="Output HDF5 file.")
+    resave_parser.add_argument(
+        "--overwrite", action="store_true", default=False, help="Overwrite existing output file."
+    )
+
+
+def _add_parser_extract(subparsers):
+    extract_parser = subparsers.add_parser("extract", help="Extract subset of frames or transmits.")
+    extract_parser.add_argument("input_path", type=Path, help="Input HDF5 file.")
+    extract_parser.add_argument("output_path", type=Path, help="Output HDF5 file.")
+    extract_parser.add_argument(
         "--transmits",
         type=str,
         nargs="*",
         default="all",
-        help=("Target transmits. Can be a list of integers or ranges (e.g. 0-3)."),
+        help="Target transmits. Can be a list of integers or ranges (e.g. 0-3 7).",
     )
-
-    parser.add_argument(
+    extract_parser.add_argument(
         "--frames",
         type=str,
         nargs="*",
         default="all",
-        help=("Target frames. Can be a list of integers or ranges (e.g. 0-3)."),
+        help="Target frames. Can be a list of integers or ranges (e.g. 0-3 7).",
     )
-
-    parser.add_argument(
+    extract_parser.add_argument(
         "--overwrite", action="store_true", default=False, help="Overwrite existing output file."
     )
 
+
+if __name__ == "__main__":
+    parser = get_parser()
     args = parser.parse_args()
 
     if args.output_path.exists() and not args.overwrite:
@@ -428,19 +433,17 @@ if __name__ == "__main__":
 
     if args.operation == "compound_frames":
         compound_frames(
-            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
+            input_path=args.input_path, output_path=args.output_path, overwrite=args.overwrite
         )
     elif args.operation == "compound_transmits":
         compound_transmits(
-            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
+            input_path=args.input_path, output_path=args.output_path, overwrite=args.overwrite
         )
     elif args.operation == "resave":
-        resave(
-            input_path=args.input_paths[0], output_path=args.output_path, overwrite=args.overwrite
-        )
+        resave(input_path=args.input_path, output_path=args.output_path, overwrite=args.overwrite)
     elif args.operation == "extract":
         extract_frames_transmits(
-            input_path=args.input_paths[0],
+            input_path=args.input_path,
             output_path=args.output_path,
             frame_indices=_interpret_indices(args.frames),
             transmit_indices=_interpret_indices(args.transmits),
