@@ -222,6 +222,19 @@ def patched_pipeline():
     return pipeline
 
 
+def test_pipeline_modification():
+    """Tests if modifying the pipeline updates callable layers correctly."""
+    # set timed to True to ensure _callable_layers is used
+    # basically this makes sure that the pipeline is reinitialized
+    pipeline = ops.Pipeline.from_default(jit_options=None, with_batch_dim=False, timed=True)
+    pipeline.prepend(ops.Simulate())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+    pipeline.append(ops.Normalize())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+    pipeline.insert(2, ops.Identity())
+    assert len(pipeline._callable_layers) == len(pipeline.operations)
+
+
 def test_operation_initialization(test_operation):
     """Tests initialization of an Operation."""
     assert test_operation.cache_inputs is True
@@ -730,6 +743,19 @@ def test_default_ultrasound_pipeline(
         rtol=1e-3,
         atol=1e-3,
     )
+
+
+def test_pipeline_parameter_tracing(ultrasound_scan: Scan):
+    """Tests that the pipeline can run without parameters that are not needed as input because they
+    are computed inside the pipeline."""
+
+    pipeline = ops.Pipeline([ops.Demodulate(), ops.TOFCorrection()])
+    ultrasound_scan._params.pop("n_ch", None)  # remove a parameter that is not needed
+    ultrasound_scan._params.pop("demodulation_frequency", None)
+    params = pipeline.prepare_parameters(scan=ultrasound_scan)
+    data = np.random.randn(1, ultrasound_scan.n_tx, ultrasound_scan.n_ax, ultrasound_scan.n_el, 1)
+    output = pipeline(data=data, **params)
+    assert "demodulation_frequency" in output
 
 
 def test_ops_pass_positional_arg():

@@ -220,8 +220,9 @@ class Scan(Parameters):
     }
 
     def __init__(self, **kwargs):
-        # Store the current selection state before initialization
-        selected_transmits_input = kwargs.pop("selected_transmits", None)
+        # Ensure that selected_transmits is present and set to None by default
+        selected_transmits_input = kwargs.get("selected_transmits", None)
+        kwargs["selected_transmits"] = None
 
         # Initialize parent class
         super().__init__(**kwargs)
@@ -398,14 +399,12 @@ class Scan(Parameters):
         if selection is None or selection == "all":
             self._selected_transmits = None
             self._invalidate("selected_transmits")
-            self._invalidate_dependents("selected_transmits")
             return self
 
         # Handle "center" - use center transmit
         if selection == "center":
             self._selected_transmits = [n_tx_total // 2]
             self._invalidate("selected_transmits")
-            self._invalidate_dependents("selected_transmits")
             return self
 
         # Handle integer - select evenly spaced transmits
@@ -427,7 +426,6 @@ class Scan(Parameters):
                 self._selected_transmits = list(np.rint(tx_indices).astype(int))
 
             self._invalidate("selected_transmits")
-            self._invalidate_dependents("selected_transmits")
             return self
 
         # Handle slice - convert to list of indices
@@ -447,7 +445,6 @@ class Scan(Parameters):
                 int(i) for i in selection
             ]  # Convert numpy integers to Python ints
             self._invalidate("selected_transmits")
-            self._invalidate_dependents("selected_transmits")
             return self
 
         # Aliasing check
@@ -573,6 +570,7 @@ class Scan(Parameters):
         "tx_apodizations",
         "grid",
         "t0_delays",
+        "pfield_kwargs",
     )
     def pfield(self):
         """Compute or return the pressure field (pfield) for weighting."""
@@ -679,5 +677,5 @@ class Scan(Parameters):
         if key == "selected_transmits":
             # If setting selected_transmits, call set_transmits to handle logic
             self.set_transmits(value)
-            return
+            return super().__setattr__(key, self.selected_transmits)
         return super().__setattr__(key, value)
