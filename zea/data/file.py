@@ -219,6 +219,27 @@ class File(h5py.File):
     def load_data(self, data_type, indices: str | int | List[int] = "all"):
         """Load data from the file.
 
+        The indices parameter can be used to load a subset of the data. This can be
+
+        - 'all' to load all data
+
+        - an int to load a single frame
+
+        - a list of ints to load specific frames
+
+        - a tuple of lists, ranges or slices to index frames and transmits. Note that
+          indexing with lists of indices for both axes is not supported. In that case,
+          try to define one of the axes with a slice.
+
+        .. code-block:: python
+
+            # Load frame 5
+            File.load_data("raw_data", indices=5)
+            # Load frames 0, 2 and 4
+            File.load_data("raw_data", indices=[0, 2, 4])
+            # Load frames 0-9 and transmits 0, 2 and 4
+            File.load_data("raw_data", indices=(slice(10), [0, 2, 4]))
+
         Args:
             data_type (str): The type of data to load. Options are 'raw_data', 'aligned_data',
                 'beamformed_data', 'envelope_data', 'image' and 'image_sc'.
