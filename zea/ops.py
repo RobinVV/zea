@@ -1264,9 +1264,10 @@ class PatchedGrid(Pipeline):
 
     """
 
-    def __init__(self, *args, num_patches=10, **kwargs):
+    def __init__(self, *args, num_patches=10, out_axis=0, **kwargs):
         super().__init__(*args, name="patched_grid", **kwargs)
         self.num_patches = num_patches
+        self.out_axis = out_axis
 
         for operation in self.operations:
             if isinstance(operation, DelayAndSum):
@@ -1347,7 +1348,8 @@ class PatchedGrid(Pipeline):
         def patched_call(flatgrid, **patch_kwargs):
             patch_args = {k: v for k, v in patch_kwargs.items() if v is not None}
             out = super(PatchedGrid, self).call(flatgrid=flatgrid, **patch_args, **inputs)
-            return out[self.output_key]
+            data = out[self.output_key]
+            return ops.moveaxis(data, self.out_axis, 0)
 
         out = patched_map(
             patched_call,
@@ -1356,7 +1358,8 @@ class PatchedGrid(Pipeline):
             **patch_arrays,
             jit=bool(self.jit_options),
         )
-        return ops.reshape(out, (grid_size_z, grid_size_x, *ops.shape(out)[1:]))
+        out = ops.moveaxis(out, 0, self.out_axis)
+        return reshape_axis(out, (grid_size_z, grid_size_x), self.out_axis)
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
