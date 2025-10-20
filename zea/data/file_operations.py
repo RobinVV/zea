@@ -402,14 +402,14 @@ def _add_parser_extract(subparsers):
     extract_parser.add_argument(
         "--transmits",
         type=str,
-        nargs="*",
+        nargs="+",
         default="all",
         help="Target transmits. Can be a list of integers or ranges (e.g. 0-3 7).",
     )
     extract_parser.add_argument(
         "--frames",
         type=str,
-        nargs="*",
+        nargs="+",
         default="all",
         help="Target frames. Can be a list of integers or ranges (e.g. 0-3 7).",
     )
