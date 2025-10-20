@@ -561,7 +561,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("pfield")
     def flat_pfield(self):
-        """Flattened pfield for weighting."""
+        """Flattened pfield for weighting of shape (n_pix, n_tx)."""
         return self.pfield.reshape(self.n_tx, -1).swapaxes(0, 1)
 
     @cache_with_dependencies("zlims")
