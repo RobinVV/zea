@@ -3204,7 +3204,7 @@ def compute_time_to_peak(waveform, center_frequency, waveform_sampling_frequency
     """
     n_samples = waveform.shape[0]
     if n_samples == 0:
-        return 0.0
+        raise ValueError("Waveform has zero samples.")
 
     waveforms_iq_complex_channels = demodulate(
         waveform[..., None], center_frequency, waveform_sampling_frequency, axis=-1
