@@ -91,7 +91,7 @@ def deprecated(replacement=None):
         DeprecationWarning: A warning is issued when the deprecated item is called or accessed.
 
     Example:
-        >>> from zea.utils import deprecated
+        >>> from zea.internal.utils import deprecated
         >>> class MyClass:
         ...     @deprecated(replacement="new_method")
         ...     def old_method(self):
@@ -151,6 +151,9 @@ def deprecated(replacement=None):
                     )
                 else:
                     log.deprecated(f"Setting value to deprecated attribute {item.fget.__name__}.")
+
+                if item.fset is None:
+                    raise AttributeError(f"{item.fget.__name__} is read-only")
                 item.fset(self, value)
 
             def deleter(self):
@@ -161,6 +164,9 @@ def deprecated(replacement=None):
                     )
                 else:
                     log.deprecated(f"Deleting deprecated attribute {item.fget.__name__}.")
+
+                if item.fdel is None:
+                    raise AttributeError(f"{item.fget.__name__} cannot be deleted")
                 item.fdel(self)
 
             return property(getter, setter, deleter)
