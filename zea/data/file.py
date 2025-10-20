@@ -6,6 +6,7 @@ from typing import List
 
 import h5py
 import numpy as np
+from keras.utils import pad_sequences
 
 from zea import log
 from zea.data.preset_utils import HF_PREFIX, _hf_resolve_path
@@ -831,9 +832,7 @@ def _reformat_waveforms(scan_kwargs: dict) -> dict:
 
 
 def _waveforms_dict_to_array(waveforms_dict: dict):
-    from zea.data.data_format import _stack_waveforms
-
     waveforms = []
     for key in sorted(waveforms_dict.keys()):
         waveforms.append(waveforms_dict[key])
-    return _stack_waveforms(waveforms)
+    return pad_sequences(waveforms, dtype=np.float32, padding="post")
