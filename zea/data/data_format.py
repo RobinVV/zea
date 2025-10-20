@@ -478,7 +478,7 @@ def _write_datasets(
                 description=(
                     "One-way waveform as simulated by the Verasonics system, "
                     "sampled at 250MHz. This is the waveform after being filtered "
-                    "by the tranducer bandwidth once."
+                    "by the transducer bandwidth once."
                 ),
                 unit="V",
             )
@@ -491,7 +491,7 @@ def _write_datasets(
                 description=(
                     "Two-way waveform as simulated by the Verasonics system, "
                     "sampled at 250MHz. This is the waveform after being filtered "
-                    "by the tranducer bandwidth twice."
+                    "by the transducer bandwidth twice."
                 ),
                 unit="V",
             )
@@ -584,10 +584,10 @@ def generate_zea_dataset(
             waveform was used for each transmit event.
         waveforms_one_way (list): List of one-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth once. Every element in the list is a 1D numpy array.
+            transducer bandwidth once. Every element in the list is a 1D numpy array.
         waveforms_two_way (list): List of two-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth twice. Every element in the list is a 1D numpy array.
+            transducer bandwidth twice. Every element in the list is a 1D numpy array.
         additional_elements (List[DatasetElement]): A list of additional dataset
             elements to be added to the dataset. Each element should be a DatasetElement
             object. The additional elements are added under the scan group.
