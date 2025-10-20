@@ -91,7 +91,7 @@ def save_file(
 
     Args:
         path (str, pathlike): The path to the hdf5 file.
-        data (np.ndarray): The data to save.
+        raw_data (np.ndarray): The data to save.
         scan (Scan): The scan object containing the parameters of the acquisition.
         probe (Probe): The probe object containing the parameters of the probe.
         additional_elements (list of DatasetElement, optional): Additional elements to save in the
