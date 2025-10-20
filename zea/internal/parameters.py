@@ -57,6 +57,13 @@ class MissingDependencyError(ValueError):
         )
 
 
+class NoDependencyError(ValueError):
+    """Exception indicating that an attribute has no dependencies defined."""
+
+    def __init__(self, name: str):
+        super().__init__(f"'{name}' is not a computed property with dependencies.")
+
+
 class Parameters(ZeaObject):
     """Base class for parameters with dependencies.
 
@@ -81,7 +88,7 @@ class Parameters(ZeaObject):
 
     - **Leaf Parameter Enforcement:** Only leaf parameters
       (those directly listed in `VALID_PARAMS`) can be set. Attempting to set a computed
-      property raises an informative `AttributeError` listing the leaf parameters
+      property raises an informative `ValueError` listing the leaf parameters
       that must be changed instead.
 
     - **Optional Dependency Parameters:** Parameters can be both set directly (as a leaf)
@@ -98,7 +105,7 @@ class Parameters(ZeaObject):
       computed properties to tensors for machine learning workflows.
 
     - **Error Reporting:** If a computed property cannot be resolved due to missing dependencies,
-      an informative `AttributeError` is raised, listing the missing parameters.
+      an informative `MissingDependencyError` is raised, listing the missing parameters.
 
     **Usage Example:**
 
@@ -131,7 +138,7 @@ class Parameters(ZeaObject):
         print(p.c)  # Recomputes c
 
         # You are not allowed to set computed properties
-        # p.c = 5  # Raises AttributeError
+        # p.c = 5  # Raises ValueError
 
         # Now check out the optional dependency, this can be either
         # set directly during initialization or computed from dependencies (default)
@@ -259,7 +266,7 @@ class Parameters(ZeaObject):
     def _get_dependencies(cls, name):
         """Get the dependencies of a computed property."""
         if not cls._is_property_with_dependencies(name):
-            raise AttributeError(f"'{name}' is not a computed property with dependencies.")
+            raise NoDependencyError(name)
         return getattr(cls, name).fget._dependencies
 
     def _find_leaf_params(self, name, seen=None):
@@ -342,9 +349,9 @@ class Parameters(ZeaObject):
             del self._params[name]
             self._invalidate(name)
         elif name in self.VALID_PARAMS:
-            raise AttributeError(f"Cannot delete parameter '{name}' because it is not set.")
-
-        super().__delattr__(name)
+            raise ValueError(f"Cannot delete parameter '{name}' because it is not set.")
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def _check_for_circular_dependencies(cls, name, seen=None):
@@ -401,7 +408,7 @@ class Parameters(ZeaObject):
         Mainly needed to track changes in mutable parameters.
         """
         if not self._is_property_with_dependencies(key):
-            raise AttributeError(f"'{key}' is not a computed property with dependencies.")
+            raise NoDependencyError(key)
         deps = self._find_leaf_params(key)
         values = [self._params.get(dep) for dep in sorted(deps)]
         return hash_elements(values)
