@@ -567,6 +567,7 @@ class Pipeline:
         beamforming = [
             TOFCorrection(),
             DelayAndSum(),
+            ReshapeGrid(),
         ]
         if pfield:
             beamforming.insert(1, PfieldWeighting())
@@ -1268,11 +1269,6 @@ class PatchedGrid(Pipeline):
         super().__init__(*args, name="patched_grid", **kwargs)
         self.num_patches = num_patches
         self.out_axis = out_axis
-
-        for operation in self.operations:
-            if isinstance(operation, DelayAndSum):
-                operation.reshape_grid = False
-
         self._jittable_call = self.jittable_call
 
     @property
@@ -1311,31 +1307,8 @@ class PatchedGrid(Pipeline):
         for operation in self.operations:
             operation.with_batch_dim = False
 
-    @property
-    def _extra_keys(self):
-        return {"flatgrid", "grid_size_x", "grid_size_z"}
-
-    @property
-    def valid_keys(self) -> set:
-        """Get a set of valid keys for the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
-        inside it)."""
-        return super().valid_keys.union(self._extra_keys)
-
-    @property
-    def needs_keys(self) -> set:
-        """Get a set of all input keys needed by the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
-        inside it)."""
-        return super().needs_keys.union(self._extra_keys)
-
-    def call_item(self, inputs):
+    def call_item(self, flatgrid, inputs):
         """Process data in patches."""
-        # Extract necessary parameters
-        # make sure to add those as valid keys above!
-        grid_size_x = inputs["grid_size_x"]
-        grid_size_z = inputs["grid_size_z"]
-        flatgrid = inputs.pop("flatgrid")
 
         # Define a list of keys to look up for patching
         patch_keys = ["flat_pfield"]
@@ -1358,25 +1331,24 @@ class PatchedGrid(Pipeline):
             **patch_arrays,
             jit=bool(self.jit_options),
         )
-        out = ops.moveaxis(out, 0, self.out_axis)
-        return reshape_axis(out, (grid_size_z, grid_size_x), self.out_axis)
+        return ops.moveaxis(out, 0, self.out_axis)
 
-    def jittable_call(self, **inputs):
+    def jittable_call(self, flatgrid, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:
             input_data = inputs.pop(self.key)
             output = ops.map(
-                lambda x: self.call_item({self.key: x, **inputs}),
+                lambda x: self.call_item(flatgrid, {self.key: x, **inputs}),
                 input_data,
             )
         else:
-            output = self.call_item(inputs)
+            output = self.call_item(flatgrid, inputs)
 
         return {self.output_key: output}
 
-    def call(self, **inputs):
+    def call(self, flatgrid=None, **inputs):
         """Process input data through the pipeline."""
-        output = self._jittable_call(**inputs)
+        output = self._jittable_call(flatgrid=flatgrid, **inputs)
         inputs.update(output)
         return inputs
 
@@ -1641,7 +1613,7 @@ class PfieldWeighting(Operation):
         Returns:
             dict: Dictionary containing weighted data
         """
-        data = kwargs[self.key]  # must start with (n_pix, n_tx, ...)
+        data = kwargs[self.key]  # must start with (n_tx, n_pix, ...)
 
         if flat_pfield is None:
             return {self.output_key: data}
@@ -1666,17 +1638,12 @@ class PfieldWeighting(Operation):
 class DelayAndSum(Operation):
     """Sums time-delayed signals along channels and transmits."""
 
-    def __init__(
-        self,
-        reshape_grid=True,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             input_data_type=None,
             output_data_type=DataTypes.BEAMFORMED_DATA,
             **kwargs,
         )
-        self.reshape_grid = reshape_grid
 
     def process_image(self, data):
         """Performs DAS beamforming on tof-corrected input.
@@ -1704,9 +1671,7 @@ class DelayAndSum(Operation):
 
         Returns:
             dict: Dictionary containing beamformed_data
-                of shape `(grid_size_z*grid_size_x, n_ch)` when reshape_grid is False
-                or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
-                with optional batch dimension.
+                of shape `(grid_size_z*grid_size_x, n_ch)` with optional batch dimension.
         """
         data = kwargs[self.key]
 
@@ -1716,12 +1681,31 @@ class DelayAndSum(Operation):
             # Apply process_image to each item in the batch
             beamformed_data = ops.map(self.process_image, data)
 
-        if self.reshape_grid:
-            beamformed_data = reshape_axis(
-                beamformed_data, grid.shape[:2], axis=int(self.with_batch_dim)
-            )
-
         return {self.output_key: beamformed_data}
+
+
+class ReshapeGrid(Operation):
+    """Reshape flat grid data to 2D grid shape."""
+
+    STATIC_PARAMS = ["grid_size_x", "grid_size_z"]
+
+    def __init__(self, axis=0, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+
+    def call(self, grid_size_z, grid_size_x, **kwargs):
+        """
+        Args:
+            - data (Tensor): The flat grid data of shape (..., n_pix, ...).
+        Returns:
+            - reshaped_data (Tensor): The reshaped data
+                of shape (..., grid_size_z, grid_size_x, ...).
+        """
+        data = kwargs[self.key]
+        reshaped_data = reshape_axis(
+            data, (grid_size_z, grid_size_x), self.axis + int(self.with_batch_dim)
+        )
+        return {self.output_key: reshaped_data}
 
 
 @ops_registry("envelope_detect")
@@ -2210,7 +2194,10 @@ class Lambda(Operation):
 
     def call(self, **kwargs):
         data = kwargs[self.key]
-        data = self.func(data)
+        if self.with_batch_dim:
+            data = ops.map(self.func, data)
+        else:
+            data = self.func(data)
         return {self.output_key: data}
 
 
