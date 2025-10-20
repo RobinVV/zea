@@ -3179,13 +3179,15 @@ def compute_time_to_peak_stack(waveforms, center_frequencies, waveform_sampling_
 
     Args:
         waveforms (ndarray): The waveforms of shape (n_waveforms, n_samples).
-        center_frequencies (ndarray): The center frequencies of the waveforms in Hz.
+        center_frequencies (ndarray): The center frequencies of the waveforms in Hz of shape
+            (n_waveforms,) or a scalar if all waveforms have the same center frequency.
         waveform_sampling_frequency (float): The sampling frequency of the waveforms in Hz.
 
     Returns:
         ndarray: The time to peak for each waveform in seconds.
     """
     t_peak = []
+    center_frequencies = center_frequencies * ops.ones((waveforms.shape[0],))
     for waveform, center_frequency in zip(waveforms, center_frequencies):
         t_peak.append(compute_time_to_peak(waveform, center_frequency, waveform_sampling_frequency))
     return ops.stack(t_peak)
