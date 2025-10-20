@@ -157,7 +157,8 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
         shared_color_palette (bool, optional): If True, creates a global
             color palette across all frames, ensuring consistent colors
             throughout the GIF. Defaults to False, which is default behavior
-            of PIL.Image.save. Note: True can cause slow saving for longer sequences.
+            of PIL.Image.save. Note: True can cause slow saving for longer
+            sequences, and also lead to larger file sizes in some cases.
 
     """
     images = preprocess_for_saving(images)
