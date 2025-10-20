@@ -187,7 +187,7 @@ def calculate_file_hash(file_path, omit_line_str=None):
     hash_object = hashlib.sha256()
     with open(file_path, "rb") as f:
         for line in f:
-            if omit_line_str is not None and omit_line_str in str(line):
+            if omit_line_str is not None and omit_line_str.encode() in line:
                 continue
             hash_object.update(line)
     return hash_object.hexdigest()
