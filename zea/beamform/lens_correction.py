@@ -64,9 +64,11 @@ def calculate_lens_corrected_delays(
         # Add a large offset to elements that are not used in the transmit to
         # diqualify them from being the closest element
         apod_offset = ops.where(tx_apodizations[tx] == 0, 10.0, 0)
-        tx_min = ops.min(rx_delays + t0_delays[tx] + apod_offset, axis=-1) + initial_times[tx]
+        tx_min = ops.min(rx_delays + t0_delays[tx] + apod_offset, axis=-1) - initial_times[tx]
         tx_delays.append(tx_min)
-    tx_delays = ops.stack(tx_delays, axis=-1) + t_peak[tx_waveform_indices][None]
+    tx_delays = ops.stack(tx_delays, axis=-1) + ops.take(t_peak, tx_waveform_indices)[None]
+    tx_delays = ops.nan_to_num(tx_delays, nan=0.0, posinf=0.0, neginf=0.0)
+    rx_delays = ops.nan_to_num(rx_delays, nan=0.0, posinf=0.0, neginf=0.0)
 
     tx_delays *= sampling_frequency
     rx_delays *= sampling_frequency
