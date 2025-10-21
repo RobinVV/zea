@@ -570,22 +570,6 @@ class Scan(Parameters):
             return np.ones(self.n_ax)
         return value[: self.n_ax]
 
-    @property
-    def waveforms_one_way(self):
-        """The one-way transmit waveforms of shape (n_waveforms, n_samples)."""
-        value = self._params.get("waveforms_one_way")
-        if value is None:
-            return None
-        return value
-
-    @property
-    def waveforms_two_way(self):
-        """The two-way transmit waveforms of shape (n_waveforms, n_samples)."""
-        value = self._params.get("waveforms_two_way")
-        if value is None:
-            return None
-        return value
-
     @cache_with_dependencies("selected_transmits")
     def tx_waveform_indices(self):
         """Indices of the waveform used for each transmit event of shape (n_tx,)."""

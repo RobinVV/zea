@@ -543,7 +543,9 @@ class Pipeline:
         return needs
 
     @classmethod
-    def from_default(cls, num_patches=100, baseband=False, pfield=False, **kwargs) -> "Pipeline":
+    def from_default(
+        cls, num_patches=100, baseband=False, pfield=False, timed=False, **kwargs
+    ) -> "Pipeline":
         """Create a default pipeline.
 
         Args:
@@ -554,6 +556,7 @@ class Pipeline:
                 so input signal has a single channel dim and is still on carrier frequency.
             pfield (bool): If True, apply Pfield weighting. Defaults to False.
                 This will calculate pressure field and only beamform the data to those locations.
+            timed (bool, optional): Whether to time each operation. Defaults to False.
             **kwargs: Additional keyword arguments to be passed to the Pipeline constructor.
 
         """
@@ -584,7 +587,7 @@ class Pipeline:
             Normalize(),
             LogCompress(),
         ]
-        return cls(operations, **kwargs)
+        return cls(operations, timed=timed, **kwargs)
 
     def copy(self) -> "Pipeline":
         """Create a copy of the pipeline."""

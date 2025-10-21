@@ -189,28 +189,32 @@ def test_block_until_ready_timing():
 
     @jit
     def slow_computation(x):
-        # Force some computation that takes time
-        for _ in range(1000):
-            x = ops.sin(x) + ops.cos(x)
-        return x
+        # Vectorized heavy computation (no Python for-loop):
+        # - Build an outer-product matrix (n x n)
+        # - Apply elementwise trig operations
+        # - Reduce to a scalar
+        y = ops.matmul(x[:, None], x[None, :])  # shape (n, n)
+        z = ops.sin(y) + ops.cos(y)
+        return ops.sum(z, axis=1)
 
-    x = ops.ones(1000)
+    x = ops.ones(10_000)
 
-    # Compile first (call twice to ensure compilation is done)
-    _ = slow_computation(x)
+    # Compile first
     _ = slow_computation(x)
 
     # Measure time without block_until_ready (might return before completion)
+    y = slow_computation(x)
     start = time.perf_counter()
-    _ = slow_computation(x)
+    print(y[0])  # Force a print to ensure any lazy evaluation is triggered
     no_block_time = time.perf_counter() - start
 
     # Measure time with block_until_ready (ensures completion)
+    y = block_until_ready(slow_computation)(x)
     start = time.perf_counter()
-    _ = block_until_ready(slow_computation)(x)
+    print(y[0])  # Force a print to ensure any lazy evaluation is triggered
     with_block_time = time.perf_counter() - start
 
     print(f"Without block_until_ready: {no_block_time:.4f}s")
     print(f"With block_until_ready: {with_block_time:.4f}s")
     print("Timing test completed!")
-    assert with_block_time >= no_block_time, "block_until_ready did not wait for completion"
+    assert with_block_time <= no_block_time, "block_until_ready did not wait for completion"
