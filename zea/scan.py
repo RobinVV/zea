@@ -137,6 +137,8 @@ class Scan(Parameters):
             (n_waveforms, n_samples).
         tx_waveform_indices (np.ndarray): Indices of the waveform used for each
             transmit event of shape (n_tx,).
+        t_peak (np.ndarray, optional): The time of the peak of the pulse of every transmit waveform
+            of shape (n_waveforms,).
         pixels_per_wavelength (int, optional): Number of pixels per wavelength.
             Defaults to 4.
         element_width (float, optional): Width of each transducer element in meters.
@@ -167,6 +169,7 @@ class Scan(Parameters):
             Can be "cartesian" or "polar". Defaults to "cartesian".
         dynamic_range (tuple, optional): Dynamic range for image display.
             Defined in dB as (min_dB, max_dB). Defaults to (-60, 0).
+
     """
 
     VALID_PARAMS = {
@@ -211,6 +214,7 @@ class Scan(Parameters):
         "waveforms_one_way": {"type": np.ndarray},
         "waveforms_two_way": {"type": np.ndarray},
         "tx_waveform_indices": {"type": np.ndarray},
+        "t_peak": {"type": np.ndarray},
         # scan conversion parameters
         "theta_range": {"type": (tuple, list)},
         "phi_range": {"type": (tuple, list)},
@@ -356,6 +360,11 @@ class Scan(Parameters):
         """The total number of transmits in the full dataset."""
         return self._params["n_tx"]
 
+    @property
+    def n_tx_selected(self):
+        """The number of currently selected transmits."""
+        return len(self.selected_transmits)
+
     @cache_with_dependencies("selected_transmits")
     def n_tx(self):
         """The number of currently selected transmits."""
@@ -489,7 +498,7 @@ class Scan(Parameters):
         value = self._params.get("azimuth_angles")
         if value is None:
             log.warning("No azimuth angles provided, using zeros")
-            value = np.zeros(self.n_tx_total)
+            value = np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
 
@@ -500,7 +509,7 @@ class Scan(Parameters):
         value = self._params.get("t0_delays")
         if value is None:
             log.warning("No transmit delays provided, using zeros")
-            return np.zeros((self.n_tx_total, self.n_el))
+            return np.zeros((self.n_tx_selected, self.n_el))
 
         return value[self.selected_transmits]
 
@@ -510,7 +519,7 @@ class Scan(Parameters):
         value = self._params.get("tx_apodizations")
         if value is None:
             log.warning("No transmit apodizations provided, using ones")
-            value = np.ones((self.n_tx_total, self.n_el))
+            value = np.ones((self.n_tx_selected, self.n_el))
 
         return value[self.selected_transmits]
 
@@ -520,7 +529,7 @@ class Scan(Parameters):
         value = self._params.get("focus_distances")
         if value is None:
             log.warning("No focus distances provided, using zeros")
-            value = np.zeros(self.n_tx_total)
+            value = np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
 
@@ -530,9 +539,18 @@ class Scan(Parameters):
         value = self._params.get("initial_times")
         if value is None:
             log.warning("No initial times provided, using zeros")
-            value = np.zeros(self.n_tx_total)
+            value = np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
+
+    @property
+    def t_peak(self):
+        """The time of the peak of the pulse in seconds of shape (n_waveforms,)."""
+        t_peak = self._params.get("t_peak")
+        if t_peak is None:
+            t_peak = np.array([1 / self.center_frequency])
+
+        return t_peak
 
     @cache_with_dependencies("selected_transmits")
     def time_to_next_transmit(self):
@@ -557,7 +575,7 @@ class Scan(Parameters):
         """Indices of the waveform used for each transmit event of shape (n_tx,)."""
         value = self._params.get("tx_waveform_indices")
         if value is None:
-            return None
+            return np.zeros(self.n_tx_selected, dtype=int)
 
         return value[self.selected_transmits]
 

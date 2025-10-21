@@ -6,6 +6,7 @@ from typing import List
 
 import h5py
 import numpy as np
+from keras.utils import pad_sequences
 
 from zea import log
 from zea.data.preset_utils import HF_PREFIX, _hf_resolve_path
@@ -831,9 +832,33 @@ def _reformat_waveforms(scan_kwargs: dict) -> dict:
 
 
 def _waveforms_dict_to_array(waveforms_dict: dict):
-    from zea.data.data_format import _stack_waveforms
+    """Convert waveforms stored as a dictionary to a padded numpy array."""
+    waveforms = dict_to_sorted_list(waveforms_dict)
+    return pad_sequences(waveforms, dtype=np.float32, padding="post")
 
-    waveforms = []
-    for key in sorted(waveforms_dict.keys()):
-        waveforms.append(waveforms_dict[key])
-    return _stack_waveforms(waveforms)
+
+def dict_to_sorted_list(dictionary: dict):
+    """Convert a dictionary with sortable keys to a sorted list of values.
+
+    .. note::
+
+        This function operates on the top level of the dictionary only.
+        If the dictionary contains nested dictionaries, those will not be sorted.
+
+    .. code-block:: python
+
+        # Example usage
+        input_dict = {"number_000": 5, "number_001": 1, "number_002": 23}
+        output_list = dict_to_sorted_list(input_dict)
+        # output_list will be:
+        # [
+        #     5, 1, 23
+        # ]
+
+    Args:
+        dictionary (dict): The dictionary to convert. The keys must be sortable.
+
+    Returns:
+        list: The sorted list of values.
+    """
+    return [value for _, value in sorted(dictionary.items())]
