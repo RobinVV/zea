@@ -394,8 +394,8 @@ def read_waveforms(file, tx_order, event=None):
     waveforms_two_way_list = []
 
     # Read all the waveforms from the file
-    n_tw = get_reference_size(file["TW"]["Wvfm1Wy"])
-    for n in range(n_tw):
+    n_waveforms = get_reference_size(file["TW"]["Wvfm1Wy"])
+    for n in range(n_waveforms):
         # Get the row vector of the 1-way waveform
         waveform_one_way = dereference_index(file, file["TW"]["Wvfm1Wy"], n)[:]
         # Turn into 1d array

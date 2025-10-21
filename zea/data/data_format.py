@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from keras.utils import pad_sequences
 
 from zea import log
 from zea.data.file import File, validate_file
@@ -473,11 +474,11 @@ def _write_datasets(
             _add_dataset(
                 group_name=scan_group_name,
                 name="waveforms_one_way",
-                data=_convert_datatype(_stack_waveforms(waveforms_one_way), astype=np.float32),
+                data=pad_sequences(waveforms_one_way, dtype=np.float32, padding="post"),
                 description=(
                     "One-way waveform as simulated by the Verasonics system, "
                     "sampled at 250MHz. This is the waveform after being filtered "
-                    "by the tranducer bandwidth once."
+                    "by the transducer bandwidth once."
                 ),
                 unit="V",
             )
@@ -486,11 +487,11 @@ def _write_datasets(
             _add_dataset(
                 group_name=scan_group_name,
                 name="waveforms_two_way",
-                data=_convert_datatype(_stack_waveforms(waveforms_two_way), astype=np.float32),
+                data=pad_sequences(waveforms_two_way, dtype=np.float32, padding="post"),
                 description=(
                     "Two-way waveform as simulated by the Verasonics system, "
                     "sampled at 250MHz. This is the waveform after being filtered "
-                    "by the tranducer bandwidth twice."
+                    "by the transducer bandwidth twice."
                 ),
                 unit="V",
             )
@@ -583,10 +584,10 @@ def generate_zea_dataset(
             waveform was used for each transmit event.
         waveforms_one_way (list): List of one-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth once. Every element in the list is a 1D numpy array.
+            transducer bandwidth once. Every element in the list is a 1D numpy array.
         waveforms_two_way (list): List of two-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth twice. Every element in the list is a 1D numpy array.
+            transducer bandwidth twice. Every element in the list is a 1D numpy array.
         additional_elements (List[DatasetElement]): A list of additional dataset
             elements to be added to the dataset. Each element should be a DatasetElement
             object. The additional elements are added under the scan group.
@@ -718,22 +719,3 @@ def generate_zea_dataset(
 
     validate_file(path)
     log.info(f"zea dataset written to {log.yellow(path)}")
-
-
-def _stack_waveforms(waveforms):
-    """Stacks a list of waveforms into a 2D numpy array.
-
-    Args:
-        waveforms (list): List of 1D numpy arrays.
-
-    Returns:
-        np.ndarray: 2D numpy array of shape (n_waveforms, max_length).
-    """
-    if waveforms is None or len(waveforms) == 0:
-        return np.zeros((0, 0), dtype=np.float32)
-
-    max_length = max([len(w) for w in waveforms])
-    stacked_waveforms = np.zeros((len(waveforms), max_length), dtype=np.float32)
-    for i, w in enumerate(waveforms):
-        stacked_waveforms[i, : len(w)] = w
-    return stacked_waveforms
