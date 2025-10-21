@@ -838,7 +838,7 @@ def _waveforms_dict_to_array(waveforms_dict: dict):
 
 
 def dict_to_sorted_list(dictionary: dict):
-    """Convert a dictionary with integer keys to a sorted list of values.
+    """Convert a dictionary with sortable keys to a sorted list of values.
 
     .. note::
 
@@ -856,7 +856,7 @@ def dict_to_sorted_list(dictionary: dict):
         # ]
 
     Args:
-        dictionary (dict): The dictionary to convert.
+        dictionary (dict): The dictionary to convert. The keys must be sortable.
 
     Returns:
         list: The sorted list of values.
