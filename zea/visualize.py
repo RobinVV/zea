@@ -94,7 +94,7 @@ def plot_image_grid(
         axes = ImageGrid(fig, 111, nrows_ncols=(nrows, ncols), axes_pad=0.1)
         if background_color:
             fig.patch.set_facecolor(background_color)
-        fig.set_tight_layout({"pad": 0.1})
+        fig.set_layout_engine("tight", pad=0.1)
     else:
         axes = fig.axes[: len(images)]
 
@@ -164,7 +164,7 @@ def plot_image_grid(
     if suptitle:
         fig.suptitle(suptitle, color=text_color)
 
-    fig.set_tight_layout(False)
+    fig.set_layout_engine("none")
     # use bbox_inches="tight" for proper tight layout when saving
     return fig, fig_contents
 
