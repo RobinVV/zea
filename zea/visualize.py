@@ -382,10 +382,10 @@ def plot_frustum_vertices(
     rho_plane=None,
     fig=None,
     ax=None,
-    color_frustum="blue",
-    phi_color="yellow",
-    theta_color="green",
-    rho_color="red",
+    frustum_style=None,
+    phi_style=None,
+    theta_style=None,
+    rho_style=None,
 ):
     """
     Plots the vertices of a frustum in spherical coordinates and highlights specified planes.
@@ -406,6 +406,18 @@ def plot_frustum_vertices(
             Defaults to None. Can be used to reuse the figure in a loop.
         ax (matplotlib.axes.Axes3DSubplot, optional): Axes object to plot on.
             Defaults to None. Can be used to reuse the axes in a loop.
+        frustum_style (dict, optional): Style dictionary for frustum edges. Can include
+            'color', 'linestyle', 'linewidth', 'alpha', etc.
+            Defaults to {'color': 'blue', 'linestyle': '-', 'linewidth': 2}.
+        phi_style (dict, optional): Style dictionary for phi plane(s). Can include
+            'color', 'linestyle', 'linewidth', 'alpha', etc.
+            Defaults to {'color': 'yellow', 'linestyle': '-'}.
+        theta_style (dict, optional): Style dictionary for theta plane(s). Can include
+            'color', 'linestyle', 'linewidth', 'alpha', etc.
+            Defaults to {'color': 'green', 'linestyle': '--'}.
+        rho_style (dict, optional): Style dictionary for rho plane(s). Can include
+            'color', 'linestyle', 'linewidth', 'alpha', etc.
+            Defaults to {'color': 'red', 'linestyle': '--'}.
 
     Returns:
         tuple: A tuple containing the figure and axes objects (fig, ax).
@@ -418,14 +430,24 @@ def plot_frustum_vertices(
         >>> rho_range = [0.1, 10]  # in mm
         >>> theta_range = [-0.6, 0.6]  # in rad
         >>> phi_range = [-0.6, 0.6]  # in rad
+        >>> # Basic usage with default styles
         >>> fig, ax = plot_frustum_vertices(
         ...     rho_range,
         ...     theta_range=theta_range,
         ...     phi_range=phi_range,
         ...     phi_plane=0,
-        ...     phi_color="red",
         ...     theta_plane=0.2,
-        ...     color_frustum="blue",
+        ... )
+        >>> # Advanced usage with custom style dictionaries
+        >>> fig, ax = plot_frustum_vertices(
+        ...     rho_range,
+        ...     theta_range=theta_range,
+        ...     phi_range=phi_range,
+        ...     phi_plane=0,
+        ...     phi_style={"color": "red", "linestyle": "--", "linewidth": 2},
+        ...     theta_plane=0.2,
+        ...     theta_style={"color": "green", "linestyle": ":", "alpha": 0.7},
+        ...     frustum_style={"color": "blue", "linewidth": 1.5},
         ... )
     """
     # Convert single values to lists
@@ -436,6 +458,19 @@ def plot_frustum_vertices(
     # Ensure at least one plane is specified
     if all(p is None for p in [phi_plane, theta_plane, rho_plane]):
         raise ValueError("At least one plane must be specified")
+
+    # Build style dictionaries with defaults
+    if frustum_style is None:
+        frustum_style = {"color": "blue", "linestyle": "-", "linewidth": 2}
+
+    if phi_style is None:
+        phi_style = {"color": "yellow", "linestyle": "-"}
+
+    if theta_style is None:
+        theta_style = {"color": "green", "linestyle": "--"}
+
+    if rho_style is None:
+        rho_style = {"color": "red", "linestyle": "--"}
 
     # Define edges of the frustum
     edges = []
@@ -479,14 +514,14 @@ def plot_frustum_vertices(
     if ax is None:
         ax = fig.add_subplot(111, projection="3d")
 
-    def _plot_edges(edges, color, alpha=1.0, linestyle="-", **kwargs):
+    def _plot_edges(edges, alpha=1.0, **kwargs):
         for edge in edges:
             rho_pts, theta_pts, phi_pts = generate_edge_points(edge[0], edge[1], num_points)
             x, y, z = frustum_convert_rtp2xyz(rho_pts, theta_pts, phi_pts)
-            ax.plot(x, y, -z, color=color, alpha=alpha, linestyle=linestyle, **kwargs)
+            ax.plot(x, y, -z, alpha=alpha, **kwargs)
 
     # Plot frustum edges
-    _plot_edges(edges, color=color_frustum, alpha=1, lw=2)
+    _plot_edges(edges, **frustum_style)
 
     def get_plane_edges(plane_value, plane_type):
         """Generate edges for a specific plane type (phi, theta, or rho)"""
@@ -550,16 +585,16 @@ def plot_frustum_vertices(
 
     # Plot plane edges
     plane_configs = [
-        (phi_plane, "phi", phi_color, "-"),
-        (theta_plane, "theta", theta_color, "--"),
-        (rho_plane, "rho", rho_color, "--"),
+        (phi_plane, "phi", phi_style),
+        (theta_plane, "theta", theta_style),
+        (rho_plane, "rho", rho_style),
     ]
 
-    for planes, plane_type, color, line in plane_configs:
+    for planes, plane_type, style_dict in plane_configs:
         if planes is not None:
             for plane_value in planes:
                 plane_edges = get_plane_edges(plane_value, plane_type)
-                _plot_edges(plane_edges, color=color, linestyle=line)
+                _plot_edges(plane_edges, **style_dict)
 
     # Set axes properties
     ax.set_xlim([x_min, x_max])
