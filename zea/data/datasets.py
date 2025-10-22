@@ -48,13 +48,15 @@ from zea.data.preset_utils import (
     _hf_resolve_path,
 )
 from zea.datapaths import format_data_path
+from zea.internal.utils import (
+    calculate_file_hash,
+    reduce_to_signature,
+)
 from zea.io_lib import search_file_tree
 from zea.tools.hf import HFPath
 from zea.utils import (
-    calculate_file_hash,
     date_string_to_readable,
     get_date_string,
-    reduce_to_signature,
 )
 
 _CHECK_MAX_DATASET_SIZE = 10000
@@ -241,7 +243,7 @@ class Folder:
             return
 
         num_frames_per_file = []
-        validated_succesfully = True
+        validated_successfully = True
         for file_path in tqdm.tqdm(
             self.file_paths,
             total=self.n_files,
@@ -253,9 +255,9 @@ class Folder:
                 validation_error_log.append(f"File {file_path} is not a valid zea dataset.\n{e}\n")
                 # convert into warning
                 log.warning(f"Error in file {file_path}.\n{e}")
-                validated_succesfully = False
+                validated_successfully = False
 
-        if not validated_succesfully:
+        if not validated_successfully:
             log.warning(
                 "Check warnings above for details. No validation file was created. "
                 f"See {validation_error_file_path} for details."

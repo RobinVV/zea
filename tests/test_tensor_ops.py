@@ -594,3 +594,17 @@ def test_vmap():
     np.testing.assert_allclose(result3, expected3, rtol=1e-5, atol=1e-5)
 
     return result
+
+
+@pytest.mark.parametrize(
+    "range_from, range_to",
+    [((0, 100), (2, 5)), ((-60, 0), (0, 255))],
+)
+def test_translate(range_from, range_to):
+    """Tests the translate function by providing a test array with its range_from and
+    a range to."""
+    arr = np.random.randint(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
+    right_min, right_max = range_to
+    result = tensor_ops.translate(arr, range_from, range_to)
+    assert right_min <= np.min(result), "Minimum value is too small"
+    assert np.max(result) <= right_max, "Maximum value is too large"
