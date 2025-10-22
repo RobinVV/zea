@@ -6,6 +6,7 @@ from typing import List
 
 import h5py
 import numpy as np
+from keras.utils import pad_sequences
 
 from zea import log
 from zea.data.preset_utils import HF_PREFIX, _hf_resolve_path
@@ -15,9 +16,9 @@ from zea.internal.checks import (
     _REQUIRED_SCAN_KEYS,
     get_check,
 )
+from zea.internal.utils import reduce_to_signature
 from zea.probes import Probe
 from zea.scan import Scan
-from zea.utils import reduce_to_signature
 
 
 def assert_key(file: h5py.File, key: str):
@@ -358,7 +359,7 @@ class File(h5py.File):
         Returns:
             Scan: The scan object.
         """
-        return Scan.merge(self.get_scan_parameters(event), kwargs, safe=safe)
+        return Scan.merge(_reformat_waveforms(self.get_scan_parameters(event)), kwargs, safe=safe)
 
     def get_probe_parameters(self, event=None) -> dict:
         """Returns a dictionary of probe parameters to initialize a probe
@@ -793,3 +794,71 @@ def _assert_unit_and_description_present(hdf5_file, _prefix=""):
             assert "description" in hdf5_file[key].attrs.keys(), (
                 f"The file {_prefix}/{key} does not have a description attribute."
             )
+
+
+def _reformat_waveforms(scan_kwargs: dict) -> dict:
+    """Reformat waveforms from dict to array if needed. This is for backwards compatibility and will
+    be removed in a future version of zea.
+
+    Args:
+        scan_kwargs (dict): The scan parameters.
+
+    Returns:
+        scan_kwargs (dict): The scan parameters with the keys waveforms_one_way and
+            waveforms_two_way reformatted to arrays if they were stored as dicts.
+    """
+
+    # TODO: remove this in a future version of zea
+    if "waveforms_one_way" in scan_kwargs and isinstance(scan_kwargs["waveforms_one_way"], dict):
+        log.warning(
+            "The waveforms_one_way parameter is stored as a dictionary in the file. "
+            "Converting to array. This will be deprecated in future versions of zea. "
+            "Please update your files to store waveforms as arrays of shape `(n_tx, n_samples)`."
+        )
+        scan_kwargs["waveforms_one_way"] = _waveforms_dict_to_array(
+            scan_kwargs["waveforms_one_way"]
+        )
+
+    if "waveforms_two_way" in scan_kwargs and isinstance(scan_kwargs["waveforms_two_way"], dict):
+        log.warning(
+            "The waveforms_two_way parameter is stored as a dictionary in the file. "
+            "Converting to array. This will be deprecated in future versions of zea. "
+            "Please update your files to store waveforms as arrays of shape `(n_tx, n_samples)`."
+        )
+        scan_kwargs["waveforms_two_way"] = _waveforms_dict_to_array(
+            scan_kwargs["waveforms_two_way"]
+        )
+    return scan_kwargs
+
+
+def _waveforms_dict_to_array(waveforms_dict: dict):
+    """Convert waveforms stored as a dictionary to a padded numpy array."""
+    waveforms = dict_to_sorted_list(waveforms_dict)
+    return pad_sequences(waveforms, dtype=np.float32, padding="post")
+
+
+def dict_to_sorted_list(dictionary: dict):
+    """Convert a dictionary with sortable keys to a sorted list of values.
+
+    .. note::
+
+        This function operates on the top level of the dictionary only.
+        If the dictionary contains nested dictionaries, those will not be sorted.
+
+    .. code-block:: python
+
+        # Example usage
+        input_dict = {"number_000": 5, "number_001": 1, "number_002": 23}
+        output_list = dict_to_sorted_list(input_dict)
+        # output_list will be:
+        # [
+        #     5, 1, 23
+        # ]
+
+    Args:
+        dictionary (dict): The dictionary to convert. The keys must be sortable.
+
+    Returns:
+        list: The sorted list of values.
+    """
+    return [value for _, value in sorted(dictionary.items())]

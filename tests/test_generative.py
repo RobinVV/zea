@@ -6,10 +6,9 @@ import numpy as np
 import pytest
 
 from zea import log
-from zea.io_lib import matplotlib_figure_to_numpy
+from zea.io_lib import matplotlib_figure_to_numpy, save_video
 from zea.models.diffusion import DiffusionModel
 from zea.models.gmm import GaussianMixtureModel, match_means_covariances
-from zea.utils import save_to_gif
 
 
 @pytest.fixture(params=[2, 3])
@@ -148,7 +147,7 @@ def animate_diffusion_trajectory_2d(
         frame = matplotlib_figure_to_numpy(fig)
         frames.append(frame)
         plt.close(fig)
-    save_to_gif(frames, filename, fps=10)
+    save_video(frames, filename, fps=10)
     log.success(f"Animated diffusion trajectory saved to {filename}")
 
 
