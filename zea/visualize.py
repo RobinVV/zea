@@ -102,7 +102,7 @@ def plot_image_grid(
     if fig is None:
         fig = plt.figure(figsize=figsize, **kwargs)
         axes = ImageGrid(fig, 111, nrows_ncols=(nrows, ncols), axes_pad=0.1)
-        if background_color:
+        if background_color is not None:
             fig.patch.set_facecolor(background_color)
         fig.set_layout_engine("tight", pad=0.1)
     else:
