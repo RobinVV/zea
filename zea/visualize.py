@@ -73,8 +73,6 @@ def plot_image_grid(
             allowing later label drawing to remain visible.
         background_color (str, optional): Background color. Defaults to None. (Matplotlib default)
         text_color (str, optional): Text color. Defaults to None. (Matplotlib default)
-        background_color (str, optional): Background color. Defaults to None. (Matplotlib default)
-        text_color (str, optional): Text color. Defaults to None. (Matplotlib default)
         **kwargs: arguments for plt.Figure.
 
     Returns:
