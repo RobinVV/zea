@@ -340,10 +340,10 @@ def scan_convert(
 def map_coordinates(inputs, coordinates, order, fill_mode="constant", fill_value=0):
     """map_coordinates using keras.ops or scipy.ndimage when order > 1."""
     if order > 1:
-        inputs = ops.convert_to_numpy(inputs)
-        coordinates = ops.convert_to_numpy(coordinates)
+        inputs_np = ops.convert_to_numpy(inputs).astype(np.float32)
+        coordinates_np = ops.convert_to_numpy(coordinates).astype(np.float32)
         out = scipy.ndimage.map_coordinates(
-            inputs, coordinates, order=order, mode=fill_mode, cval=fill_value
+            inputs_np, coordinates_np, order=order, mode=fill_mode, cval=fill_value
         )
         return ops.convert_to_tensor(out)
     else:
