@@ -16,9 +16,9 @@ from zea.internal.checks import (
     _REQUIRED_SCAN_KEYS,
     get_check,
 )
+from zea.internal.utils import reduce_to_signature
 from zea.probes import Probe
 from zea.scan import Scan
-from zea.utils import reduce_to_signature
 
 
 def assert_key(file: h5py.File, key: str):

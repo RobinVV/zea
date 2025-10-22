@@ -11,6 +11,7 @@ from zea.backend.autograd import AutoGrad
 from zea.internal.core import Object
 from zea.internal.operators import Operator
 from zea.internal.registry import diffusion_guidance_registry, model_registry, operator_registry
+from zea.internal.utils import fn_requires_argument
 from zea.models.dense import get_time_conditional_dense_network
 from zea.models.generative import DeepGenerativeModel
 from zea.models.preset_utils import register_presets
@@ -18,7 +19,6 @@ from zea.models.presets import diffusion_model_presets
 from zea.models.unet import get_time_conditional_unetwork
 from zea.models.utils import LossTrackerWrapper
 from zea.tensor_ops import L2, fori_loop, split_seed
-from zea.utils import fn_requires_argument
 
 tf = _import_tf()
 

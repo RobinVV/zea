@@ -1,4 +1,7 @@
-"""Tests for the zea.utils module."""
+"""Tests for the zea.utils module.
+
+Contains both tests for zea.utils and zea.internal.utils.
+"""
 
 import re
 import time
@@ -8,30 +11,42 @@ import pytest
 from keras import ops
 
 from zea.backend import jit
-from zea.utils import (
-    block_until_ready,
+from zea.internal.utils import (
+    calculate_file_hash,
     find_first_nonzero_index,
     find_key,
     first_not_none_item,
+)
+from zea.utils import (
+    block_until_ready,
     get_date_string,
     strtobool,
-    translate,
     update_dictionary,
 )
 
 
-@pytest.mark.parametrize(
-    "range_from, range_to",
-    [((0, 100), (2, 5)), ((-60, 0), (0, 255))],
-)
-def test_translate(range_from, range_to):
-    """Tests the translate function by providing a test array with its range_from and
-    a range to."""
-    arr = np.random.randint(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
-    right_min, right_max = range_to
-    result = translate(arr, range_from, range_to)
-    assert right_min <= np.min(result), "Minimum value is too small"
-    assert np.max(result) <= right_max, "Maximum value is too large"
+def test_calculate_file_hash_omit_line(tmp_path):
+    """Test that calculate_file_hash correctly omits lines containing a string."""
+
+    # Create a temporary file
+    file_content = [
+        "Dataset: test_folder\n",
+        "Validated on: 2025_10_14_120000\n",
+        "hash: should_be_ignored\n",
+    ]
+    file_path = tmp_path / "validation_file.txt"
+    file_path.write_text("".join(file_content), encoding="utf-8")
+
+    # Calculate hash ignoring the 'hash' line
+    hash_without_hash_line = calculate_file_hash(file_path, omit_line_str="hash")
+
+    expected_hash = "02d7d3d3f7731f715cc3c886752196c67893267b12a880455f0aeca0ad4d7da9"
+
+    assert hash_without_hash_line == expected_hash
+
+    hash_with_hash_line = calculate_file_hash(file_path, omit_line_str=None)
+
+    assert hash_with_hash_line != expected_hash
 
 
 @pytest.mark.parametrize(
