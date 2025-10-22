@@ -253,13 +253,10 @@ def test_map_coordinates_dtype(dtype, order):
     assert not np.any(np.isnan(result_np)), "Result contains NaN values"
     assert not np.all(result_np == 0), "Result is all zeros (likely failed)"
 
-    # For order > 1 with float16, the output should be float32 due to the conversion
-    if order > 1 and dtype == "float16":
-        # The result should be float32 after internal conversion
-        assert result_np.dtype in [np.float32, np.float64], (
-            f"Expected float32/float64 output for order={order} with float16 input, "
-            f"got {result_np.dtype}"
-        )
+    # The output dtype should always match the input dtype
+    assert result_np.dtype == np.dtype(dtype), (
+        f"Expected output dtype {dtype}, got {result_np.dtype}"
+    )
 
     # Verify interpolated values are within reasonable range
     assert np.all(result_np >= 0) and np.all(result_np <= 1), (
