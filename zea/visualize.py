@@ -40,13 +40,13 @@ def plot_image_grid(
     interpolation: Optional[str] = "auto",
     titles: Optional[List[str]] = None,
     suptitle: Optional[str] = None,
-    aspect: Optional[str] = None,
+    aspect: Optional[Union[str, List[int]]] = None,
     figsize: Optional[Tuple[float, float]] = None,
     fig: Optional[plt.Figure] = None,
     fig_contents: Optional[List] = None,
     remove_axis: Optional[bool] = True,
-    background_color: Optional[str] = "black",
-    text_color: Optional[str] = "white",
+    background_color: Optional[str] = None,
+    text_color: Optional[str] = None,
     **kwargs,
 ) -> Tuple[plt.Figure, List]:
     """Plot a batch of images in a grid.
@@ -71,7 +71,8 @@ def plot_image_grid(
         remove_axis (bool, optional): Whether to remove axis. Defaults to True. If
             False, the axis will be removed and the spines will be hidden, which allows
             for the labels to still be visible if plotted after the fact.
-        background_color (str, optional): Background color. Defaults to None.
+        background_color (str, optional): Background color. Defaults to None. (Matplotlib default)
+        text_color (str, optional): Text color. Defaults to None. (Matplotlib default)
         **kwargs: arguments for plt.Figure.
 
     Returns:
@@ -88,6 +89,12 @@ def plot_image_grid(
     aspect_ratio = images[0].shape[1] / images[0].shape[0]
     if figsize is None:
         figsize = (ncols * 2, nrows * 2 / aspect_ratio)
+
+    # get default colors for matplotlib
+    if background_color is None:
+        background_color = plt.rcParams["axes.facecolor"]
+    if text_color is None:
+        text_color = plt.rcParams["text.color"]
 
     # either supply both fig and fig_contents or neither
     assert (fig is None) == (fig_contents is None), "Supply both fig and fig_contents or neither"
@@ -107,7 +114,7 @@ def plot_image_grid(
         if cmap is None:
             cmap = [None] * len(images)
         assert len(cmap) == len(images), (
-            f"cmap must be a string or list of strings of length {len(images)}"
+            f"cmap must be a string or list of strings of length {len(images)}, but got {cmap}"
         )
 
     if isinstance(vmin, (int, float)):
@@ -116,7 +123,7 @@ def plot_image_grid(
         if vmin is None:
             vmin = [None] * len(images)
         assert len(vmin) == len(images), (
-            f"vmin must be a float or list of floats of length {len(images)}"
+            f"vmin must be a float or list of floats of length {len(images)}, but got {vmin}"
         )
 
     if isinstance(vmax, (int, float)):
@@ -125,7 +132,17 @@ def plot_image_grid(
         if vmax is None:
             vmax = [None] * len(images)
         assert len(vmax) == len(images), (
-            f"vmax must be a float or list of floats of length {len(images)}"
+            f"vmax must be a float or list of floats of length {len(images)}, but got {vmax}"
+        )
+
+    if isinstance(aspect, (int, float, str)):
+        aspect = [aspect] * len(images)
+    else:
+        if aspect is None:
+            aspect = [None] * len(images)
+        assert len(aspect) == len(images), (
+            "aspect must be a float, int, str, or list of these "
+            f"of length {len(images)}, but got {aspect}"
         )
 
     if fig_contents is None:
@@ -138,7 +155,7 @@ def plot_image_grid(
                 cmap=cmap[i],
                 vmin=vmin[i],
                 vmax=vmax[i],
-                aspect=aspect,
+                aspect=aspect[i],
                 interpolation=interpolation,
             )
             fig_contents[i] = im
