@@ -68,9 +68,11 @@ def plot_image_grid(
         fig (figure, optional): Matplotlib figure object. Defaults to None. Can
             be used to plot on an existing figure.
         fig_contents (list, optional): List of matplotlib image objects. Defaults to None.
-        remove_axis (bool, optional): Whether to remove axis. Defaults to True. If
-            False, the axis will be removed and the spines will be hidden, which allows
-            for the labels to still be visible if plotted after the fact.
+        remove_axis (bool, optional): Whether to remove axis. Defaults to True. If False, axes r
+            emain but spines are colored to background and ticks/labels are hidden,
+            allowing later label drawing to remain visible.
+        background_color (str, optional): Background color. Defaults to None. (Matplotlib default)
+        text_color (str, optional): Text color. Defaults to None. (Matplotlib default)
         background_color (str, optional): Background color. Defaults to None. (Matplotlib default)
         text_color (str, optional): Text color. Defaults to None. (Matplotlib default)
         **kwargs: arguments for plt.Figure.
@@ -534,11 +536,11 @@ def plot_frustum_vertices(
     if ax is None:
         ax = fig.add_subplot(111, projection="3d")
 
-    def _plot_edges(edges, alpha=1.0, **kwargs):
+    def _plot_edges(edges, **kwargs):
         for edge in edges:
             rho_pts, theta_pts, phi_pts = generate_edge_points(edge[0], edge[1], num_points)
             x, y, z = frustum_convert_rtp2xyz(rho_pts, theta_pts, phi_pts)
-            ax.plot(x, y, -z, alpha=alpha, **kwargs)
+            ax.plot(x, y, -z, **kwargs)
 
     # Plot frustum edges
     _plot_edges(edges, **frustum_style)
