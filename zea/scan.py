@@ -590,7 +590,7 @@ class Scan(Parameters):
         "t0_delays",
         "pfield_kwargs",
     )
-    def pfield(self):
+    def pfield(self) -> np.ndarray:
         """Compute or return the pressure field (pfield) for weighting."""
         pfield = compute_pfield(
             sound_speed=self.sound_speed,
@@ -688,6 +688,7 @@ class Scan(Parameters):
         """The width of each transducer element in meters."""
         value = self._params.get("element_width")
         if value is None:
+            # assume uniform spacing
             return np.linalg.norm(self.probe_geometry[1] - self.probe_geometry[0])
         return value
 
