@@ -40,7 +40,7 @@ def plot_image_grid(
     interpolation: Optional[str] = "auto",
     titles: Optional[List[str]] = None,
     suptitle: Optional[str] = None,
-    aspect: Optional[Union[str, List[int]]] = None,
+    aspect: Optional[Union[str, int, float, List[Union[str, int, float]]]] = None,
     figsize: Optional[Tuple[float, float]] = None,
     fig: Optional[plt.Figure] = None,
     fig_contents: Optional[List] = None,
