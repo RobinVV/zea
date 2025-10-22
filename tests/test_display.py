@@ -199,3 +199,69 @@ def test_converting_to_image(size, dynamic_range):
     _data = display.to_8bit(data, dynamic_range, pillow=False)
     assert np.all(np.logical_and(_data >= 0, _data <= 255))
     assert _data.dtype == "uint8"
+
+
+@pytest.mark.parametrize(
+    "dtype, order",
+    [
+        ("float16", 0),
+        ("float16", 1),
+        ("float16", 2),
+        ("float32", 0),
+        ("float32", 1),
+        ("float32", 2),
+    ],
+)
+def test_map_coordinates_dtype(dtype, order):
+    """Test map_coordinates with different data types and interpolation orders.
+
+    This test verifies that map_coordinates works correctly with float16 and float32
+    inputs across different interpolation orders.
+    """
+    from keras import ops
+
+    from zea import display
+
+    # Create a simple 2D test image
+    rng = np.random.default_rng(42)
+    image = rng.random((32, 32)).astype(dtype)
+
+    # Create simple coordinates for interpolation
+    # Sample points at fractional positions to test interpolation
+    coords = np.array(
+        [
+            [15.5, 16.2, 20.1, 10.3],  # y coordinates
+            [15.5, 14.8, 18.7, 12.9],  # x coordinates
+        ],
+        dtype="float32",
+    )
+
+    # Convert to ops tensors
+    image_tensor = ops.convert_to_tensor(image)
+    coords_tensor = ops.convert_to_tensor(coords)
+
+    # Perform map_coordinates
+    result = display.map_coordinates(
+        image_tensor, coords_tensor, order=order, fill_mode="constant", fill_value=0.0
+    )
+
+    # Convert result to numpy for assertions
+    result_np = ops.convert_to_numpy(result)
+
+    # Basic sanity checks
+    assert result_np.shape == (4,), f"Expected shape (4,), got {result_np.shape}"
+    assert not np.any(np.isnan(result_np)), "Result contains NaN values"
+    assert not np.all(result_np == 0), "Result is all zeros (likely failed)"
+
+    # For order > 1 with float16, the output should be float32 due to the conversion
+    if order > 1 and dtype == "float16":
+        # The result should be float32 after internal conversion
+        assert result_np.dtype in [np.float32, np.float64], (
+            f"Expected float32/float64 output for order={order} with float16 input, "
+            f"got {result_np.dtype}"
+        )
+
+    # Verify interpolated values are within reasonable range
+    assert np.all(result_np >= 0) and np.all(result_np <= 1), (
+        f"Interpolated values out of expected range [0, 1]: {result_np}"
+    )
