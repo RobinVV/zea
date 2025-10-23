@@ -146,6 +146,10 @@ class Operation(keras.Operation):
             with_batch_dim: Whether operations should expect a batch dimension in the input
             jit_kwargs: Additional keyword arguments for the JIT compiler
             jittable: Whether the operation can be JIT compiled
+            additional_output_keys: A list of additional output keys produced by the operation.
+                These are used to track if all keys are available for downstream operations.
+                If the operation has a conditional output, it is best to add all possible
+                output keys here.
         """
         super().__init__(**kwargs)
 
@@ -1453,6 +1457,7 @@ class Simulate(Operation):
     def __init__(self, **kwargs):
         super().__init__(
             output_data_type=DataTypes.RAW_DATA,
+            additional_output_keys=["n_ch"],
             **kwargs,
         )
 
@@ -1819,7 +1824,7 @@ class Normalize(Operation):
     """Normalize data to a given range."""
 
     def __init__(self, output_range=None, input_range=None, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(additional_output_keys=["minval", "maxval"], **kwargs)
         if output_range is None:
             output_range = (0, 1)
         self.output_range = self.to_float32(output_range)
@@ -1898,6 +1903,18 @@ class ScanConvert(Operation):
             input_data_type=DataTypes.IMAGE,
             output_data_type=DataTypes.IMAGE_SC,
             jittable=jittable,
+            additional_output_keys=[
+                "resolution",
+                "x_lim",
+                "y_lim",
+                "z_lim",
+                "rho_range",
+                "theta_range",
+                "phi_range",
+                "d_rho",
+                "d_theta",
+                "d_phi",
+            ],
             **kwargs,
         )
         self.order = order
@@ -2124,6 +2141,7 @@ class Demodulate(Operation):
             input_data_type=DataTypes.RAW_DATA,
             output_data_type=DataTypes.RAW_DATA,
             jittable=True,
+            additional_output_keys=["demodulation_frequency", "center_frequency", "n_ch"],
             **kwargs,
         )
         self.axis = axis
@@ -2373,6 +2391,7 @@ class Downsample(Operation):
 
     def __init__(self, factor: int = 1, phase: int = 0, axis: int = -3, **kwargs):
         super().__init__(
+            additional_output_keys=["sampling_frequency", "n_ax"],
             **kwargs,
         )
         self.factor = factor
