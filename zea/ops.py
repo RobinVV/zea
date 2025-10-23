@@ -65,12 +65,10 @@ Example of a yaml file:
 
 """
 
-import ast
 import copy
 import hashlib
 import inspect
 import json
-import textwrap
 from functools import partial
 from typing import Any, Dict, List, Union
 
@@ -129,6 +127,7 @@ class Operation(keras.Operation):
         with_batch_dim: bool = True,
         jit_kwargs: dict | None = None,
         jittable: bool = True,
+        additional_output_keys: List[str] = None,
         **kwargs,
     ):
         """
@@ -157,6 +156,7 @@ class Operation(keras.Operation):
         self.output_key = output_key  # Key for output data
         if self.output_key is None:
             self.output_key = self.key
+        self.additional_output_keys = additional_output_keys or []
 
         self.inputs = []  # Source(s) of input data (name of a previous operation)
         self.allow_multiple_inputs = False  # Only single input allowed by default
@@ -189,6 +189,11 @@ class Operation(keras.Operation):
             self.set_jit(jit_compile)
 
     @property
+    def output_keys(self) -> List[str]:
+        """Get the output keys of the operation."""
+        return [self.output_key] + self.additional_output_keys
+
+    @property
     def static_params(self):
         """Get the static parameters of the operation."""
         return getattr(self.__class__, "STATIC_PARAMS", [])
@@ -201,50 +206,12 @@ class Operation(keras.Operation):
         else:
             self._call = self.call
 
-    @staticmethod
-    def _get_static_return_keys(func) -> set:
-        """
-        Statically extract dictionary keys from return statements in a function.
-        Only works for dict literals (not for dynamically constructed dicts).
-        """
-        source = inspect.getsource(func)
-        source = textwrap.dedent(source)  # Remove leading indentation
-        tree = ast.parse(source)
-
-        class ReturnDictVisitor(ast.NodeVisitor):
-            def __init__(self):
-                self.keys = set()
-
-            def visit_Return(self, node):
-                if isinstance(node.value, ast.Dict):
-                    for key in node.value.keys:
-                        if isinstance(key, ast.Constant):
-                            self.keys.add(key.value)
-                        elif isinstance(key, ast.Name):
-                            self.keys.add(key.id)
-                else:
-                    log.debug(
-                        f"Return value in function {func.__name__} is not a dict literal. "
-                        "Cannot statically extract keys."
-                    )
-                self.generic_visit(node)
-
-        visitor = ReturnDictVisitor()
-        visitor.visit(tree)
-        return set(visitor.keys)
-
     def _trace_signatures(self):
         """
         Analyze and store the input/output signatures of the `call` method.
         """
         self._input_signature = inspect.signature(self.call)
         self._valid_keys = set(self._input_signature.parameters.keys())
-        self._static_return_keys = self._get_static_return_keys(self.call)
-
-    @property
-    def static_return_keys(self) -> set:
-        """Get the static return keys of the `call` method."""
-        return self._static_return_keys
 
     @property
     def valid_keys(self) -> set:
@@ -499,12 +466,12 @@ class Pipeline:
         return key in self.needs_keys
 
     @property
-    def static_return_keys(self) -> set:
-        """Get the static return keys of the pipeline."""
-        static_return_keys = set()
+    def output_keys(self) -> set:
+        """All output keys the pipeline guarantees to produce."""
+        output_keys = set()
         for operation in self.operations:
-            static_return_keys.update(operation.static_return_keys)
-        return static_return_keys
+            output_keys.update(operation.output_keys)
+        return output_keys
 
     @property
     def valid_keys(self) -> set:
@@ -536,7 +503,7 @@ class Pipeline:
         previous_operation = None
         for operation in self.operations:
             if previous_operation is not None:
-                has_so_far.update(previous_operation.static_return_keys)
+                has_so_far.update(previous_operation.output_keys)
             needs.update(operation.needs_keys - has_so_far)
             previous_operation = operation
         return needs
