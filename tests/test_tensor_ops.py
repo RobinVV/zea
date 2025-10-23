@@ -448,6 +448,7 @@ def test_correlate(mode):
         ["multiply", (0, 0), 0, 2, None, False],  # batched map
         ["multiply", (0, None), 0, 3, None, False],  # batched map
         ["dummy", (0, None), 0, 3, None, True],  # batched map
+        ["dummy", (0, 1), 0, None, 5, True],  # chunked map
         ["multiple_out", (1, None), (1, None), None, 4, False],  # chunked map with multiple outputs
         [
             "multiple_out",
@@ -511,9 +512,6 @@ def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
         def func(a, b):
             _assert_batch_size(a, in_axes[0])
             _assert_batch_size(b, in_axes[1])
-            # a: (batch,10,3,2)
-            # b: (10,10,3,2)
-            # r: (batch,10,10,3,2)
             return a
 
         def jax_func(a, b):
