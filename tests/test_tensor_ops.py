@@ -568,7 +568,7 @@ def test_correlate(mode):
             None,
             None,
             False,
-        ],
+        ],  # vmap with multiple outputs
     ],
 )
 @backend_equality_check(backends=["tensorflow", "torch"])
@@ -656,6 +656,16 @@ def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
         chunks=chunks,
         fn_supports_batch=fn_supports_batch,
     )(x_tensor, y_tensor)
+    no_jit_result = tensor_ops.map(
+        func,
+        in_axes,
+        out_axes,
+        batch_size=batch_size,
+        chunks=chunks,
+        fn_supports_batch=fn_supports_batch,
+        disable_jit=True,
+    )(x_tensor, y_tensor)
+    np.testing.assert_allclose(no_jit_result, expected, rtol=1e-5, atol=1e-5)
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
 
     if func == "multiple_out":
