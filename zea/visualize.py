@@ -477,7 +477,7 @@ def plot_frustum_vertices(
             ...     theta_plane=0.2,
             ...     theta_style={"color": "green", "linestyle": ":", "alpha": 0.7},
             ...     frustum_style={"color": "blue", "linewidth": 1.5},
-            )
+            ... )
     """
     # Convert single values to lists
     phi_plane = [phi_plane] if isinstance(phi_plane, (int, float)) else phi_plane
