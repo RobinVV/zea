@@ -11,39 +11,56 @@ Operations can be run on their own:
 
 Examples
 ^^^^^^^^
-.. code-block:: python
+.. doctest::
 
-    data = np.random.randn(2000, 128, 1)
-    # static arguments are passed in the constructor
-    envelope_detect = EnvelopeDetect(axis=-1)
-    # other parameters can be passed here along with the data
-    envelope_data = envelope_detect(data=data)
+    >>> import numpy as np
+    >>> from zea.ops import EnvelopeDetect
+    >>> data = np.random.randn(2000, 128, 1)
+    >>> # static arguments are passed in the constructor
+    >>> envelope_detect = EnvelopeDetect(axis=-1)
+    >>> # other parameters can be passed here along with the data
+    >>> envelope_data = envelope_detect(data=data)
 
 Using a pipeline
 ----------------
 
 You can initialize with a default pipeline or create your own custom pipeline.
 
-.. code-block:: python
+.. doctest::
 
-    pipeline = Pipeline.from_default()
+    >>> from zea.ops import Pipeline, EnvelopeDetect, Normalize, LogCompress
+    >>> pipeline = Pipeline.from_default()
 
-    operations = [
-        EnvelopeDetect(),
-        Normalize(),
-        LogCompress(),
-    ]
-    pipeline_custom = Pipeline(operations)
+    >>> operations = [
+    ...     EnvelopeDetect(),
+    ...     Normalize(),
+    ...     LogCompress(),
+    ... ]
+    >>> pipeline_custom = Pipeline(operations)
 
 One can also load a pipeline from a config or yaml/json file:
 
-.. code-block:: python
+.. doctest::
 
-    json_string = '{"operations": ["identity"]}'
-    pipeline = Pipeline.from_json(json_string)
+    >>> from zea import Pipeline
 
-    yaml_file = "pipeline.yaml"
-    pipeline = Pipeline.from_yaml(yaml_file)
+    >>> # From JSON string
+    >>> json_string = '{"operations": ["identity"]}'
+    >>> pipeline = Pipeline.from_json(json_string)
+
+    >>> # from yaml file
+    >>> import yaml
+    >>> from zea import Config
+    >>> # Create a sample pipeline YAML file
+    >>> pipeline_dict = {
+    ...     "operations": [
+    ...         {"name": "identity"},
+    ...     ]
+    ... }
+    >>> with open("pipeline.yaml", "w") as f:
+    ...     yaml.dump(pipeline_dict, f)
+    >>> yaml_file = "pipeline.yaml"
+    >>> pipeline = Pipeline.from_yaml(yaml_file)
 
 Example of a yaml file:
 
@@ -107,7 +124,7 @@ from zea.utils import (
 )
 
 
-def get_ops(ops_name):
+def _get_ops(ops_name):
     """Get the operation from the registry."""
     return ops_registry[ops_name]
 
@@ -919,16 +936,17 @@ class Pipeline:
             Must have a ``pipeline`` key with a subkey ``operations``.
 
         Example:
-            .. code-block:: python
+            .. doctest::
 
-                config = Config(
-                    {
-                        "operations": [
-                            "identity",
-                        ],
-                    }
-                )
-                pipeline = Pipeline.from_config(config)
+                >>> from zea import Config, Pipeline
+                >>> config = Config(
+                ...     {
+                ...         "operations": [
+                ...             "identity",
+                ...         ],
+                ...     }
+                ... )
+                >>> pipeline = Pipeline.from_config(config)
         """
         return pipeline_from_config(Config(config), **kwargs)
 
@@ -944,9 +962,20 @@ class Pipeline:
             Must have the a `pipeline` key with a subkey `operations`.
 
         Example:
-        ```python
-        pipeline = Pipeline.from_yaml("pipeline.yaml")
-        ```
+            .. doctest::
+
+                >>> import yaml
+                >>> from zea import Config
+                >>> # Create a sample pipeline YAML file
+                >>> pipeline_dict = {
+                ...     "operations": [
+                ...         "identity",
+                ...     ],
+                ... }
+                >>> with open("pipeline.yaml", "w") as f:
+                ...     yaml.dump(pipeline_dict, f)
+                >>> from zea.ops import Pipeline
+                >>> pipeline = Pipeline.from_yaml("pipeline.yaml", jit_options=None)
         """
         return pipeline_from_yaml(file_path, **kwargs)
 
@@ -1088,15 +1117,17 @@ def make_operation_chain(
         list: List of operations to be performed.
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            chain = make_operation_chain(
-                [
-                    "envelope_detect",
-                    {"name": "normalize", "params": {"output_range": (0, 1)}},
-                    SomeCustomOperation(),
-                ]
-            )
+            >>> from zea.ops import make_operation_chain, LogCompress
+            >>> SomeCustomOperation = LogCompress  # just for demonstration
+            >>> chain = make_operation_chain(
+            ...     [
+            ...         "envelope_detect",
+            ...         {"name": "normalize", "params": {"output_range": (0, 1)}},
+            ...         SomeCustomOperation(),
+            ...     ]
+            ... )
     """
     chain = []
     for operation in operation_chain:
@@ -1110,7 +1141,7 @@ def make_operation_chain(
         )
 
         if isinstance(operation, str):
-            operation_instance = get_ops(operation)()
+            operation_instance = _get_ops(operation)()
 
         else:
             if isinstance(operation, Config):
@@ -1118,7 +1149,7 @@ def make_operation_chain(
 
             params = operation.get("params", {})
             op_name = operation.get("name")
-            operation_cls = get_ops(op_name)
+            operation_cls = _get_ops(op_name)
 
             # Handle branches for branched pipeline
             if op_name == "branched_pipeline" and "branches" in operation:
@@ -1135,7 +1166,7 @@ def make_operation_chain(
                         branch = make_operation_chain(branch_config["operations"])
                     else:
                         # This is a single operation branch
-                        branch_op_cls = get_ops(branch_config["name"])
+                        branch_op_cls = _get_ops(branch_config["name"])
                         branch_params = branch_config.get("params", {})
                         branch = branch_op_cls(**branch_params)
 

@@ -109,42 +109,46 @@ class Parameters(ZeaObject):
 
     **Usage Example:**
 
-    .. code-block:: python
+    .. doctest::
 
-        class MyParams(Parameters):
-            VALID_PARAMS = {
-                "a": {"type": int, "default": 1},
-                "b": {"type": float, "default": 2.0},
-                "d": {"type": float},  # optional dependency
-            }
+        >>> class MyParams(Parameters):
+        ...     VALID_PARAMS = {
+        ...         "a": {"type": int, "default": 1},
+        ...         "b": {"type": float, "default": 2.0},
+        ...         "d": {"type": float},  # optional dependency
+        ...     }
 
-            @cache_with_dependencies("a", "b")
-            def c(self):
-                return self.a + self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def c(self):
+        ...        return self.a + self.b
 
-            @cache_with_dependencies("a", "b")
-            def d(self):
-                if self._params.get("d") is not None:
-                    return self._params["d"]
-                return self.a * self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def d(self):
+        ...         if self._params.get("d") is not None:
+        ...             return self._params["d"]
+        ...         return self.a * self.b
 
-
-        p = MyParams(a=3)
-        print(p.c)  # Computes and caches c
-        print(p.c)  # Returns cached value
+        >>> p = MyParams(a=3)
+        >>> print(p.c)  # Computes and caches c
+        5.0
+        >>> print(p.c)  # Returns cached value
+        5.0
 
         # Changing a parameter invalidates the cache
-        p.a = 4
-        print(p.c)  # Recomputes c
+        >>> p.a = 4
+        >>> print(p.c)  # Recomputes c, now 4 + 2.0 = 6.0
+        6.0
 
-        # You are not allowed to set computed properties
-        # p.c = 5  # Raises ValueError
+        >>> # You are not allowed to set computed properties
+        >>> # p.c = 5  # Raises ValueError
 
-        # Now check out the optional dependency, this can be either
-        # set directly during initialization or computed from dependencies (default)
-        print(p.d)  # Returns 6 (=3 * 2.0)
-        p = MyParams(a=3, d=9.99)
-        print(p.d)  # Returns 9.99
+        >>> # Now check out the optional dependency, this can be either
+        >>> # set directly during initialization or computed from dependencies (default)
+        >>> print(p.d)  # Returns 6 (=3 * 2.0)
+        6.0
+        >>> p = MyParams(a=3, d=9.99)
+        >>> print(p.d)
+        9.99
 
     """
 

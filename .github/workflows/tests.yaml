@@ -193,4 +193,5 @@ jobs:
               export PATH=\"/tmp/.local/bin:\$PATH\" && \
               make docs-clean && \
               make docs-build SPHINXOPTS='-W --keep-going' \
+              make docs-test \
             "
