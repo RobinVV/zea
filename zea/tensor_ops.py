@@ -130,7 +130,19 @@ def extend_n_dims(arr, axis, n_dims):
     return ops.reshape(arr, new_shape)
 
 
-def vmap(fun, in_axes=0, out_axes=0):
+def simple_map(function, elements):
+    """Like `ops.map` but no tracing or jit compilation."""
+    batch_size = elements[0].shape[0]
+    outputs = []
+    for index in range(batch_size):
+        outputs.append(function([e[index] for e in elements]))
+    if isinstance(outputs[0], (list, tuple)):
+        return [np.stack(tensors) for tensors in zip(*outputs)]
+    else:
+        return np.stack(outputs)
+
+
+def vmap(fun, in_axes=0, out_axes=0, disable_jit=False):
     """Vectorized map.
 
     For torch and jax backends, this uses the native vmap implementation.
@@ -146,6 +158,7 @@ def vmap(fun, in_axes=0, out_axes=0):
             Can be an integer, a tuple of integers, or None.
             If None, the corresponding output is not mapped over.
             Defaults to 0.
+        disable_jit: If True, disables JIT compilation for backends that support it.
 
     Returns:
         A function that applies `fun` in a vectorized manner over the specified axes.
@@ -153,7 +166,7 @@ def vmap(fun, in_axes=0, out_axes=0):
     Raises:
         ValueError: If the backend does not support vmap.
     """
-    if keras.backend.backend() == "jax":
+    if keras.backend.backend() == "jax" and not disable_jit:
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
@@ -162,11 +175,12 @@ def vmap(fun, in_axes=0, out_axes=0):
 
         return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
     else:
-        return manual_vmap(fun, in_axes=in_axes, out_axes=out_axes)
+        map_fn = ops.vectorized_map if not disable_jit else simple_map
+        return _map(fun, in_axes=in_axes, out_axes=out_axes, map_fn=map_fn)
 
 
-def manual_vmap(fun, in_axes=0, out_axes=0):
-    """Manual vectorized map for backends that do not support vmap."""
+def _map(fun, in_axes=0, out_axes=0, map_fn=ops.vectorized_map):
+    """Manual (vectorized) map for backends that do not support vmap."""
 
     def find_map_length(args, in_axes):
         """Find the length of the axis to map over."""
@@ -210,7 +224,7 @@ def manual_vmap(fun, in_axes=0, out_axes=0):
             raise ValueError("out_axes must be an int or a tuple of ints.")
 
         args = _moveaxes(args, _in_axes, zeros)
-        outputs = ops.vectorized_map(_fun, tuple(args))
+        outputs = map_fn(_fun, tuple(args))
 
         tuple_output = isinstance(outputs, (tuple, list))
         if not tuple_output:
@@ -429,6 +443,87 @@ def patched_map(f, xs, patches: int, jit=True, **batch_kwargs):
         length = ops.shape(xs)[0]
         batch_size = np.ceil(length / patches).astype(int)
         return batched_map(f, xs, batch_size, jit, **batch_kwargs)
+
+
+def map(
+    fun,
+    in_axes=0,
+    out_axes=0,
+    batch_size=None,
+    chunks=None,
+    fn_supports_batch=False,
+    disable_jit=False,
+):
+    """Batched version of map.
+
+    Args:
+        fun: Function to be mapped.
+        in_axes: Axis or axes to be mapped over in the input.
+        out_axes: Axis or axes to be mapped over in the output.
+        batch_size: Size of the batch for each step.
+            If None, the function will be equivalent to `map`.
+            Mutually exclusive with `chunks`.
+        chucks: Number of chunks to split the input into.
+            Mutually exclusive with `batch_size`.
+        fn_supports_batch: If True, assumes that `fun` can already handle batched inputs.
+            In this case, `batched_map` will only handle padding and reshaping for batching.
+        disable_jit: If True, disables JIT compilation for backends that support it.
+    Returns:
+        A function that applies `fun` in a batched manner over the specified axes.
+    """
+
+    # Mutually exclusive arguments
+    assert not (batch_size is not None and chunks is not None), (
+        "batch_size and chunks are mutually exclusive. Please specify only one of them."
+    )
+
+    no_chunks_or_batch = batch_size is None and chunks is None
+
+    if not fn_supports_batch or no_chunks_or_batch is None:
+        fun = vmap(fun, in_axes=in_axes, out_axes=out_axes, disable_jit=disable_jit)
+
+    if no_chunks_or_batch is None:
+        return fun
+
+    if batch_size is not None:
+        assert batch_size > 0, "batch_size must be greater than 0."
+    if chunks is not None:
+        assert chunks > 0, "chunks must be greater than 0."
+
+    map_fn = ops.map if not disable_jit else simple_map
+
+    def batched_fun(*args):
+        if isinstance(in_axes, int):
+            _in_axes = (in_axes,) * len(args)
+        if isinstance(out_axes, int):
+            _out_axes = (out_axes,) * len(args)
+        new_args = []
+        total_length = ops.shape(args[0])[_in_axes[0]]
+
+        if chunks is not None:
+            batch_size = np.ceil(total_length / chunks).astype(int)
+
+        for arg, in_axis in zip(args, _in_axes):
+            padded_arg = pad_array_to_divisible(arg, batch_size, axis=in_axis)
+            reshaped_arg = reshape_axis(padded_arg, (batch_size, -1), axis=in_axis)
+            new_args.append(reshaped_arg)
+
+        outputs = _map(fun, in_axes=_in_axes, out_axes=_out_axes, map_fn=map_fn)(*new_args)
+        tuple_output = isinstance(outputs, (tuple, list))
+        if not tuple_output:
+            outputs = (outputs,)
+        new_outputs = []
+        for output, out_axis in zip(outputs, _out_axes):
+            reshaped_output = flatten(output, start_dim=out_axis, end_dim=out_axis + 1)
+            cropped_output = ops.take(reshaped_output, ops.arange(total_length), axis=out_axis)
+            new_outputs.append(cropped_output)
+
+        if tuple_output:
+            return tuple(new_outputs)
+        else:
+            return new_outputs[0]
+
+    return batched_fun
 
 
 def batched_map(f, xs, batch_size=None, jit=True, **batch_kwargs):
