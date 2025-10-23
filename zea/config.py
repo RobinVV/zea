@@ -35,7 +35,7 @@ Example Usage
     >>> # Save to YAML
     >>> config.save_to_yaml("new_config.yaml")
 
-... testcleanup::
+.. testcleanup::
 
     import os
 

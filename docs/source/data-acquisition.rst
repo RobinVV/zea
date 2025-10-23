@@ -183,6 +183,11 @@ Here is a minimal example of how to generate and save a zea dataset:
   ...    overwrite=True,
   ... )
 
+.. testcleanup::
+
+    import os
+
+    os.remove("output_file.hdf5")
 
 For more advanced usage, see :py:func:`zea.data.data_format.generate_zea_dataset`.
 

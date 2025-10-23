@@ -24,6 +24,12 @@ Example usage
     >>> print(user.data_root)
     /path/to/data
 
+.. testcleanup::
+
+    import os
+
+    os.remove("users.yaml")
+
 """
 
 import copy
