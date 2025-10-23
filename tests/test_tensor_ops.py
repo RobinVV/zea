@@ -552,15 +552,27 @@ def test_correlate(mode):
 
 
 @pytest.mark.parametrize(
-    "func, in_axes, out_axes, batch_size, chunks",
+    "func, in_axes, out_axes, batch_size, chunks, fn_supports_batch",
     [
-        ["multiply", (0, 0), 0, None, None],  # vmap
-        ["multiply", (0, None), 0, None, None],  # vmap
-        ["mean", (0, 1), 1, None, None],  # vmap
+        ["multiply", (0, 0), 0, None, None, False],  # vmap
+        ["multiply", (0, None), 0, None, None, False],  # vmap
+        ["mean", (0, 1), 1, None, None, False],  # vmap
+        ["multiply", (0, 0), 0, 2, None, False],  # batched map
+        ["multiply", (0, None), 0, 3, None, False],  # batched map
+        ["dummy", (0, None), 0, 3, None, True],  # batched map
+        ["multiple_out", (1, None), (1, None), None, 4, False],  # chunked map with multiple outputs
+        [
+            "multiple_out",
+            (1, None),
+            (1, None),
+            None,
+            None,
+            False,
+        ],
     ],
 )
 @backend_equality_check(backends=["tensorflow", "torch"])
-def test_map(func, in_axes, out_axes, batch_size, chunks):
+def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     """Test the zea map function against jax.vmap."""
     import jax
     from keras import ops
@@ -569,10 +581,24 @@ def test_map(func, in_axes, out_axes, batch_size, chunks):
 
     shape = (10, 10, 3, 2)
 
+    if chunks is not None:
+        total_length = shape[in_axes[0]]
+        _batch_size = np.ceil(total_length / chunks).astype(int)
+    else:
+        _batch_size = batch_size
+
     def _assert_batch_size(array, axis):
-        if batch_size is not None:
+        # When fn_supports_batch is True, the function can handle batches internally,
+        # so we can check if the batch size is correct.
+        if _batch_size is not None and axis is not None and fn_supports_batch:
+            assert array.shape[axis] == _batch_size
+        # When fn_supports_batch is False, the function cannot handle batches internally,
+        # so it will vmap over the batch dimension and the batch dimension gone.
+        elif _batch_size is not None and not fn_supports_batch:
+            expected_shape = list(shape)
             if axis is not None:
-                assert array.shape[axis] == batch_size
+                expected_shape.pop(axis)
+            assert array.shape == tuple(expected_shape)
 
     if func == "multiply":
 
@@ -581,7 +607,8 @@ def test_map(func, in_axes, out_axes, batch_size, chunks):
             _assert_batch_size(b, in_axes[1])
             return a * b
 
-        jax_func = func
+        def jax_func(a, b):
+            return a * b
     elif func == "mean":
 
         def func(a, b):
@@ -591,6 +618,27 @@ def test_map(func, in_axes, out_axes, batch_size, chunks):
 
         def jax_func(a, b):
             return jax.numpy.mean(a * b, axis=(-1, -2))
+    elif func == "dummy":
+
+        def func(a, b):
+            _assert_batch_size(a, in_axes[0])
+            _assert_batch_size(b, in_axes[1])
+            # a: (batch,10,3,2)
+            # b: (10,10,3,2)
+            # r: (batch,10,10,3,2)
+            return a
+
+        def jax_func(a, b):
+            return a
+    elif func == "multiple_out":
+
+        def func(a, b):
+            _assert_batch_size(a, in_axes[0])
+            _assert_batch_size(b, in_axes[1])
+            return a, b
+
+        def jax_func(a, b):
+            return a, b
 
     # Create batched data
     x = np.random.randn(*shape).astype(np.float32)
@@ -600,10 +648,18 @@ def test_map(func, in_axes, out_axes, batch_size, chunks):
 
     # Apply vmap
     expected = jax.vmap(jax_func, in_axes, out_axes)(x, y)
-    result = tensor_ops.map(func, in_axes, out_axes, batch_size=batch_size, chunks=chunks)(
-        x_tensor, y_tensor
-    )
+    result = tensor_ops.map(
+        func,
+        in_axes,
+        out_axes,
+        batch_size=batch_size,
+        chunks=chunks,
+        fn_supports_batch=fn_supports_batch,
+    )(x_tensor, y_tensor)
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
+
+    if func == "multiple_out":
+        return result[0]  # only return one output for backend_equality_check
 
     return result
 

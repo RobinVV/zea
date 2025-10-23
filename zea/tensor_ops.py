@@ -11,6 +11,24 @@ from scipy.ndimage._filters import _gaussian_kernel1d
 from zea import log
 from zea.utils import map_negative_indices
 
+if keras.backend.backend() == "numpy":
+
+    def vectorized_map(function, elements):
+        """Fixes keras.ops.vectorized_map in numpy backend with multiple outputs."""
+        if not isinstance(elements, (list, tuple)):
+            return np.stack([function(x) for x in elements])
+        else:
+            batch_size = elements[0].shape[0]
+            output_store = []
+            for index in range(batch_size):
+                output_store.append(function([x[index] for x in elements]))
+            if isinstance(output_store[0], (list, tuple)):
+                return [np.stack(tensors) for tensors in zip(*output_store)]
+            else:
+                return np.stack(output_store)
+else:
+    vectorized_map = ops.vectorized_map
+
 
 def split_seed(seed, n):
     """Split a seed into n seeds for reproducible random ops.
@@ -175,11 +193,11 @@ def vmap(fun, in_axes=0, out_axes=0, disable_jit=False):
 
         return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
     else:
-        map_fn = ops.vectorized_map if not disable_jit else simple_map
+        map_fn = vectorized_map if not disable_jit else simple_map
         return _map(fun, in_axes=in_axes, out_axes=out_axes, map_fn=map_fn)
 
 
-def _map(fun, in_axes=0, out_axes=0, map_fn=ops.vectorized_map):
+def _map(fun, in_axes=0, out_axes=0, map_fn=vectorized_map):
     """Manual (vectorized) map for backends that do not support vmap."""
 
     def find_map_length(args, in_axes):
@@ -195,17 +213,20 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=ops.vectorized_map):
     def _moveaxes(args, in_axes, out_axes):
         """Move axes of the input arguments."""
         args = list(args)
+        map_length = find_map_length(args, in_axes)
         for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
-            if in_axis is not None:
+            if out_axis is None:
+                args[i] = ops.take(args[i], 0, axis=in_axis)
+            elif in_axis is not None:
                 args[i] = ops.moveaxis(arg, in_axis, out_axis)
             else:
-                args[i] = ops.repeat(arg[None], find_map_length(args, in_axes), axis=out_axis)
+                args[i] = ops.repeat(ops.expand_dims(arg, out_axis), map_length, axis=out_axis)
         return tuple(args)
 
     def _fun(args):
         return fun(*args)
 
-    def wrapper(*args):
+    def mapped_wrapper(*args):
         # If in_axes or out_axes is an int, convert to tuple
         if isinstance(in_axes, int):
             _in_axes = (in_axes,) * len(args)
@@ -237,7 +258,7 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=ops.vectorized_map):
 
         return outputs
 
-    return wrapper
+    return mapped_wrapper
 
 
 def func_with_one_batch_dim(
@@ -479,7 +500,7 @@ def map(
 
     no_chunks_or_batch = batch_size is None and chunks is None
 
-    if not fn_supports_batch and no_chunks_or_batch:
+    if not fn_supports_batch or no_chunks_or_batch:
         fun = vmap(fun, in_axes=in_axes, out_axes=out_axes, disable_jit=disable_jit)
 
     if no_chunks_or_batch:
@@ -511,8 +532,11 @@ def map(
 
         new_args = []
         for arg, in_axis in zip(args, _in_axes):
+            if in_axis is None:
+                new_args.append(arg)
+                continue
             padded_arg = pad_array_to_divisible(arg, _batch_size, axis=in_axis)
-            reshaped_arg = reshape_axis(padded_arg, (_batch_size, -1), axis=in_axis)
+            reshaped_arg = reshape_axis(padded_arg, (-1, _batch_size), axis=in_axis)
             new_args.append(reshaped_arg)
 
         outputs = _map(fun, in_axes=_in_axes, out_axes=_out_axes, map_fn=map_fn)(*new_args)
@@ -521,6 +545,9 @@ def map(
             outputs = (outputs,)
         new_outputs = []
         for output, out_axis in zip(outputs, _out_axes):
+            if out_axis is None:
+                new_outputs.append(output)
+                continue
             reshaped_output = flatten(output, start_dim=out_axis, end_dim=out_axis + 1)
             cropped_output = ops.take(reshaped_output, ops.arange(total_length), axis=out_axis)
             new_outputs.append(cropped_output)
@@ -1578,7 +1605,7 @@ def apply_along_axis(func1d, axis, arr, *args, **kwargs):
                 perm = list(range(len(x.shape)))
                 perm[0], perm[dim_offset] = perm[dim_offset], perm[0]
                 x_moved = ops.transpose(x, perm)
-                result = ops.vectorized_map(f, x_moved)
+                result = vectorized_map(f, x_moved)
                 # Move the result dimension back if needed
                 if len(result.shape) > 0:
                     result_perm = list(range(len(result.shape)))
@@ -1599,7 +1626,7 @@ def apply_along_axis(func1d, axis, arr, *args, **kwargs):
         prev_func = func
 
         def make_func(f):
-            return lambda x: ops.vectorized_map(f, x)
+            return lambda x: vectorized_map(f, x)
 
         func = make_func(prev_func)
 
