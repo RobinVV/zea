@@ -29,7 +29,6 @@ Example
 
 """
 
-import tkinter as tk
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Union
@@ -43,7 +42,6 @@ from matplotlib.path import Path as pltPath
 from matplotlib.widgets import LassoSelector, RectangleSelector
 from PIL import Image, ImageDraw
 from scipy.interpolate import interp1d
-from skimage import measure
 from skimage.measure import approximate_polygon, find_contours
 from sklearn.metrics import pairwise_distances
 
@@ -55,7 +53,8 @@ from zea.internal.viewer import (
 )
 from zea.io_lib import _SUPPORTED_VID_TYPES, load_image, load_video
 from zea.metrics import get_metric
-from zea.utils import translate
+from zea.tensor_ops import translate
+from zea.visualize import plot_rectangle_from_mask, plot_shape_from_mask
 
 
 def crop_array(array, value=None):
@@ -180,16 +179,30 @@ def interactive_selector(
     for mask in masks:
         patches.append(crop_array(data * mask, value=0))
 
-    like_selection = not bool(confirm_selection)
+    # Early return if no confirmation is required
+    if not confirm_selection:
+        return patches, masks
 
+    try:
+        from tkinter import Tk, messagebox
+    except ImportError as e:
+        raise ImportError(
+            log.error("Failed to import tkinter. Please install it with 'apt install python3-tk'.")
+        ) from e
+
+    # Create root window once for messagebox dialogs
+    root = Tk()
+    root.withdraw()
+
+    like_selection = False
     while not like_selection:
         print(f"You have made {len(patches)} selection(s).")
         # draw masks on top of data
-        for mask in masks:
-            add_shape_from_mask(ax, mask, alpha=0.5)
+        for current_mask in masks:
+            plot_shape_from_mask(ax, current_mask, alpha=0.5)
         plt.draw()
-        # tkinter yes / no dialog
-        like_selection = tk.messagebox.askyesno("Like Selection", "Do you like your selection?")
+
+        like_selection = messagebox.askyesno("Like Selection", "Do you like your selection?")
 
         if not like_selection:
             remove_masks_from_axs(ax)
@@ -199,65 +212,12 @@ def interactive_selector(
             _execute_selector()
 
             patches = []
-            for mask in masks:
-                patches.append(crop_array(data * mask, value=0))
+            for current_mask in masks:
+                patches.append(crop_array(data * current_mask, value=0))
+
+    root.destroy()
 
     return patches, masks
-
-
-def add_rectangle_from_mask(ax, mask, **kwargs):
-    """add a rectangle box to axis from mask array.
-
-    Args:
-        ax (plt.ax): matplotlib axis
-        mask (ndarray): numpy array with rectangle non-zero
-            box defining the region of interest.
-    Kwargs:
-        edgecolor (str): color of the shape's edge
-        facecolor (str): color of the shape's face
-        linewidth (int): width of the shape's edge
-
-    Returns:
-        plt.ax: matplotlib axis with rectangle added
-    """
-    # Create a Rectangle patch
-    y1, y2 = np.where(np.diff(mask, axis=0).sum(axis=1))[0]
-    x1, x2 = np.where(np.diff(mask, axis=1).sum(axis=0))[0]
-    rect = Rectangle(
-        (x1, y1),
-        (x2 - x1),
-        (y2 - y1),
-        **kwargs,
-    )
-
-    # Add the patch to the Axes
-    rect_obj = ax.add_patch(rect)
-    return rect_obj
-
-
-def add_shape_from_mask(ax, mask, **kwargs):
-    """add a shape to axis from mask array.
-
-    Args:
-        ax (plt.ax): matplotlib axis
-        mask (ndarray): numpy array with non-zero
-            shape defining the region of interest.
-    Kwargs:
-        edgecolor (str): color of the shape's edge
-        facecolor (str): color of the shape's face
-        linewidth (int): width of the shape's edge
-
-    Returns:
-        plt.ax: matplotlib axis with shape added
-    """
-    # Create a Path patch
-    contours = measure.find_contours(mask, 0.5)
-    patches = []
-    for contour in contours:
-        path = pltPath(contour[:, ::-1])
-        patch = PathPatch(path, **kwargs)
-        patches.append(ax.add_patch(patch))
-    return patches
 
 
 def interactive_selector_with_plot_and_metric(
@@ -331,9 +291,9 @@ def interactive_selector_with_plot_and_metric(
             _ax.set_title(title + "\n" + f"{metric}: {score:.3f}")
             for mask in masks:
                 if selector == "rectangle":
-                    add_rectangle_from_mask(_ax, mask, alpha=0.5)
+                    plot_rectangle_from_mask(_ax, mask, alpha=0.5)
                 else:
-                    add_shape_from_mask(_ax, mask, alpha=0.5)
+                    plot_shape_from_mask(_ax, mask, alpha=0.5)
             plt.tight_layout()
 
     # plot patches and masks
@@ -347,7 +307,7 @@ def interactive_selector_with_plot_and_metric(
             ax_new[2].imshow(mask, aspect="auto")
 
             if selector == "rectangle":
-                add_rectangle_from_mask(ax_base, mask)
+                plot_rectangle_from_mask(ax_base, mask)
 
             for _ax in ax_new:
                 _ax.axis("off")
@@ -593,10 +553,11 @@ def interpolate_masks(
     assert all(mask.shape == mask_shape for mask in masks), "All masks must have the same shape."
 
     # distribute number of frames over number of masks
-    num_frames_per_segment = [num_frames // (number_of_masks - 1)] * (number_of_masks - 1)
-    if num_frames % num_frames_per_segment[0] != 0:
-        # make sure that number of frames per mask adds up to total number of frames
-        num_frames_per_segment[-1] += num_frames - sum(num_frames_per_segment)
+    base_frames = num_frames // (number_of_masks - 1)
+    remainder = num_frames % (number_of_masks - 1)
+    num_frames_per_segment = [base_frames] * (number_of_masks - 1)
+    for i in range(remainder):
+        num_frames_per_segment[i] += 1
 
     if rectangle:
         # get the rectangles
@@ -615,7 +576,6 @@ def interpolate_masks(
         for _rectangle in rectangles:
             interpolated_masks.append(reconstruct_mask_from_rectangle(_rectangle, mask_shape))
         return interpolated_masks
-
     # get the contours
     polygons = []
     for mask in masks:
@@ -720,10 +680,21 @@ def update_imshow_with_mask(
     imshow_obj.set_array(images[frame_no])
     remove_masks_from_axs(axs)
     if selector == "rectangle":
-        mask_obj = add_rectangle_from_mask(axs, masks[frame_no])
+        mask_obj = plot_rectangle_from_mask(axs, masks[frame_no])
     else:
-        mask_obj = add_shape_from_mask(axs, masks[frame_no], alpha=0.5)
+        mask_obj = plot_shape_from_mask(axs, masks[frame_no], alpha=0.5)
     return imshow_obj, mask_obj
+
+
+def ask_for_title():
+    print("What are you selecting?")
+    title = input("Enter a title for the selection: ")
+    if not title:
+        raise ValueError("Title cannot be empty.")
+    # Convert title to snake_case
+    title = title.strip().replace(" ", "_").lower()
+    print(f"Title set to: {title}")
+    return title
 
 
 def main():
@@ -751,6 +722,7 @@ def main():
             raise e
         print("No more images selected. Continuing...")
 
+    title = ask_for_title()
     selector = ask_for_selection_tool()
 
     if same_images is True:
@@ -806,9 +778,9 @@ def main():
                 pos, size = get_matplotlib_figure_props(fig)
 
                 if selector == "rectangle":
-                    add_rectangle_from_mask(axs, mask[0], alpha=0.5)
+                    plot_rectangle_from_mask(axs, mask[0], alpha=0.5)
                 else:
-                    add_shape_from_mask(axs, mask[0], alpha=0.5)
+                    plot_shape_from_mask(axs, mask[0], alpha=0.5)
                 plt.close()
                 selection_masks.append(mask[0])
 
@@ -825,9 +797,15 @@ def main():
         imshow_obj = axs.imshow(images[0], cmap="gray")
 
         if selector == "rectangle":
-            add_rectangle_from_mask(axs, interpolated_masks[0])
+            plot_rectangle_from_mask(axs, interpolated_masks[0])
         else:
-            add_shape_from_mask(axs, interpolated_masks[0], alpha=0.5)
+            plot_shape_from_mask(axs, interpolated_masks[0], alpha=0.5)
+
+        filestem = Path(file.parent / f"{file.stem}_{title}_annotations.gif")
+        np.save(filestem.with_suffix(".npy"), interpolated_masks)
+        print(
+            f"Successfully saved interpolated masks to {log.yellow(filestem.with_suffix('.npy'))}"
+        )
 
         fps = ask_save_animation_with_fps()
 
@@ -838,9 +816,9 @@ def main():
             fargs=(axs, imshow_obj, images, interpolated_masks, selector),
             interval=1000 / fps,
         )
-        filename = Path(file.parent.stem + "_" + f"{file.stem}_interpolated_masks.gif")
+        filename = filestem.with_suffix(".gif")
         ani.save(filename, writer="pillow")
-        print(f"Succesfully saved animation as {filename}")
+        print(f"Successfully saved animation as {log.yellow(filename)}")
 
 
 if __name__ == "__main__":

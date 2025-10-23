@@ -3,15 +3,14 @@
 from functools import partial
 from typing import Tuple, Union
 
-import keras
 import numpy as np
 import scipy
 from keras import ops
 from PIL import Image
 
 from zea import log
+from zea.tensor_ops import translate
 from zea.tools.fit_scan_cone import fit_and_crop_around_scan_cone
-from zea.utils import translate
 
 
 def to_8bit(image, dynamic_range: Union[None, tuple] = None, pillow: bool = True):
@@ -341,11 +340,14 @@ def scan_convert(
 def map_coordinates(inputs, coordinates, order, fill_mode="constant", fill_value=0):
     """map_coordinates using keras.ops or scipy.ndimage when order > 1."""
     if order > 1:
-        inputs = ops.convert_to_numpy(inputs)
+        # Preserve original dtype before conversion
+        original_dtype = ops.dtype(inputs)
+        inputs_np = ops.convert_to_numpy(inputs).astype(np.float32)
+        coordinates_np = ops.convert_to_numpy(coordinates).astype(np.float32)
         out = scipy.ndimage.map_coordinates(
-            inputs, coordinates, order=order, mode=fill_mode, cval=fill_value
+            inputs_np, coordinates_np, order=order, mode=fill_mode, cval=fill_value
         )
-        return ops.convert_to_tensor(out)
+        return ops.convert_to_tensor(out.astype(original_dtype))
     else:
         return ops.image.map_coordinates(
             inputs,
@@ -358,10 +360,6 @@ def map_coordinates(inputs, coordinates, order, fill_mode="constant", fill_value
 
 def _interpolate_batch(images, coordinates, fill_value=0.0, order=1, vectorize=True):
     """Interpolate a batch of images."""
-
-    # TODO: figure out why tensorflow map_coordinates is broken
-    if keras.backend.backend() == "tensorflow":
-        assert order > 1, "Some bug in tensorflow in map_coordinates, set order > 1 to use scipy."
 
     image_shape = images.shape
     num_image_dims = coordinates.shape[0]

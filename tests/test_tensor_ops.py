@@ -476,3 +476,135 @@ def test_linear_sum_assignment_greedy():
     # Should assign 0->0, 1->1, 2->2
     assert np.all(row_ind == np.array([0, 1, 2]))
     assert np.all(col_ind == np.array([0, 1, 2]))
+
+
+@pytest.mark.parametrize(
+    "array, axis, fn",
+    [
+        [default_rng(seed=1).normal(size=(2, 3)), 0, "sum"],
+        [default_rng(seed=2).normal(size=(2, 3, 4)), 1, "argmax"],
+        [default_rng(seed=3).normal(size=(2, 3, 4, 5)), 2, "var"],
+    ],
+)
+def test_apply_along_axis(array, axis, fn):
+    """Test the apply_along_axis function."""
+    from keras import ops
+
+    from zea import tensor_ops
+
+    if fn == "sum":
+        fn = ops.sum
+        np_fn = np.sum
+    elif fn == "var":
+        fn = ops.var
+        np_fn = np.var
+    elif fn == "argmax":
+        fn = ops.argmax
+        np_fn = np.argmax
+    else:
+        raise ValueError(f"Function {fn} not recognized.")
+
+    # Simple test: sum along axis
+    array = array.astype(np.float32)
+    result = tensor_ops.apply_along_axis(fn, axis, array)
+    expected = np.apply_along_axis(np_fn, axis, array)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.parametrize("mode", ["valid", "same", "full"])
+@backend_equality_check()
+def test_correlate(mode):
+    """Test the correlate function with random complex vectors against np.correlate."""
+    from zea import tensor_ops
+
+    # Set random seed for reproducibility
+    np.random.seed(42)
+
+    # Test with real vectors
+    a_real = np.random.randn(10).astype(np.float32)
+    v_real = np.random.randn(7).astype(np.float32)
+
+    result_real = tensor_ops.correlate(a_real, v_real, mode=mode)
+    expected_real = np.correlate(a_real, v_real, mode=mode)
+
+    np.testing.assert_allclose(result_real, expected_real, rtol=1e-5, atol=1e-5)
+
+    # Test with complex vectors
+    a_complex = (np.random.randn(8) + 1j * np.random.randn(8)).astype(np.complex64)
+    v_complex = (np.random.randn(5) + 1j * np.random.randn(5)).astype(np.complex64)
+
+    result_complex = tensor_ops.correlate(a_complex, v_complex, mode=mode)
+    expected_complex = np.correlate(a_complex, v_complex, mode=mode)
+
+    np.testing.assert_allclose(result_complex, expected_complex, rtol=1e-5, atol=1e-5)
+
+    # Test edge case: different lengths
+    a_short = np.random.randn(3).astype(np.float32)
+    v_long = np.random.randn(12).astype(np.float32)
+
+    result_edge = tensor_ops.correlate(a_short, v_long, mode=mode)
+    expected_edge = np.correlate(a_short, v_long, mode=mode)
+
+    np.testing.assert_allclose(result_edge, expected_edge, rtol=1e-5, atol=1e-5)
+
+    # Return one of the results for backend_equality_check
+    return result_complex
+
+
+@backend_equality_check(backends=["tensorflow", "torch"])
+def test_vmap():
+    """Test the zea vmap function against jax.vmap."""
+    import jax
+    from keras import ops
+
+    from zea import tensor_ops
+
+    vv = lambda x, y: ops.vdot(x, y)
+    jax_vv = lambda x, y: jax.numpy.vdot(x, y)
+
+    # Create batched data
+    x = np.random.randn(10, 5).astype(np.float32)
+    y = np.random.randn(10, 5).astype(np.float32)
+    x_tensor = ops.convert_to_tensor(x)
+    y_tensor = ops.convert_to_tensor(y)
+
+    # Apply vmap
+    expected = jax.vmap(jax_vv, in_axes=(0, 0))(x, y)
+    result = tensor_ops.vmap(vv, in_axes=(0, 0))(x_tensor, y_tensor)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
+
+    # Test with different in_axes
+    expected2 = jax.vmap(jax_vv, in_axes=(0, None))(x, y[0])
+    result2 = tensor_ops.vmap(vv, in_axes=(0, None))(x_tensor, y_tensor[0])
+    np.testing.assert_allclose(result2, expected2, rtol=1e-5, atol=1e-5)
+
+    # Create batched data with more dimensions
+    x = np.random.randn(10, 10, 3, 2).astype(np.float32)
+    y = np.random.randn(10, 10, 3, 2).astype(np.float32)
+    x_tensor = ops.convert_to_tensor(x)
+    y_tensor = ops.convert_to_tensor(y)
+
+    # Create different function for more dimensions
+    mean = lambda a, b: ops.mean(a * b, axis=(-1, -2))
+    jax_mean = lambda a, b: jax.numpy.mean(a * b, axis=(-1, -2))
+
+    # Test with different out_axes
+    expected3 = jax.vmap(jax_mean, in_axes=(0, 1), out_axes=1)(x, y)
+    result3 = tensor_ops.vmap(mean, in_axes=(0, 1), out_axes=1)(x_tensor, y_tensor)
+    np.testing.assert_allclose(result3, expected3, rtol=1e-5, atol=1e-5)
+
+    return result
+
+
+@pytest.mark.parametrize(
+    "range_from, range_to",
+    [((0, 100), (2, 5)), ((-60, 0), (0, 255))],
+)
+def test_translate(range_from, range_to):
+    """Tests the translate function by providing a test array with its range_from and
+    a range to."""
+    arr = np.random.randint(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
+    right_min, right_max = range_to
+    result = tensor_ops.translate(arr, range_from, range_to)
+    assert right_min <= np.min(result), "Minimum value is too small"
+    assert np.max(result) <= right_max, "Maximum value is too large"

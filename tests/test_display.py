@@ -15,18 +15,13 @@ from . import backend_equality_check
         ((512, 512), 0.1, 1),
         ((40, 20, 20), None, 1),
         ((40, 20, 20), 0.5, 1),
-        ((112, 112), None, 3),
+        ((112, 112), None, 3),  # will use scipy ndimage for order > 1
     ],
 )
-@backend_equality_check(decimal=[0, 2], backends=["torch", "jax"])
+@backend_equality_check(decimal=[0, 2, 0], backends=["torch", "jax", "tensorflow"])
 def test_scan_conversion(size, resolution, order):
-    """
-    Tests the scan_conversion function with random data.
-
-    TODO: This test fails for tensorflow on cpu because of `keras.ops.image.map_coordinates`.
-    Therefore tensorflow is not included in the backends. Maybe in the future we can check
-    if the error is fixed with a new keras or tensorflow version.
-    """
+    """Tests the scan_conversion function with random data."""
+    import keras
     from keras import ops
 
     from zea import display
@@ -67,7 +62,9 @@ def test_scan_conversion(size, resolution, order):
 
     # make sure outputs are not all nans or zeros
     assert not np.all(np.isnan(out)), "scan conversion is all nans"
-    assert not np.all(out == 0), "scan conversion is all zeros"
+    assert not np.all(out == 0), (
+        f"scan conversion is all zeros for backend {keras.backend.backend()}"
+    )
     out = np.nan_to_num(out, nan=0)
     return out
 
@@ -76,14 +73,16 @@ def create_radial_pattern(size):
     """Creates a radial pattern for testing scan conversion."""
     x, y = np.meshgrid(np.linspace(-1, 1, size[0]), np.linspace(-1, 1, size[1]))
     r = np.sqrt(x**2 + y**2)
-    return np.exp(-(r**2))
+    image = np.exp(-(r**2))
+    return image.astype("float32")
 
 
 def create_concentric_rings(size):
     """Creates a ring pattern for testing scan conversion."""
     x, y = np.meshgrid(np.linspace(-1, 1, size[0]), np.linspace(-1, 1, size[1]))
     r = np.sqrt(x**2 + y**2)
-    return np.sin(10 * r) ** 2
+    image = np.sin(10 * r) ** 2
+    return image.astype("float32")
 
 
 @pytest.mark.parametrize(
@@ -95,14 +94,10 @@ def create_concentric_rings(size):
         ((100, 333), "create_concentric_rings", 0.1),
     ],
 )
-@backend_equality_check(decimal=2, backends=["torch", "jax"])
+@backend_equality_check(decimal=2)
 def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error):
     """Tests the scan_conversion function with structured test patterns and
     inverts the data with inverse_scan_convert_2d.
-
-    TODO: This test fails for tensorflow on cpu because of `keras.ops.image.map_coordinates`.
-    Therefore tensorflow is not included in the backends. Maybe in the future we can check
-    if the error is fixed with a new keras or tensorflow version.
 
     Note:
         The allowed_error is set to 0.1 for concentric rings because the MSE is
@@ -144,16 +139,12 @@ def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error):
         ((100, 333), "create_concentric_rings", 0.1),
     ],
 )
-@backend_equality_check(decimal=2, backends=["torch", "jax"])
+@backend_equality_check(decimal=2)
 def test_scan_conversion_and_inverse_padded(size, pattern_creator, allowed_error):
     """Tests the scan_conversion function with structured test patterns and
     inverts the data with inverse_scan_convert_2d. In this case, the scan cone is
     padded such that it is no longer centered and cropped. find_scan_cone=True is
     used to automatically crop and center the scan cone.
-
-    TODO: This test fails for tensorflow on cpu because of `keras.ops.image.map_coordinates`.
-    Therefore tensorflow is not included in the backends. Maybe in the future we can check
-    if the error is fixed with a new keras or tensorflow version.
     """
     from keras import ops
 
@@ -208,3 +199,66 @@ def test_converting_to_image(size, dynamic_range):
     _data = display.to_8bit(data, dynamic_range, pillow=False)
     assert np.all(np.logical_and(_data >= 0, _data <= 255))
     assert _data.dtype == "uint8"
+
+
+@pytest.mark.parametrize(
+    "dtype, order",
+    [
+        ("float16", 0),
+        ("float16", 1),
+        ("float16", 2),
+        ("float32", 0),
+        ("float32", 1),
+        ("float32", 2),
+    ],
+)
+def test_map_coordinates_dtype(dtype, order):
+    """Test map_coordinates with different data types and interpolation orders.
+
+    This test verifies that map_coordinates works correctly with float16 and float32
+    inputs across different interpolation orders.
+    """
+    from keras import ops
+
+    from zea import display
+
+    # Create a simple 2D test image
+    rng = np.random.default_rng(42)
+    image = rng.random((32, 32)).astype(dtype)
+
+    # Create simple coordinates for interpolation
+    # Sample points at fractional positions to test interpolation
+    coords = np.array(
+        [
+            [15.5, 16.2, 20.1, 10.3],  # y coordinates
+            [15.5, 14.8, 18.7, 12.9],  # x coordinates
+        ],
+        dtype="float32",
+    )
+
+    # Convert to ops tensors
+    image_tensor = ops.convert_to_tensor(image)
+    coords_tensor = ops.convert_to_tensor(coords)
+
+    # Perform map_coordinates
+    result = display.map_coordinates(
+        image_tensor, coords_tensor, order=order, fill_mode="constant", fill_value=0.0
+    )
+
+    # Convert result to numpy for assertions
+    result_np = ops.convert_to_numpy(result)
+
+    # Basic sanity checks
+    assert result_np.shape == (4,), f"Expected shape (4,), got {result_np.shape}"
+    assert not np.any(np.isnan(result_np)), "Result contains NaN values"
+    assert not np.all(result_np == 0), "Result is all zeros (likely failed)"
+
+    # The output dtype should always match the input dtype
+    assert result_np.dtype == np.dtype(dtype), (
+        f"Expected output dtype {dtype}, got {result_np.dtype}"
+    )
+
+    # Verify interpolated values are within reasonable range
+    assert np.all(result_np >= 0) and np.all(result_np <= 1), (
+        f"Interpolated values out of expected range [0, 1]: {result_np}"
+    )

@@ -130,6 +130,102 @@ def extend_n_dims(arr, axis, n_dims):
     return ops.reshape(arr, new_shape)
 
 
+def vmap(fun, in_axes=0, out_axes=0):
+    """Vectorized map.
+
+    For torch and jax backends, this uses the native vmap implementation.
+    For other backends, this a wrapper that uses `ops.vectorized_map` under the hood.
+
+    Args:
+        fun: The function to be mapped.
+        in_axes: The axis or axes to be mapped over in the input.
+            Can be an integer, a tuple of integers, or None.
+            If None, the corresponding argument is not mapped over.
+            Defaults to 0.
+        out_axes: The axis or axes to be mapped over in the output.
+            Can be an integer, a tuple of integers, or None.
+            If None, the corresponding output is not mapped over.
+            Defaults to 0.
+
+    Returns:
+        A function that applies `fun` in a vectorized manner over the specified axes.
+
+    Raises:
+        ValueError: If the backend does not support vmap.
+    """
+    if keras.backend.backend() == "jax":
+        import jax
+
+        return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
+    elif keras.backend.backend() == "torch":
+        import torch
+
+        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
+    else:
+        return manual_vmap(fun, in_axes=in_axes, out_axes=out_axes)
+
+
+def manual_vmap(fun, in_axes=0, out_axes=0):
+    """Manual vectorized map for backends that do not support vmap."""
+
+    def find_map_length(args, in_axes):
+        """Find the length of the axis to map over."""
+        # NOTE: only needed for numpy, the other backends can handle a singleton dimension
+        for arg, axis in zip(args, in_axes):
+            if axis is None:
+                continue
+
+            return ops.shape(arg)[axis]
+        return 1
+
+    def _moveaxes(args, in_axes, out_axes):
+        """Move axes of the input arguments."""
+        args = list(args)
+        for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
+            if in_axis is not None:
+                args[i] = ops.moveaxis(arg, in_axis, out_axis)
+            else:
+                args[i] = ops.repeat(arg[None], find_map_length(args, in_axes), axis=out_axis)
+        return tuple(args)
+
+    def _fun(args):
+        return fun(*args)
+
+    def wrapper(*args):
+        # If in_axes or out_axes is an int, convert to tuple
+        if isinstance(in_axes, int):
+            _in_axes = (in_axes,) * len(args)
+        else:
+            _in_axes = in_axes
+        if isinstance(out_axes, int):
+            _out_axes = (out_axes,) * len(args)
+        else:
+            _out_axes = out_axes
+        zeros = (0,) * len(args)
+
+        # Check that in_axes and out_axes are tuples
+        if not isinstance(_in_axes, tuple):
+            raise ValueError("in_axes must be an int or a tuple of ints.")
+        if not isinstance(_out_axes, tuple):
+            raise ValueError("out_axes must be an int or a tuple of ints.")
+
+        args = _moveaxes(args, _in_axes, zeros)
+        outputs = ops.vectorized_map(_fun, tuple(args))
+
+        tuple_output = isinstance(outputs, (tuple, list))
+        if not tuple_output:
+            outputs = (outputs,)
+
+        outputs = _moveaxes(outputs, zeros, _out_axes)
+
+        if not tuple_output:
+            outputs = outputs[0]
+
+        return outputs
+
+    return wrapper
+
+
 def func_with_one_batch_dim(
     func,
     tensor,
@@ -1263,11 +1359,19 @@ def fori_loop(lower, upper, body_fun, init_val, disable_jit=False):
 
 
 def L2(x):
-    """L2 norm of a tensor.
+    """L2 norm of a real tensor.
 
-    Implementation of L2 norm: https://mathworld.wolfram.com/L2-Norm.html
+    Implementation of L2 norm for real vectors: https://mathworld.wolfram.com/L2-Norm.html
     """
     return ops.sqrt(ops.sum(x**2))
+
+
+def L1(x):
+    """L1 norm of a real tensor.
+
+    Implementation of L1 norm for real vectors: https://mathworld.wolfram.com/L1-Norm.html
+    """
+    return ops.sum(ops.abs(x))
 
 
 def linear_sum_assignment(cost):
@@ -1325,3 +1429,176 @@ else:
     def safe_vectorize(pyfunc, excluded=None, signature=None):
         """Just a wrapper around ops.vectorize."""
         return ops.vectorize(pyfunc, excluded=excluded, signature=signature)
+
+
+def apply_along_axis(func1d, axis, arr, *args, **kwargs):
+    """Apply a function to 1D array slices along an axis.
+
+    Keras implementation of numpy.apply_along_axis using keras.ops.vectorized_map.
+
+    Args:
+        func1d: A callable function with signature ``func1d(arr, /, *args, **kwargs)``
+            where ``*args`` and ``**kwargs`` are the additional positional and keyword
+            arguments passed to apply_along_axis.
+        axis: Integer axis along which to apply the function.
+        arr: The array over which to apply the function.
+        *args: Additional positional arguments passed through to func1d.
+        **kwargs: Additional keyword arguments passed through to func1d.
+
+    Returns:
+        The result of func1d applied along the specified axis.
+    """
+    # Convert to keras tensor
+    arr = ops.convert_to_tensor(arr)
+
+    # Get array dimensions
+    num_dims = len(arr.shape)
+
+    # Canonicalize axis (handle negative indices)
+    if axis < 0:
+        axis = num_dims + axis
+
+    if axis < 0 or axis >= num_dims:
+        raise ValueError(f"axis {axis} is out of bounds for array of dimension {num_dims}")
+
+    # Create a wrapper function that applies func1d with the additional arguments
+    def func(slice_arr):
+        return func1d(slice_arr, *args, **kwargs)
+
+    # Recursively build up vectorized maps following the JAX pattern
+    # For dimensions after the target axis (right side)
+    for i in range(1, num_dims - axis):
+        prev_func = func
+
+        def make_func(f, dim_offset):
+            def vectorized_func(x):
+                # Move the dimension we want to map over to the front
+                perm = list(range(len(x.shape)))
+                perm[0], perm[dim_offset] = perm[dim_offset], perm[0]
+                x_moved = ops.transpose(x, perm)
+                result = ops.vectorized_map(f, x_moved)
+                # Move the result dimension back if needed
+                if len(result.shape) > 0:
+                    result_perm = list(range(len(result.shape)))
+                    if len(result_perm) > dim_offset:
+                        result_perm[0], result_perm[dim_offset] = (
+                            result_perm[dim_offset],
+                            result_perm[0],
+                        )
+                        result = ops.transpose(result, result_perm)
+                return result
+
+            return vectorized_func
+
+        func = make_func(prev_func, i)
+
+    # For dimensions before the target axis (left side)
+    for i in range(axis):
+        prev_func = func
+
+        def make_func(f):
+            return lambda x: ops.vectorized_map(f, x)
+
+        func = make_func(prev_func)
+
+    return func(arr)
+
+
+def correlate(x, y, mode="full"):
+    """
+    Complex correlation via splitting real and imaginary parts.
+    Equivalent to np.correlate(x, y, mode).
+
+    NOTE: this function exists because tensorflow does not support complex correlation.
+    NOTE: tensorflow also handles padding differently than numpy, so we manually pad the input.
+
+    Args:
+        x: np.ndarray (complex or real)
+        y: np.ndarray (complex or real)
+        mode: "full", "valid", or "same"
+    """
+    x = ops.convert_to_tensor(x)
+    y = ops.convert_to_tensor(y)
+
+    is_complex = "complex" in ops.dtype(x) or "complex" in ops.dtype(y)
+
+    # Cast to complex64 if real
+    if not is_complex:
+        x = ops.cast(x, "complex64")
+        y = ops.cast(y, "complex64")
+
+    # Split into real and imaginary
+    xr, xi = ops.real(x), ops.imag(x)
+    yr, yi = ops.real(y), ops.imag(y)
+
+    # Pad to do full correlation
+    pad_left = ops.shape(y)[0] - 1
+    pad_right = ops.shape(y)[0] - 1
+    xr = ops.pad(xr, [[pad_left, pad_right]])
+    xi = ops.pad(xi, [[pad_left, pad_right]])
+
+    # Correlation: sum over x[n] * conj(y[n+k])
+    rr = ops.correlate(xr, yr, mode="valid")
+    ii = ops.correlate(xi, yi, mode="valid")
+    ri = ops.correlate(xr, yi, mode="valid")
+    ir = ops.correlate(xi, yr, mode="valid")
+
+    real_part = rr + ii
+    imag_part = ir - ri
+
+    real_part = ops.cast(real_part, "complex64")
+    imag_part = ops.cast(imag_part, "complex64")
+
+    complex_tensor = real_part + 1j * imag_part
+
+    # Extract relevant part based on mode
+    full_length = ops.shape(real_part)[0]
+    x_len = ops.shape(x)[0]
+    y_len = ops.shape(y)[0]
+
+    if mode == "same":
+        # Return output of length max(M, N)
+        target_len = ops.maximum(x_len, y_len)
+        start = ops.floor((full_length - target_len) / 2)
+        start = ops.cast(start, "int32")
+        end = start + target_len
+        complex_tensor = complex_tensor[start:end]
+    elif mode == "valid":
+        # Return output of length max(M, N) - min(M, N) + 1
+        target_len = ops.maximum(x_len, y_len) - ops.minimum(x_len, y_len) + 1
+        start = ops.ceil((full_length - target_len) / 2)
+        start = ops.cast(start, "int32")
+        end = start + target_len
+        complex_tensor = complex_tensor[start:end]
+    # For "full" mode, use the entire result (no slicing needed)
+
+    if is_complex:
+        return complex_tensor
+    else:
+        return ops.real(complex_tensor)
+
+
+def translate(array, range_from=None, range_to=(0, 255)):
+    """Map values in array from one range to other.
+
+    Args:
+        array (ndarray): input array.
+        range_from (Tuple, optional): lower and upper bound of original array.
+            Defaults to min and max of array.
+        range_to (Tuple, optional): lower and upper bound to which array should be mapped.
+            Defaults to (0, 255).
+
+    Returns:
+        (ndarray): translated array
+    """
+    if range_from is None:
+        left_min, left_max = ops.min(array), ops.max(array)
+    else:
+        left_min, left_max = range_from
+    right_min, right_max = range_to
+
+    # Convert the left range into a 0-1 range (float)
+    value_scaled = (array - left_min) / (left_max - left_min)
+
+    # Convert the 0-1 range into a value in the right range.
+    return right_min + (value_scaled * (right_max - right_min))
