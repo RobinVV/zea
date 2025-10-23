@@ -552,37 +552,57 @@ def test_correlate(mode):
 
 
 @pytest.mark.parametrize(
-    "func, in_axes, out_axes",
+    "func, in_axes, out_axes, batch_size, chunks",
     [
-        ["multiply", (0, 0), 0],
-        ["multiply", (0, None), 0],
-        ["mean", (0, 1), 1],
+        ["multiply", (0, 0), 0, None, None],  # vmap
+        ["multiply", (0, None), 0, None, None],  # vmap
+        ["mean", (0, 1), 1, None, None],  # vmap
     ],
 )
 @backend_equality_check(backends=["tensorflow", "torch"])
-def test_vmap(func, in_axes, out_axes):
-    """Test the zea vmap function against jax.vmap."""
+def test_map(func, in_axes, out_axes, batch_size, chunks):
+    """Test the zea map function against jax.vmap."""
     import jax
     from keras import ops
 
     from zea import tensor_ops
 
+    shape = (10, 10, 3, 2)
+
+    def _assert_batch_size(array, axis):
+        if batch_size is not None:
+            if axis is not None:
+                assert array.shape[axis] == batch_size
+
     if func == "multiply":
-        func = lambda x, y: ops.multiply(x, y)
-        jax_func = lambda x, y: jax.numpy.multiply(x, y)
+
+        def func(a, b):
+            _assert_batch_size(a, in_axes[0])
+            _assert_batch_size(b, in_axes[1])
+            return a * b
+
+        jax_func = func
     elif func == "mean":
-        func = lambda a, b: ops.mean(a * b, axis=(-1, -2))
-        jax_func = lambda a, b: jax.numpy.mean(a * b, axis=(-1, -2))
+
+        def func(a, b):
+            _assert_batch_size(a, in_axes[0])
+            _assert_batch_size(b, in_axes[1])
+            return ops.mean(a * b, axis=(-1, -2))
+
+        def jax_func(a, b):
+            return jax.numpy.mean(a * b, axis=(-1, -2))
 
     # Create batched data
-    x = np.random.randn(10, 10, 3, 2).astype(np.float32)
-    y = np.random.randn(10, 10, 3, 2).astype(np.float32)
+    x = np.random.randn(*shape).astype(np.float32)
+    y = np.random.randn(*shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
 
     # Apply vmap
-    expected = jax.vmap(jax_func, in_axes=in_axes, out_axes=out_axes)(x, y)
-    result = tensor_ops.vmap(func, in_axes=in_axes, out_axes=out_axes)(x_tensor, y_tensor)
+    expected = jax.vmap(jax_func, in_axes, out_axes)(x, y)
+    result = tensor_ops.map(func, in_axes, out_axes, batch_size=batch_size, chunks=chunks)(
+        x_tensor, y_tensor
+    )
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
 
     return result

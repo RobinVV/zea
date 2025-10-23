@@ -479,10 +479,10 @@ def map(
 
     no_chunks_or_batch = batch_size is None and chunks is None
 
-    if not fn_supports_batch or no_chunks_or_batch is None:
+    if not fn_supports_batch and no_chunks_or_batch:
         fun = vmap(fun, in_axes=in_axes, out_axes=out_axes, disable_jit=disable_jit)
 
-    if no_chunks_or_batch is None:
+    if no_chunks_or_batch:
         return fun
 
     if batch_size is not None:
@@ -495,17 +495,24 @@ def map(
     def batched_fun(*args):
         if isinstance(in_axes, int):
             _in_axes = (in_axes,) * len(args)
+        else:
+            _in_axes = in_axes
         if isinstance(out_axes, int):
             _out_axes = (out_axes,) * len(args)
-        new_args = []
+        else:
+            _out_axes = out_axes
+
         total_length = ops.shape(args[0])[_in_axes[0]]
 
         if chunks is not None:
-            batch_size = np.ceil(total_length / chunks).astype(int)
+            _batch_size = np.ceil(total_length / chunks).astype(int)
+        else:
+            _batch_size = batch_size
 
+        new_args = []
         for arg, in_axis in zip(args, _in_axes):
-            padded_arg = pad_array_to_divisible(arg, batch_size, axis=in_axis)
-            reshaped_arg = reshape_axis(padded_arg, (batch_size, -1), axis=in_axis)
+            padded_arg = pad_array_to_divisible(arg, _batch_size, axis=in_axis)
+            reshaped_arg = reshape_axis(padded_arg, (_batch_size, -1), axis=in_axis)
             new_args.append(reshaped_arg)
 
         outputs = _map(fun, in_axes=_in_axes, out_axes=_out_axes, map_fn=map_fn)(*new_args)
