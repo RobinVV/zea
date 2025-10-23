@@ -1576,3 +1576,29 @@ def correlate(x, y, mode="full"):
         return complex_tensor
     else:
         return ops.real(complex_tensor)
+
+
+def translate(array, range_from=None, range_to=(0, 255)):
+    """Map values in array from one range to other.
+
+    Args:
+        array (ndarray): input array.
+        range_from (Tuple, optional): lower and upper bound of original array.
+            Defaults to min and max of array.
+        range_to (Tuple, optional): lower and upper bound to which array should be mapped.
+            Defaults to (0, 255).
+
+    Returns:
+        (ndarray): translated array
+    """
+    if range_from is None:
+        left_min, left_max = ops.min(array), ops.max(array)
+    else:
+        left_min, left_max = range_from
+    right_min, right_max = range_to
+
+    # Convert the left range into a 0-1 range (float)
+    value_scaled = (array - left_min) / (left_max - left_min)
+
+    # Convert the 0-1 range into a value in the right range.
+    return right_min + (value_scaled * (right_max - right_min))

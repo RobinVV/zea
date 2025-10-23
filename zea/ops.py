@@ -99,12 +99,11 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import patched_map, resample, reshape_axis
+from zea.tensor_ops import patched_map, resample, reshape_axis, translate
 from zea.utils import (
     FunctionTimer,
     deep_compare,
     map_negative_indices,
-    translate,
 )
 
 
