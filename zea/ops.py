@@ -1831,7 +1831,8 @@ class UpMix(Operation):
 
 def log_compress(data, eps=1e-16):
     """Apply logarithmic compression to data."""
-    data = ops.clip(data, eps, None)  # Avoid log(0)
+    eps = ops.convert_to_tensor(eps, dtype=data.dtype)
+    data = ops.where(data == 0, eps, data)  # Avoid log(0)
     return 20 * keras.ops.log10(data)
 
 
