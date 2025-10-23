@@ -567,7 +567,6 @@ class Pipeline:
         beamforming = [
             TOFCorrection(),
             DelayAndSum(),
-            ReshapeGrid(),
         ]
         if pfield:
             beamforming.insert(1, PfieldWeighting())
@@ -575,6 +574,8 @@ class Pipeline:
         # Optionally add patching
         if num_patches > 1:
             beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
+
+        beamforming.append(ReshapeGrid())
 
         # Add beamforming ops
         operations += beamforming
