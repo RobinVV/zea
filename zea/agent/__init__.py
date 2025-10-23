@@ -21,9 +21,7 @@ Example usage
 
     >>> # (batch, samples, height, width)
     >>> particles = np.random.rand(1, 10, 112, 112)
-    >>> lines, mask = agent.sample(
-    ...     particles
-    ... )  # doctest: +SKIP, currently does not work for numpy backend
+    >>> lines, mask = agent.sample(particles)  # doctest: +SKIP
 """
 
 from . import masks, selection

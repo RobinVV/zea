@@ -35,6 +35,12 @@ Example Usage
     >>> # Save to YAML
     >>> config.save_to_yaml("new_config.yaml")
 
+... testcleanup::
+
+    import os
+
+    os.remove("new_config.yaml")
+
 """
 
 import copy

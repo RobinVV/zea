@@ -144,8 +144,8 @@ class Parameters(ZeaObject):
 
         >>> # Now check out the optional dependency, this can be either
         >>> # set directly during initialization or computed from dependencies (default)
-        >>> print(p.d)  # Returns 6 (=3 * 2.0)
-        6.0
+        >>> print(p.d)  # Returns 8 (=4 * 2.0)
+        8.0
         >>> p = MyParams(a=3, d=9.99)
         >>> print(p.d)
         9.99

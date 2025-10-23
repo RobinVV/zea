@@ -62,6 +62,12 @@ One can also load a pipeline from a config or yaml/json file:
     >>> yaml_file = "pipeline.yaml"
     >>> pipeline = Pipeline.from_yaml(yaml_file)
 
+.. testcleanup::
+
+    import os
+
+    os.remove("pipeline.yaml")
+
 Example of a yaml file:
 
 .. code-block:: yaml
@@ -124,7 +130,7 @@ from zea.utils import (
 )
 
 
-def _get_ops(ops_name):
+def get_ops(ops_name):
     """Get the operation from the registry."""
     return ops_registry[ops_name]
 
@@ -1141,7 +1147,7 @@ def make_operation_chain(
         )
 
         if isinstance(operation, str):
-            operation_instance = _get_ops(operation)()
+            operation_instance = get_ops(operation)()
 
         else:
             if isinstance(operation, Config):
@@ -1149,7 +1155,7 @@ def make_operation_chain(
 
             params = operation.get("params", {})
             op_name = operation.get("name")
-            operation_cls = _get_ops(op_name)
+            operation_cls = get_ops(op_name)
 
             # Handle branches for branched pipeline
             if op_name == "branched_pipeline" and "branches" in operation:
@@ -1166,7 +1172,7 @@ def make_operation_chain(
                         branch = make_operation_chain(branch_config["operations"])
                     else:
                         # This is a single operation branch
-                        branch_op_cls = _get_ops(branch_config["name"])
+                        branch_op_cls = get_ops(branch_config["name"])
                         branch_params = branch_config.get("params", {})
                         branch = branch_op_cls(**branch_params)
 

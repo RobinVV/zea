@@ -15,10 +15,10 @@ Example usage
 
     >>> import yaml
     >>> from zea.datapaths import set_data_paths
+
     >>> user_config = {"data_root": "/path/to/data", "output": "/path/to/output"}
     >>> with open("users.yaml", "w", encoding="utf-8") as file:
     ...     yaml.dump(user_config, file)
-    >>> from zea.datapaths import set_data_paths
 
     >>> user = set_data_paths("users.yaml")
     >>> print(user.data_root)

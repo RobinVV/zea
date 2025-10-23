@@ -40,6 +40,11 @@ Here is a minimal example of how to load and save a config file using zea:
     >>> # Save the config back to file
     >>> config.save_to_yaml("my_new_config.yaml")
 
+.. testcleanup::
+
+    import os
+
+    os.remove("my_new_config.yaml")
 
 -------------------------------
 Parameter List
