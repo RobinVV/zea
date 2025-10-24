@@ -445,6 +445,8 @@ def test_correlate(mode):
         ["multiply", (0, 0), 0, None, None, False],  # vmap
         ["multiply", (0, None), 0, None, None, False],  # vmap
         ["mean", (0, 1), 1, None, None, False],  # vmap
+        ["multiply", 0, 0, None, None, True],  # doesn't have to vmap
+        ["multiply", 0, 0, None, 1, True],  # doesn't have to vmap (chunks==1)
         ["multiply", (0, 0), 0, 2, None, False],  # batched map
         ["multiply", (0, None), 0, 3, None, False],  # batched map
         ["dummy", (0, None), 0, 3, None, True],  # batched map
@@ -470,8 +472,13 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
 
     shape = (10, 10, 3, 2)
 
+    if isinstance(in_axes, int):
+        _in_axes = (in_axes, in_axes)
+    else:
+        _in_axes = in_axes
+
     if chunks is not None:
-        total_length = shape[in_axes[0]]
+        total_length = shape[_in_axes[0]]
         _batch_size = np.ceil(total_length / chunks).astype(int)
     else:
         _batch_size = batch_size
@@ -492,8 +499,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     if func == "multiply":
 
         def func(a, b):
-            _assert_batch_size(a, in_axes[0])
-            _assert_batch_size(b, in_axes[1])
+            _assert_batch_size(a, _in_axes[0])
+            _assert_batch_size(b, _in_axes[1])
             return a * b
 
         def jax_func(a, b):
@@ -501,8 +508,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     elif func == "mean":
 
         def func(a, b):
-            _assert_batch_size(a, in_axes[0])
-            _assert_batch_size(b, in_axes[1])
+            _assert_batch_size(a, _in_axes[0])
+            _assert_batch_size(b, _in_axes[1])
             return ops.mean(a * b, axis=(-1, -2))
 
         def jax_func(a, b):
@@ -510,8 +517,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     elif func == "dummy":
 
         def func(a, b):
-            _assert_batch_size(a, in_axes[0])
-            _assert_batch_size(b, in_axes[1])
+            _assert_batch_size(a, _in_axes[0])
+            _assert_batch_size(b, _in_axes[1])
             return a
 
         def jax_func(a, b):
@@ -519,8 +526,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     elif func == "multiple_out":
 
         def func(a, b):
-            _assert_batch_size(a, in_axes[0])
-            _assert_batch_size(b, in_axes[1])
+            _assert_batch_size(a, _in_axes[0])
+            _assert_batch_size(b, _in_axes[1])
             return a, b
 
         def jax_func(a, b):

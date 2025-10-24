@@ -11,24 +11,6 @@ from scipy.ndimage._filters import _gaussian_kernel1d
 from zea import log
 from zea.utils import map_negative_indices
 
-if keras.backend.backend() == "numpy":
-
-    def vectorized_map(function, elements):
-        """Fixes keras.ops.vectorized_map in numpy backend with multiple outputs."""
-        if not isinstance(elements, (list, tuple)):
-            return np.stack([function(x) for x in elements])
-        else:
-            batch_size = elements[0].shape[0]
-            output_store = []
-            for index in range(batch_size):
-                output_store.append(function([x[index] for x in elements]))
-            if isinstance(output_store[0], (list, tuple)):
-                return [np.stack(tensors) for tensors in zip(*output_store)]
-            else:
-                return np.stack(output_store)
-else:
-    vectorized_map = ops.vectorized_map
-
 
 def split_seed(seed, n):
     """Split a seed into n seeds for reproducible random ops.
@@ -302,6 +284,25 @@ def simple_map(function, elements):
         return np.stack(outputs)
 
 
+if keras.backend.backend() == "numpy":
+
+    def vectorized_map(function, elements):
+        """Fixes keras.ops.vectorized_map in numpy backend with multiple outputs."""
+        if not isinstance(elements, (list, tuple)):
+            return np.stack([function(x) for x in elements])
+        else:
+            batch_size = elements[0].shape[0]
+            output_store = []
+            for index in range(batch_size):
+                output_store.append(function([x[index] for x in elements]))
+            if isinstance(output_store[0], (list, tuple)):
+                return [np.stack(tensors) for tensors in zip(*output_store)]
+            else:
+                return np.stack(output_store)
+else:
+    vectorized_map = ops.vectorized_map
+
+
 def _map(fun, in_axes=0, out_axes=0, map_fn=None):
     """Mapping function, vectorized by default.
 
@@ -421,14 +422,14 @@ def vmap(
         fun: Function to be mapped.
         in_axes: Axis or axes to be mapped over in the input.
         out_axes: Axis or axes to be mapped over in the output.
-        batch_size: Size of the batch for each step.
-            If None, the function will be equivalent to `map`.
-            Mutually exclusive with `chunks`.
-        chucks: Number of chunks to split the input into.
-            Mutually exclusive with `batch_size`.
+        batch_size: Size of the batch for each step. If `None`, the function will be equivalent
+            to `vmap`. If `1`, will be equivalent to `map`. Mutually exclusive with `chunks`.
+        chucks: Number of chunks to split the input into. If `None` or `1`, the function will be
+            equivalent to `vmap`. Mutually exclusive with `batch_size`.
         fn_supports_batch: If True, assumes that `fun` can already handle batched inputs.
-            In this case, `map` will only handle padding and reshaping for batching.
+            In this case, this function will only handle padding and reshaping for batching.
         disable_jit: If True, disables JIT compilation for backends that support it.
+            This can be useful for debugging. Will fall back to simple mapping.
     Returns:
         A function that applies `fun` in a batched manner over the specified axes.
     """
@@ -438,9 +439,17 @@ def vmap(
         "batch_size and chunks are mutually exclusive. Please specify only one of them."
     )
 
-    no_chunks_or_batch = batch_size is None and chunks is None
+    if batch_size is not None:
+        assert batch_size > 0, "batch_size must be greater than 0."
+    if chunks is not None:
+        assert chunks > 0, "chunks must be greater than 0."
 
-    if not fn_supports_batch or no_chunks_or_batch:
+    no_chunks_or_batch = batch_size is None and (chunks is None or chunks == 1)
+
+    if fn_supports_batch and no_chunks_or_batch:
+        return fun
+
+    if not fn_supports_batch:
         # vmap to support batches
         fun = _map(
             fun,
@@ -451,11 +460,6 @@ def vmap(
 
     if no_chunks_or_batch:
         return fun
-
-    if batch_size is not None:
-        assert batch_size > 0, "batch_size must be greater than 0."
-    if chunks is not None:
-        assert chunks > 0, "chunks must be greater than 0."
 
     # map (sequentially) to support batches/chunks that fit in memory
     map_fn = ops.map if not disable_jit else simple_map
