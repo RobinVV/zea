@@ -567,10 +567,9 @@ def func_with_one_batch_dim(
     else:
         reshaped_output = vmap(
             lambda *args: func(*args, **kwargs),
-            reshaped_input,
             batch_size=batch_size,
-            func_supports_batch=True,
-        )
+            fn_supports_batch=True,
+        )(reshaped_input)
 
     # If the function returns multiple outputs, select the one corresponding to `func_axis`
     if isinstance(reshaped_output, (tuple, list)):
