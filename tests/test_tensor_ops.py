@@ -574,8 +574,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
 
 
 @backend_equality_check()
-def test_map_none_arg():
-    """Test the zea map function with None argument."""
+def test_vmap_none_arg():
+    """Test the `zea` `vmap` function with `None` argument."""
     from keras import ops
 
     from zea import tensor_ops
@@ -583,6 +583,7 @@ def test_map_none_arg():
     shape = (10, 10, 3, 2)
 
     def func(a, b):
+        assert b is None
         return a + 1
 
     # Create batched data
@@ -599,7 +600,7 @@ def test_map_none_arg():
 
 @backend_equality_check()
 def test_simple_map_one_input():
-    """Test the zea simple_map function against keras.ops.map."""
+    """Test the `zea` `simple_map` function against `keras.ops.map`."""
     from keras import ops
 
     from zea import tensor_ops
@@ -619,7 +620,7 @@ def test_simple_map_one_input():
 
 @backend_equality_check()
 def test_simple_map_multiple_inputs():
-    """Test the zea simple_map function against keras.ops.map."""
+    """Test the `zea` `simple_map` function against `keras.ops.map`."""
     from keras import ops
 
     from zea import tensor_ops

@@ -279,9 +279,9 @@ def simple_map(function, elements):
             outputs.append(function([e[index] if e is not None else None for e in elements]))
 
     if isinstance(outputs[0], (list, tuple)):
-        return [np.stack(tensors) for tensors in zip(*outputs)]
+        return [ops.stack(tensors) for tensors in zip(*outputs)]
     else:
-        return np.stack(outputs)
+        return ops.stack(outputs)
 
 
 if keras.backend.backend() == "numpy":
@@ -301,6 +301,26 @@ if keras.backend.backend() == "numpy":
                 return np.stack(output_store)
 else:
     vectorized_map = ops.vectorized_map
+
+
+def _find_map_length(args, in_axes) -> int:
+    """Find the length of the axis to map over."""
+    for arg, axis in zip(args, in_axes):
+        if axis is None or arg is None:
+            continue
+
+        return ops.shape(arg)[axis]
+
+    raise ValueError("At least one in_axes must be non-None to determine map length.")
+
+
+def _repeat_int_to_tuple(value, length) -> Tuple[Union[int, None], ...]:
+    """Convert an int or None to a tuple of length `length`."""
+    if isinstance(value, int) or value is None:
+        return (value,) * length
+    elif not isinstance(value, tuple):
+        raise ValueError("Value must be an int, None, or a tuple.")
+    return value
 
 
 def _map(fun, in_axes=0, out_axes=0, map_fn=None, _use_torch_vmap=False):
@@ -335,6 +355,7 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=None, _use_torch_vmap=False):
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
 
+    # Use native vmap for PyTorch backend when map_fn is not provided and _use_torch_vmap is True
     if keras.backend.backend() == "torch" and map_fn is None and _use_torch_vmap:
         import torch
 
@@ -344,62 +365,61 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=None, _use_torch_vmap=False):
     if map_fn is None:
         map_fn = vectorized_map
 
-    def find_map_length(args, in_axes):
-        """Find the length of the axis to map over."""
-        # NOTE: only needed for numpy, the other backends can handle a singleton dimension
-        for arg, axis in zip(args, in_axes):
-            if axis is None:
-                continue
-
-            return ops.shape(arg)[axis]
-        return 1
-
-    def _moveaxes(args, in_axes, out_axes):
+    def _moveaxes(args, in_axes, out_axes) -> tuple:
         """Move axes of the input arguments."""
         args = list(args)
-        map_length = find_map_length(args, in_axes)
-        for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
+        new_args = []
+        map_length = _find_map_length(args, in_axes)
+        for arg, in_axis, out_axis in zip(args, in_axes, out_axes):
             if arg is None:
-                # jax supports None arguments in vmap, other backends do not
-                # so we create a dummy argument filled with NaNs
-                args[i] = ops.ones(map_length) * np.nan
+                # filter out None arguments
                 continue
             if out_axis is None:
-                args[i] = ops.take(args[i], 0, axis=in_axis)
+                new_args.append(ops.take(arg, 0, axis=in_axis))
             elif in_axis is not None:
-                args[i] = ops.moveaxis(arg, in_axis, out_axis)
+                new_args.append(ops.moveaxis(arg, in_axis, out_axis))
             else:
-                args[i] = ops.repeat(ops.expand_dims(arg, out_axis), map_length, axis=out_axis)
-        return tuple(args)
+                new_args.append(
+                    ops.repeat(ops.expand_dims(arg, out_axis), map_length, axis=out_axis)
+                )
+        return tuple(new_args)
 
-    def _fun(args):
-        return fun(*args)
+    def _partial_at(func, idx, value) -> callable:
+        """Return a new function with value inserted at index idx in args."""
+
+        def wrapper(*args, **kwargs):
+            args = list(args)
+            args[idx:idx] = [value]
+            return func(*args, **kwargs)
+
+        return wrapper
 
     def mapped_wrapper(*args):
-        # If in_axes or out_axes is an int, convert to tuple
-        if isinstance(in_axes, int):
-            _in_axes = (in_axes,) * len(args)
-        else:
-            _in_axes = in_axes
-        if isinstance(out_axes, int):
-            _out_axes = (out_axes,) * len(args)
-        else:
-            _out_axes = out_axes
+        _in_axes = _repeat_int_to_tuple(in_axes, len(args))
+
+        # Move mapped axes to front
         zeros = (0,) * len(args)
-
-        # Check that in_axes and out_axes are tuples
-        if not isinstance(_in_axes, tuple):
-            raise ValueError("in_axes must be an int or a tuple of ints.")
-        if not isinstance(_out_axes, tuple):
-            raise ValueError("out_axes must be an int or a tuple of ints.")
-
+        none_indexes = [i for i, arg in enumerate(args) if arg is None]
         args = _moveaxes(args, _in_axes, zeros)
+
+        # Build function with None arguments prefilled
+        _prefilled_none_fn = fun
+        for none_idx in none_indexes:
+            _prefilled_none_fn = _partial_at(_prefilled_none_fn, none_idx, None)
+
+        def _fun(args):
+            return _prefilled_none_fn(*args)
+
         outputs = map_fn(_fun, tuple(args))
 
+        # Wrap outputs to tuple for easier processing
         tuple_output = isinstance(outputs, (tuple, list))
         if not tuple_output:
             outputs = (outputs,)
 
+        _out_axes = _repeat_int_to_tuple(out_axes, len(outputs))
+
+        # Move mapped axes back to original position
         outputs = _moveaxes(outputs, zeros, _out_axes)
 
         if not tuple_output:
@@ -431,7 +451,7 @@ def vmap(
         out_axes: Axis or axes to be mapped over in the output.
         batch_size: Size of the batch for each step. If `None`, the function will be equivalent
             to `vmap`. If `1`, will be equivalent to `map`. Mutually exclusive with `chunks`.
-        chucks: Number of chunks to split the input into. If `None` or `1`, the function will be
+        chunks: Number of chunks to split the input into. If `None` or `1`, the function will be
             equivalent to `vmap`. Mutually exclusive with `batch_size`.
         fn_supports_batch: If True, assumes that `fun` can already handle batched inputs.
             In this case, this function will only handle padding and reshaping for batching.
@@ -476,16 +496,8 @@ def vmap(
     map_fn = ops.map if not disable_jit else simple_map
 
     def batched_fun(*args):
-        if isinstance(in_axes, int):
-            _in_axes = (in_axes,) * len(args)
-        else:
-            _in_axes = in_axes
-        if isinstance(out_axes, int):
-            _out_axes = (out_axes,) * len(args)
-        else:
-            _out_axes = out_axes
-
-        total_length = ops.shape(args[0])[_in_axes[0]]
+        _in_axes = _repeat_int_to_tuple(in_axes, len(args))
+        total_length = _find_map_length(args, _in_axes)
 
         if chunks is not None:
             _batch_size = np.ceil(total_length / chunks).astype(int)
@@ -501,11 +513,15 @@ def vmap(
             reshaped_arg = reshape_axis(padded_arg, (-1, _batch_size), axis=in_axis)
             new_args.append(reshaped_arg)
 
-        outputs = _map(fun, in_axes=_in_axes, out_axes=_out_axes, map_fn=map_fn)(*new_args)
+        outputs = _map(fun, in_axes=_in_axes, out_axes=out_axes, map_fn=map_fn)(*new_args)
+
+        # Wrap outputs to tuple for easier processing
         tuple_output = isinstance(outputs, (tuple, list))
         if not tuple_output:
             outputs = (outputs,)
+
         new_outputs = []
+        _out_axes = _repeat_int_to_tuple(out_axes, len(outputs))
         for output, out_axis in zip(outputs, _out_axes):
             if out_axis is None:
                 new_outputs.append(output)
