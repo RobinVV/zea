@@ -11,39 +11,62 @@ Operations can be run on their own:
 
 Examples
 ^^^^^^^^
-.. code-block:: python
+.. doctest::
 
-    data = np.random.randn(2000, 128, 1)
-    # static arguments are passed in the constructor
-    envelope_detect = EnvelopeDetect(axis=-1)
-    # other parameters can be passed here along with the data
-    envelope_data = envelope_detect(data=data)
+    >>> import numpy as np
+    >>> from zea.ops import EnvelopeDetect
+    >>> data = np.random.randn(2000, 128, 1)
+    >>> # static arguments are passed in the constructor
+    >>> envelope_detect = EnvelopeDetect(axis=-1)
+    >>> # other parameters can be passed here along with the data
+    >>> envelope_data = envelope_detect(data=data)
 
 Using a pipeline
 ----------------
 
 You can initialize with a default pipeline or create your own custom pipeline.
 
-.. code-block:: python
+.. doctest::
 
-    pipeline = Pipeline.from_default()
+    >>> from zea.ops import Pipeline, EnvelopeDetect, Normalize, LogCompress
+    >>> pipeline = Pipeline.from_default()
 
-    operations = [
-        EnvelopeDetect(),
-        Normalize(),
-        LogCompress(),
-    ]
-    pipeline_custom = Pipeline(operations)
+    >>> operations = [
+    ...     EnvelopeDetect(),
+    ...     Normalize(),
+    ...     LogCompress(),
+    ... ]
+    >>> pipeline_custom = Pipeline(operations)
 
 One can also load a pipeline from a config or yaml/json file:
 
-.. code-block:: python
+.. doctest::
 
-    json_string = '{"operations": ["identity"]}'
-    pipeline = Pipeline.from_json(json_string)
+    >>> from zea import Pipeline
 
-    yaml_file = "pipeline.yaml"
-    pipeline = Pipeline.from_yaml(yaml_file)
+    >>> # From JSON string
+    >>> json_string = '{"operations": ["identity"]}'
+    >>> pipeline = Pipeline.from_json(json_string)
+
+    >>> # from yaml file
+    >>> import yaml
+    >>> from zea import Config
+    >>> # Create a sample pipeline YAML file
+    >>> pipeline_dict = {
+    ...     "operations": [
+    ...         {"name": "identity"},
+    ...     ]
+    ... }
+    >>> with open("pipeline.yaml", "w") as f:
+    ...     yaml.dump(pipeline_dict, f)
+    >>> yaml_file = "pipeline.yaml"
+    >>> pipeline = Pipeline.from_yaml(yaml_file)
+
+.. testcleanup::
+
+    import os
+
+    os.remove("pipeline.yaml")
 
 Example of a yaml file:
 
@@ -890,16 +913,17 @@ class Pipeline:
             Must have a ``pipeline`` key with a subkey ``operations``.
 
         Example:
-            .. code-block:: python
+            .. doctest::
 
-                config = Config(
-                    {
-                        "operations": [
-                            "identity",
-                        ],
-                    }
-                )
-                pipeline = Pipeline.from_config(config)
+                >>> from zea import Config, Pipeline
+                >>> config = Config(
+                ...     {
+                ...         "operations": [
+                ...             "identity",
+                ...         ],
+                ...     }
+                ... )
+                >>> pipeline = Pipeline.from_config(config)
         """
         return pipeline_from_config(Config(config), **kwargs)
 
@@ -915,9 +939,20 @@ class Pipeline:
             Must have the a `pipeline` key with a subkey `operations`.
 
         Example:
-        ```python
-        pipeline = Pipeline.from_yaml("pipeline.yaml")
-        ```
+            .. doctest::
+
+                >>> import yaml
+                >>> from zea import Config
+                >>> # Create a sample pipeline YAML file
+                >>> pipeline_dict = {
+                ...     "operations": [
+                ...         "identity",
+                ...     ],
+                ... }
+                >>> with open("pipeline.yaml", "w") as f:
+                ...     yaml.dump(pipeline_dict, f)
+                >>> from zea.ops import Pipeline
+                >>> pipeline = Pipeline.from_yaml("pipeline.yaml", jit_options=None)
         """
         return pipeline_from_yaml(file_path, **kwargs)
 
@@ -1059,15 +1094,17 @@ def make_operation_chain(
         list: List of operations to be performed.
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            chain = make_operation_chain(
-                [
-                    "envelope_detect",
-                    {"name": "normalize", "params": {"output_range": (0, 1)}},
-                    SomeCustomOperation(),
-                ]
-            )
+            >>> from zea.ops import make_operation_chain, LogCompress
+            >>> SomeCustomOperation = LogCompress  # just for demonstration
+            >>> chain = make_operation_chain(
+            ...     [
+            ...         "envelope_detect",
+            ...         {"name": "normalize", "params": {"output_range": (0, 1)}},
+            ...         SomeCustomOperation(),
+            ...     ]
+            ... )
     """
     chain = []
     for operation in operation_chain:

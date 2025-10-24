@@ -3,15 +3,15 @@
 Example usage
 ^^^^^^^^^^^^^^
 
-.. code-block:: python
+.. doctest::
 
-    import zea
-    from zea.internal.setup_zea import setup_config
+    >>> import zea
+    >>> from zea.internal.setup_zea import setup_config
 
-    config = setup_config("hf://zeahub/configs/config_camus.yaml")
+    >>> config = setup_config("hf://zeahub/configs/config_camus.yaml")
 
-    interface = zea.Interface(config)
-    interface.run(plot=True)
+    >>> interface = zea.Interface(config)
+    >>> interface.run(plot=True)  # doctest: +SKIP
 
 """
 

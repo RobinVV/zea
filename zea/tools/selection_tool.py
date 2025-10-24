@@ -17,15 +17,17 @@ Key Features
 
 Example
 -------
-.. code-block:: python
 
-    import matplotlib.pyplot as plt
-    from zea.tools.selection_tool import interactive_selector
+.. doctest::
 
-    image = ...  # Load your 2D image array
-    fig, ax = plt.subplots()
-    ax.imshow(image, cmap="gray")
-    patches, masks = interactive_selector(image, ax, selector="rectangle")
+    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
+    >>> from zea.tools.selection_tool import interactive_selector
+
+    >>> image = np.zeros((100, 100))  # Load your 2D image array
+    >>> fig, ax = plt.subplots()
+    >>> _ = ax.imshow(image, cmap="gray")
+    >>> patches, masks = interactive_selector(image, ax, selector="rectangle")  # doctest: +SKIP
 
 """
 
