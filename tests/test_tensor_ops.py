@@ -584,6 +584,51 @@ def test_map_none_arg():
     return result
 
 
+@backend_equality_check()
+def test_simple_map_one_input():
+    """Test the zea simple_map function against keras.ops.map."""
+    from keras import ops
+
+    from zea import tensor_ops
+
+    # One input
+    def func_one_input(x):
+        return x * 2
+
+    x = np.random.randn(10, 5).astype(np.float32)
+    x_tensor = ops.convert_to_tensor(x)
+    expected_one_input = ops.map(func_one_input, x_tensor)
+    result_one_input = tensor_ops.simple_map(func_one_input, x_tensor)
+    np.testing.assert_allclose(result_one_input, expected_one_input, rtol=1e-5, atol=1e-5)
+
+    return result_one_input
+
+
+@backend_equality_check()
+def test_simple_map_multiple_inputs():
+    """Test the zea simple_map function against keras.ops.map."""
+    from keras import ops
+
+    from zea import tensor_ops
+
+    # Multiple inputs
+    def func_multiple_inputs(inputs):
+        x, y = inputs
+        return x + y
+
+    x = np.random.randn(10, 5).astype(np.float32)
+    y = np.random.randn(10, 5).astype(np.float32)
+    x_tensor = ops.convert_to_tensor(x)
+    y_tensor = ops.convert_to_tensor(y)
+    expected_multiple_inputs = ops.map(func_multiple_inputs, [x_tensor, y_tensor])
+    result_multiple_inputs = tensor_ops.simple_map(func_multiple_inputs, [x_tensor, y_tensor])
+    np.testing.assert_allclose(
+        result_multiple_inputs, expected_multiple_inputs, rtol=1e-5, atol=1e-5
+    )
+
+    return result_multiple_inputs
+
+
 @pytest.mark.parametrize(
     "range_from, range_to",
     [((0, 100), (2, 5)), ((-60, 0), (0, 255))],
