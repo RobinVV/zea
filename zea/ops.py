@@ -1748,9 +1748,14 @@ def envelope_detect(data, axis=-3):
     if data.shape[-1] == 2:
         data = channels_to_complex(data)
     else:
-        n_ax = data.shape[axis]
-        M = 2 ** int(np.ceil(np.log2(n_ax)))
-        # data = scipy.signal.hilbert(data, N=M, axis=self.axis)
+        n_ax = ops.shape(data)[axis]
+        n_ax_float = ops.cast(n_ax, "float32")
+
+        # Calculate next power of 2: M = 2^ceil(log2(n_ax))
+        # see https://github.com/tue-bmd/zea/discussions/147
+        log2_n_ax = ops.log2(n_ax_float)
+        M = ops.cast(2 ** ops.ceil(log2_n_ax), "int32")
+
         data = hilbert(data, N=M, axis=axis)
         indices = ops.arange(n_ax)
 
