@@ -99,7 +99,7 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import map, resample, reshape_axis, translate
+from zea.tensor_ops import resample, reshape_axis, translate, vmap
 from zea.utils import (
     FunctionTimer,
     deep_compare,
@@ -1347,7 +1347,7 @@ class PatchedGrid(Pipeline):
             )
             return out[self.output_key]
 
-        out = map(
+        out = vmap(
             patched_call,
             chunks=self.num_patches,
             fn_supports_batch=True,
