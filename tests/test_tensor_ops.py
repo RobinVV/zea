@@ -560,6 +560,30 @@ def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     return result
 
 
+@backend_equality_check()
+def test_map_none_arg():
+    """Test the zea map function with None argument."""
+    from keras import ops
+
+    from zea import tensor_ops
+
+    shape = (10, 10, 3, 2)
+
+    def func(a, b):
+        return a + 1
+
+    # Create batched data
+    x = np.random.randn(*shape).astype(np.float32)
+    x_tensor = ops.convert_to_tensor(x)
+
+    # Apply map
+    result = tensor_ops.map(func)(x_tensor, None)
+    expected = x + 1
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
+
+    return result
+
+
 @pytest.mark.parametrize(
     "range_from, range_to",
     [((0, 100), (2, 5)), ((-60, 0), (0, 255))],

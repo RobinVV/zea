@@ -184,14 +184,13 @@ def vmap(fun, in_axes=0, out_axes=0, disable_jit=False):
     Raises:
         ValueError: If the backend does not support vmap.
     """
+    # Use native vmap for JAX backend
     if keras.backend.backend() == "jax" and not disable_jit:
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
-    elif keras.backend.backend() == "torch":
-        import torch
-
-        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
+    # For other backends, use our custom vmap implementation. Torch has a native vmap, but does
+    # not support None as arguments to the vmapped fn, so we use our own.
     else:
         map_fn = vectorized_map if not disable_jit else simple_map
         return _map(fun, in_axes=in_axes, out_axes=out_axes, map_fn=map_fn)
@@ -216,6 +215,9 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=vectorized_map):
         map_length = find_map_length(args, in_axes)
         for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
             if arg is None:
+                # jax supports None arguments in vmap, other backends do not
+                # so we create a dummy argument filled with NaNs
+                args[i] = ops.ones(map_length) * np.nan
                 continue
             if out_axis is None:
                 args[i] = ops.take(args[i], 0, axis=in_axis)
