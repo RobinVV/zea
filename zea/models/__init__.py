@@ -15,18 +15,20 @@ Presets for these models can be found in :mod:`zea.models.presets`.
 
 To use these models, you can import them directly from the :mod:`zea.models` module and load the pretrained weights using the :meth:`from_preset` method. For example:
 
-.. code-block:: python
+.. doctest::
 
-    from zea.models.unet import UNet
+    >>> from zea.models.unet import UNet
 
-    model = UNet.from_preset("unet-echonet-inpainter")
+    >>> model = UNet.from_preset("unet-echonet-inpainter")
 
 You can list all available presets using the :attr:`presets` attribute:
 
-.. code-block:: python
+.. doctest::
 
-    presets = list(UNet.presets.keys())
-    print(f"Available built-in zea presets for UNet: {presets}")
+    >>> from zea.models.unet import UNet
+    >>> presets = list(UNet.presets.keys())
+    >>> print(f"Available built-in zea presets for UNet: {presets}")
+    Available built-in zea presets for UNet: ['unet-echonet-inpainter']
 
 
 zea generative models
@@ -47,12 +49,12 @@ The following generative models are currently available:
 
 An example of how to use the :class:`zea.models.diffusion.DiffusionModel` is shown below:
 
-.. code-block:: python
+.. doctest::
 
-    from zea.models.diffusion import DiffusionModel
+    >>> from zea.models.diffusion import DiffusionModel
 
-    model = DiffusionModel.from_preset("diffusion-echonet-dynamic")
-    samples = model.sample(n_samples=4)
+    >>> model = DiffusionModel.from_preset("diffusion-echonet-dynamic")  # doctest: +SKIP
+    >>> samples = model.sample(n_samples=4)  # doctest: +SKIP
 
 
 Contributing and adding new models

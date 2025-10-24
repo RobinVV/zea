@@ -7,11 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from keras.utils import pad_sequences
 
 from zea import log
 from zea.data.file import File, validate_file
 from zea.internal.checks import _DATA_TYPES
-from zea.utils import first_not_none_item
+from zea.internal.utils import first_not_none_item
 
 
 @dataclass
@@ -470,32 +471,30 @@ def _write_datasets(
         )
 
         if waveforms_one_way is not None:
-            for n in range(len(waveforms_one_way)):
-                _add_dataset(
-                    group_name=scan_group_name + "/waveforms_one_way",
-                    name=f"waveform_{str(n).zfill(3)}",
-                    data=waveforms_one_way[n],
-                    description=(
-                        "One-way waveform as simulated by the Verasonics system, "
-                        "sampled at 250MHz. This is the waveform after being filtered "
-                        "by the tranducer bandwidth once."
-                    ),
-                    unit="V",
-                )
+            _add_dataset(
+                group_name=scan_group_name,
+                name="waveforms_one_way",
+                data=pad_sequences(waveforms_one_way, dtype=np.float32, padding="post"),
+                description=(
+                    "One-way waveform as simulated by the Verasonics system, "
+                    "sampled at 250MHz. This is the waveform after being filtered "
+                    "by the transducer bandwidth once."
+                ),
+                unit="V",
+            )
 
         if waveforms_two_way is not None:
-            for n in range(len(waveforms_two_way)):
-                _add_dataset(
-                    group_name=scan_group_name + "/waveforms_two_way",
-                    name=f"waveform_{str(n).zfill(3)}",
-                    data=waveforms_two_way[n],
-                    description=(
-                        "Two-way waveform as simulated by the Verasonics system, "
-                        "sampled at 250MHz. This is the waveform after being filtered "
-                        "by the tranducer bandwidth twice."
-                    ),
-                    unit="V",
-                )
+            _add_dataset(
+                group_name=scan_group_name,
+                name="waveforms_two_way",
+                data=pad_sequences(waveforms_two_way, dtype=np.float32, padding="post"),
+                description=(
+                    "Two-way waveform as simulated by the Verasonics system, "
+                    "sampled at 250MHz. This is the waveform after being filtered "
+                    "by the transducer bandwidth twice."
+                ),
+                unit="V",
+            )
 
     # Add additional elements
     if additional_elements is not None:
@@ -539,6 +538,7 @@ def generate_zea_dataset(
     additional_elements=None,
     event_structure=False,
     cast_to_float=True,
+    overwrite=False,
 ):
     """Generates a dataset in the zea format.
 
@@ -585,10 +585,10 @@ def generate_zea_dataset(
             waveform was used for each transmit event.
         waveforms_one_way (list): List of one-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth once. Every element in the list is a 1D numpy array.
+            transducer bandwidth once. Every element in the list is a 1D numpy array.
         waveforms_two_way (list): List of two-way waveforms as simulated by the Verasonics
             system, sampled at 250MHz. This is the waveform after being filtered by the
-            tranducer bandwidth twice. Every element in the list is a 1D numpy array.
+            transducer bandwidth twice. Every element in the list is a 1D numpy array.
         additional_elements (List[DatasetElement]): A list of additional dataset
             elements to be added to the dataset. Each element should be a DatasetElement
             object. The additional elements are added under the scan group.
@@ -598,6 +598,7 @@ def generate_zea_dataset(
             Instead of just a single data and scan group.
         cast_to_float (bool): Whether to store data as float32. You may want to set this
             to False if storing images.
+        overwrite (bool): Whether to overwrite the file if it already exists. Defaults to False.
 
     """
     # check if all args are lists
@@ -637,10 +638,10 @@ def generate_zea_dataset(
     # make sure input arguments of func is same length as data_and_parameters
     # except `path` and `event_structure` arguments and ofcourse `data_and_parameters` itself
     assert (
-        len(data_and_parameters) == len(inspect.signature(generate_zea_dataset).parameters) - 3
+        len(data_and_parameters) == len(inspect.signature(generate_zea_dataset).parameters) - 4
     ), (
         "All arguments should be put in data_and_parameters except "
-        "`path`, `event_structure`, and `cast_to_float` arguments."
+        "`path`, `event_structure`, `cast_to_float`, and `overwrite` arguments."
     )
 
     if event_structure:
@@ -682,7 +683,7 @@ def generate_zea_dataset(
     # Convert path to Path object
     path = Path(path)
 
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"The file {path} already exists.")
 
     # Create the directory if it does not exist
