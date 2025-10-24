@@ -150,10 +150,22 @@ def extend_n_dims(arr, axis, n_dims):
 
 def simple_map(function, elements):
     """Like `ops.map` but no tracing or jit compilation."""
-    batch_size = elements[0].shape[0]
+
+    if elements is None:
+        return function(None)
+
+    multiple_inputs = isinstance(elements, (list, tuple))
+
     outputs = []
-    for index in range(batch_size):
-        outputs.append(function([e[index] if e is not None else None for e in elements]))
+    if not multiple_inputs:
+        batch_size = elements.shape[0]
+        for index in range(batch_size):
+            outputs.append(function(elements[index]))
+    else:
+        batch_size = elements[0].shape[0]
+        for index in range(batch_size):
+            outputs.append(function([e[index] if e is not None else None for e in elements]))
+
     if isinstance(outputs[0], (list, tuple)):
         return [np.stack(tensors) for tensors in zip(*outputs)]
     else:
