@@ -11,39 +11,62 @@ Operations can be run on their own:
 
 Examples
 ^^^^^^^^
-.. code-block:: python
+.. doctest::
 
-    data = np.random.randn(2000, 128, 1)
-    # static arguments are passed in the constructor
-    envelope_detect = EnvelopeDetect(axis=-1)
-    # other parameters can be passed here along with the data
-    envelope_data = envelope_detect(data=data)
+    >>> import numpy as np
+    >>> from zea.ops import EnvelopeDetect
+    >>> data = np.random.randn(2000, 128, 1)
+    >>> # static arguments are passed in the constructor
+    >>> envelope_detect = EnvelopeDetect(axis=-1)
+    >>> # other parameters can be passed here along with the data
+    >>> envelope_data = envelope_detect(data=data)
 
 Using a pipeline
 ----------------
 
 You can initialize with a default pipeline or create your own custom pipeline.
 
-.. code-block:: python
+.. doctest::
 
-    pipeline = Pipeline.from_default()
+    >>> from zea.ops import Pipeline, EnvelopeDetect, Normalize, LogCompress
+    >>> pipeline = Pipeline.from_default()
 
-    operations = [
-        EnvelopeDetect(),
-        Normalize(),
-        LogCompress(),
-    ]
-    pipeline_custom = Pipeline(operations)
+    >>> operations = [
+    ...     EnvelopeDetect(),
+    ...     Normalize(),
+    ...     LogCompress(),
+    ... ]
+    >>> pipeline_custom = Pipeline(operations)
 
 One can also load a pipeline from a config or yaml/json file:
 
-.. code-block:: python
+.. doctest::
 
-    json_string = '{"operations": ["identity"]}'
-    pipeline = Pipeline.from_json(json_string)
+    >>> from zea import Pipeline
 
-    yaml_file = "pipeline.yaml"
-    pipeline = Pipeline.from_yaml(yaml_file)
+    >>> # From JSON string
+    >>> json_string = '{"operations": ["identity"]}'
+    >>> pipeline = Pipeline.from_json(json_string)
+
+    >>> # from yaml file
+    >>> import yaml
+    >>> from zea import Config
+    >>> # Create a sample pipeline YAML file
+    >>> pipeline_dict = {
+    ...     "operations": [
+    ...         {"name": "identity"},
+    ...     ]
+    ... }
+    >>> with open("pipeline.yaml", "w") as f:
+    ...     yaml.dump(pipeline_dict, f)
+    >>> yaml_file = "pipeline.yaml"
+    >>> pipeline = Pipeline.from_yaml(yaml_file)
+
+.. testcleanup::
+
+    import os
+
+    os.remove("pipeline.yaml")
 
 Example of a yaml file:
 
@@ -890,16 +913,17 @@ class Pipeline:
             Must have a ``pipeline`` key with a subkey ``operations``.
 
         Example:
-            .. code-block:: python
+            .. doctest::
 
-                config = Config(
-                    {
-                        "operations": [
-                            "identity",
-                        ],
-                    }
-                )
-                pipeline = Pipeline.from_config(config)
+                >>> from zea import Config, Pipeline
+                >>> config = Config(
+                ...     {
+                ...         "operations": [
+                ...             "identity",
+                ...         ],
+                ...     }
+                ... )
+                >>> pipeline = Pipeline.from_config(config)
         """
         return pipeline_from_config(Config(config), **kwargs)
 
@@ -915,9 +939,20 @@ class Pipeline:
             Must have the a `pipeline` key with a subkey `operations`.
 
         Example:
-        ```python
-        pipeline = Pipeline.from_yaml("pipeline.yaml")
-        ```
+            .. doctest::
+
+                >>> import yaml
+                >>> from zea import Config
+                >>> # Create a sample pipeline YAML file
+                >>> pipeline_dict = {
+                ...     "operations": [
+                ...         "identity",
+                ...     ],
+                ... }
+                >>> with open("pipeline.yaml", "w") as f:
+                ...     yaml.dump(pipeline_dict, f)
+                >>> from zea.ops import Pipeline
+                >>> pipeline = Pipeline.from_yaml("pipeline.yaml", jit_options=None)
         """
         return pipeline_from_yaml(file_path, **kwargs)
 
@@ -1059,15 +1094,17 @@ def make_operation_chain(
         list: List of operations to be performed.
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            chain = make_operation_chain(
-                [
-                    "envelope_detect",
-                    {"name": "normalize", "params": {"output_range": (0, 1)}},
-                    SomeCustomOperation(),
-                ]
-            )
+            >>> from zea.ops import make_operation_chain, LogCompress
+            >>> SomeCustomOperation = LogCompress  # just for demonstration
+            >>> chain = make_operation_chain(
+            ...     [
+            ...         "envelope_detect",
+            ...         {"name": "normalize", "params": {"output_range": (0, 1)}},
+            ...         SomeCustomOperation(),
+            ...     ]
+            ... )
     """
     chain = []
     for operation in operation_chain:
@@ -1646,7 +1683,7 @@ class DelayAndSum(Operation):
         **kwargs,
     ):
         super().__init__(
-            input_data_type=None,
+            input_data_type=DataTypes.ALIGNED_DATA,
             output_data_type=DataTypes.BEAMFORMED_DATA,
             **kwargs,
         )
@@ -1698,6 +1735,46 @@ class DelayAndSum(Operation):
         return {self.output_key: beamformed_data}
 
 
+def envelope_detect(data, axis=-3):
+    """Envelope detection of RF signals.
+
+    If the input data is real, it first applies the Hilbert transform along the specified axis
+    and then computes the magnitude of the resulting complex signal.
+    If the input data is complex, it computes the magnitude directly.
+
+    Args:
+        - data (Tensor): The beamformed data of shape (..., grid_size_z, grid_size_x, n_ch).
+        - axis (int): Axis along which to apply the Hilbert transform. Defaults to -3.
+
+    Returns:
+        - envelope_data (Tensor): The envelope detected data
+            of shape (..., grid_size_z, grid_size_x).
+    """
+    if data.shape[-1] == 2:
+        data = channels_to_complex(data)
+    else:
+        n_ax = ops.shape(data)[axis]
+        n_ax_float = ops.cast(n_ax, "float32")
+
+        # Calculate next power of 2: M = 2^ceil(log2(n_ax))
+        # see https://github.com/tue-bmd/zea/discussions/147
+        log2_n_ax = ops.log2(n_ax_float)
+        M = ops.cast(2 ** ops.ceil(log2_n_ax), "int32")
+
+        data = hilbert(data, N=M, axis=axis)
+        indices = ops.arange(n_ax)
+
+        data = ops.take(data, indices, axis=axis)
+        data = ops.squeeze(data, axis=-1)
+
+    # data = ops.abs(data)
+    real = ops.real(data)
+    imag = ops.imag(data)
+    data = ops.sqrt(real**2 + imag**2)
+    data = ops.cast(data, "float32")
+    return data
+
+
 @ops_registry("envelope_detect")
 class EnvelopeDetect(Operation):
     """Envelope detection of RF signals."""
@@ -1724,23 +1801,7 @@ class EnvelopeDetect(Operation):
         """
         data = kwargs[self.key]
 
-        if data.shape[-1] == 2:
-            data = channels_to_complex(data)
-        else:
-            n_ax = data.shape[self.axis]
-            M = 2 ** int(np.ceil(np.log2(n_ax)))
-            # data = scipy.signal.hilbert(data, N=M, axis=self.axis)
-            data = hilbert(data, N=M, axis=self.axis)
-            indices = ops.arange(n_ax)
-
-            data = ops.take(data, indices, axis=self.axis)
-            data = ops.squeeze(data, axis=-1)
-
-        # data = ops.abs(data)
-        real = ops.real(data)
-        imag = ops.imag(data)
-        data = ops.sqrt(real**2 + imag**2)
-        data = ops.cast(data, "float32")
+        data = envelope_detect(data, axis=self.axis)
 
         return {self.output_key: data}
 
@@ -1778,19 +1839,29 @@ class UpMix(Operation):
         return {self.output_key: data}
 
 
+def log_compress(data, eps=1e-16):
+    """Apply logarithmic compression to data."""
+    eps = ops.convert_to_tensor(eps, dtype=data.dtype)
+    data = ops.where(data == 0, eps, data)  # Avoid log(0)
+    return 20 * keras.ops.log10(data)
+
+
 @ops_registry("log_compress")
 class LogCompress(Operation):
     """Logarithmic compression of data."""
 
-    def __init__(
-        self,
-        **kwargs,
-    ):
+    def __init__(self, clip: bool = True, **kwargs):
+        """Initialize the LogCompress operation.
+
+        Args:
+            clip (bool): Whether to clip the output to a dynamic range. Defaults to True.
+        """
         super().__init__(
             input_data_type=DataTypes.ENVELOPE_DATA,
             output_data_type=DataTypes.IMAGE,
             **kwargs,
         )
+        self.clip = clip
 
     def call(self, dynamic_range=None, **kwargs):
         """Apply logarithmic compression to data.
@@ -1807,12 +1878,35 @@ class LogCompress(Operation):
             dynamic_range = ops.array(DEFAULT_DYNAMIC_RANGE)
         dynamic_range = ops.cast(dynamic_range, data.dtype)
 
-        small_number = ops.convert_to_tensor(1e-16, dtype=data.dtype)
-        data = ops.where(data == 0, small_number, data)
-        compressed_data = 20 * ops.log10(data)
-        compressed_data = ops.clip(compressed_data, dynamic_range[0], dynamic_range[1])
+        compressed_data = log_compress(data)
+        if self.clip:
+            compressed_data = ops.clip(compressed_data, dynamic_range[0], dynamic_range[1])
 
         return {self.output_key: compressed_data}
+
+
+def normalize(data, output_range, input_range=None):
+    """Normalize data to a given range.
+
+    Equivalent to `translate` with clipping.
+
+    Args:
+        data (ops.Tensor): Input data to normalize.
+        output_range (tuple): Range to which data should be mapped, e.g., (0, 1).
+        input_range (tuple, optional): Range of input data.
+            If None, the range will be computed from the data.
+            Defaults to None.
+    """
+    if input_range is None:
+        input_range = (None, None)
+    minval, maxval = input_range
+    if minval is None:
+        minval = ops.min(data)
+    if maxval is None:
+        maxval = ops.max(data)
+    data = ops.clip(data, minval, maxval)
+    normalized_data = translate(data, (minval, maxval), output_range)
+    return normalized_data
 
 
 @ops_registry("normalize")
@@ -1865,11 +1959,9 @@ class Normalize(Operation):
         if maxval is None:
             maxval = ops.max(data)
 
-        # Clip the data to the input range
-        data = ops.clip(data, minval, maxval)
-
-        # Map the data to the output range
-        normalized_data = translate(data, (minval, maxval), self.output_range)
+        normalized_data = normalize(
+            data, output_range=self.output_range, input_range=(minval, maxval)
+        )
 
         return {self.output_key: normalized_data, "minval": minval, "maxval": maxval}
 

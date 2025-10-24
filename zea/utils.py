@@ -169,12 +169,15 @@ class FunctionTimer:
     A decorator class for timing the execution of functions.
 
     Example:
-        >>> from zea.utils import FunctionTimer
-        >>> timer = FunctionTimer()
-        >>> my_function = lambda: sum(range(10))
-        >>> my_function = timer(my_function, name="my_function")
-        >>> _ = my_function()
-        >>> print(timer.get_stats("my_function"))
+        .. doctest::
+
+            >>> from zea.utils import FunctionTimer
+            >>> timer = FunctionTimer()
+            >>> my_function = lambda: sum(range(10))
+            >>> my_function = timer(my_function, name="my_function")
+            >>> _ = my_function()
+            >>> print(timer.get_stats("my_function"))  # doctest: +ELLIPSIS
+            {'mean': ..., 'median': ..., 'std_dev': ..., 'min': ..., 'max': ..., 'count': ...}
     """
 
     def __init__(self):
