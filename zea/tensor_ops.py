@@ -1466,34 +1466,6 @@ def sinc(x, eps=keras.config.epsilon()):
     return ops.sin(x + eps) / (x + eps)
 
 
-if keras.backend.backend() == "tensorflow":
-
-    def safe_vectorize(
-        pyfunc,
-        excluded=None,
-        signature=None,
-    ):
-        """Just a wrapper around ops.vectorize.
-
-        Because tensorflow does not support multiple arguments to ops.vectorize(func)(...)
-        We will just map the function manually.
-        """
-
-        def _map(*args):
-            outputs = []
-            for i in range(ops.shape(args[0])[0]):
-                outputs.append(pyfunc(*[arg[i] for arg in args]))
-            return ops.stack(outputs)
-
-        return _map
-
-else:
-
-    def safe_vectorize(pyfunc, excluded=None, signature=None):
-        """Just a wrapper around ops.vectorize."""
-        return ops.vectorize(pyfunc, excluded=excluded, signature=signature)
-
-
 def apply_along_axis(func1d, axis, arr, *args, **kwargs):
     """Apply a function to 1D array slices along an axis.
 
