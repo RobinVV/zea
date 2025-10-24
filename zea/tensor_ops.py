@@ -153,7 +153,7 @@ def simple_map(function, elements):
     batch_size = elements[0].shape[0]
     outputs = []
     for index in range(batch_size):
-        outputs.append(function([e[index] for e in elements]))
+        outputs.append(function([e[index] if e is not None else None for e in elements]))
     if isinstance(outputs[0], (list, tuple)):
         return [np.stack(tensors) for tensors in zip(*outputs)]
     else:
@@ -215,6 +215,8 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=vectorized_map):
         args = list(args)
         map_length = find_map_length(args, in_axes)
         for i, (arg, in_axis, out_axis) in enumerate(zip(args, in_axes, out_axes)):
+            if arg is None:
+                continue
             if out_axis is None:
                 args[i] = ops.take(args[i], 0, axis=in_axis)
             elif in_axis is not None:
@@ -525,7 +527,7 @@ def map(
 
         new_args = []
         for arg, in_axis in zip(args, _in_axes):
-            if in_axis is None:
+            if in_axis is None or arg is None:
                 new_args.append(arg)
                 continue
             padded_arg = pad_array_to_divisible(arg, _batch_size, axis=in_axis)
