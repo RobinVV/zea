@@ -303,7 +303,7 @@ else:
     vectorized_map = ops.vectorized_map
 
 
-def _map(fun, in_axes=0, out_axes=0, map_fn=None):
+def _map(fun, in_axes=0, out_axes=0, map_fn=None, _use_torch_vmap=False):
     """Mapping function, vectorized by default.
 
     For jax, this uses the native vmap implementation.
@@ -323,6 +323,7 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=None):
             If None, the corresponding output is not mapped over.
             Defaults to 0.
         map_fn: The mapping function to use. If None, defaults to `ops.vectorized_map`.
+        _use_torch_vmap: If True, uses PyTorch's native vmap implementation.
 
     Returns:
         A function that applies `fun` (in a vectorized manner) over the specified axes.
@@ -333,6 +334,11 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=None):
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
+
+    if keras.backend.backend() == "torch" and map_fn is None and _use_torch_vmap:
+        import torch
+
+        return torch.vmap(fun, in_dims=in_axes, out_dims=out_axes)
 
     # Default to keras vectorized_map if map_fn not provided
     if map_fn is None:
@@ -412,6 +418,7 @@ def vmap(
     chunks=None,
     fn_supports_batch=False,
     disable_jit=False,
+    _use_torch_vmap=False,
 ):
     """`vmap` with batching or chunking support to avoid memory issues.
 
@@ -430,6 +437,9 @@ def vmap(
             In this case, this function will only handle padding and reshaping for batching.
         disable_jit: If True, disables JIT compilation for backends that support it.
             This can be useful for debugging. Will fall back to simple mapping.
+        _use_torch_vmap: If True, uses PyTorch's native vmap implementation.
+            Advantage: you can apply `vmap` multiple times without issues.
+            Disadvantage: does not support None arguments.
     Returns:
         A function that applies `fun` in a batched manner over the specified axes.
     """
@@ -456,6 +466,7 @@ def vmap(
             in_axes=in_axes,
             out_axes=out_axes,
             map_fn=None if not disable_jit else simple_map,
+            _use_torch_vmap=_use_torch_vmap,
         )
 
     if no_chunks_or_batch:

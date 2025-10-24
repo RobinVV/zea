@@ -365,7 +365,7 @@ class Metrics:
         # Because most metric functions do not support batching, we vmap over the batch axes.
         metric_fn = fun
         for ax in reversed(batch_axes):
-            metric_fn = tensor_ops.vmap(metric_fn, in_axes=ax)
+            metric_fn = tensor_ops.vmap(metric_fn, in_axes=ax, _use_torch_vmap=True)
 
         out = func_on_device(metric_fn, device, y_true, y_pred)
 
