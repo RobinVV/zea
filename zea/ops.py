@@ -1859,6 +1859,8 @@ def normalize(data, output_range, input_range=None):
             If None, the range will be computed from the data.
             Defaults to None.
     """
+    if input_range is None:
+        input_range = (None, None)
     minval, maxval = input_range
     if minval is None:
         minval = ops.min(data)
