@@ -448,7 +448,8 @@ class Parameters(ZeaObject):
         Args:
             include ("all", or list): Only include these parameter/property names.
                 If "all", include all available parameters (i.e. their dependencies are met).
-                Default is "all".
+                If specified, will take the intersection with possible parameters, so non-existing
+                keys will be ignored. Default is "all".
             exclude (None or list): Exclude these parameter/property names.
                 If provided, these keys will be excluded from the output.
             keep_as_is (list): List of parameter/property names that should not be converted to
@@ -468,8 +469,10 @@ class Parameters(ZeaObject):
         if include == "all":
             keys = all_keys
         elif include is not None:
+            # Filter include list to only existing keys
             keys = set(include).intersection(all_keys)
         elif exclude is not None:
+            # Take all keys except those in exclude
             keys = all_keys - set(exclude)
 
         tensor_dict = {}
