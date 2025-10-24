@@ -461,8 +461,8 @@ def test_correlate(mode):
     ],
 )
 @backend_equality_check(backends=["tensorflow", "torch"])
-def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
-    """Test the zea map function against jax.vmap."""
+def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
+    """Test the `zea` `vmap` function against `jax.vmap`."""
     import jax
     from keras import ops
 
@@ -534,7 +534,7 @@ def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
 
     # Apply vmap
     expected = jax.vmap(jax_func, in_axes, out_axes)(x, y)
-    result = tensor_ops.map(
+    result = tensor_ops.vmap(
         func,
         in_axes,
         out_axes,
@@ -542,7 +542,7 @@ def test_map(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
         chunks=chunks,
         fn_supports_batch=fn_supports_batch,
     )(x_tensor, y_tensor)
-    no_jit_result = tensor_ops.map(
+    no_jit_result = tensor_ops.vmap(
         func,
         in_axes,
         out_axes,
@@ -577,7 +577,7 @@ def test_map_none_arg():
     x_tensor = ops.convert_to_tensor(x)
 
     # Apply map
-    result = tensor_ops.map(func)(x_tensor, None)
+    result = tensor_ops.vmap(func)(x_tensor, None)
     expected = x + 1
     np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1e-5)
 

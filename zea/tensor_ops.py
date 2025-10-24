@@ -172,10 +172,10 @@ def simple_map(function, elements):
         return np.stack(outputs)
 
 
-def vmap(fun, in_axes=0, out_axes=0, disable_jit=False):
-    """Vectorized map.
+def _map(fun, in_axes=0, out_axes=0, map_fn=None):
+    """Mapping function, vectorized by default.
 
-    For torch and jax backends, this uses the native vmap implementation.
+    For jax, this uses the native vmap implementation.
     For other backends, this a wrapper that uses `ops.vectorized_map` under the hood.
 
     Args:
@@ -188,28 +188,21 @@ def vmap(fun, in_axes=0, out_axes=0, disable_jit=False):
             Can be an integer, a tuple of integers, or None.
             If None, the corresponding output is not mapped over.
             Defaults to 0.
-        disable_jit: If True, disables JIT compilation for backends that support it.
+        map_fn: The mapping function to use. If None, defaults to `ops.vectorized_map`.
 
     Returns:
-        A function that applies `fun` in a vectorized manner over the specified axes.
-
-    Raises:
-        ValueError: If the backend does not support vmap.
+        A function that applies `fun` (in a vectorized manner) over the specified axes.
     """
-    # Use native vmap for JAX backend
-    if keras.backend.backend() == "jax" and not disable_jit:
+
+    # Use native vmap for JAX backend when map_fn is not provided
+    if keras.backend.backend() == "jax" and map_fn is None:
         import jax
 
         return jax.vmap(fun, in_axes=in_axes, out_axes=out_axes)
-    # For other backends, use our custom vmap implementation. Torch has a native vmap, but does
-    # not support None as arguments to the vmapped fn, so we use our own.
-    else:
-        map_fn = vectorized_map if not disable_jit else simple_map
-        return _map(fun, in_axes=in_axes, out_axes=out_axes, map_fn=map_fn)
 
-
-def _map(fun, in_axes=0, out_axes=0, map_fn=vectorized_map):
-    """Manual (vectorized) map for backends that do not support vmap."""
+    # Default to keras vectorized_map if map_fn not provided
+    if map_fn is None:
+        map_fn = vectorized_map
 
     def find_map_length(args, in_axes):
         """Find the length of the axis to map over."""
@@ -472,7 +465,7 @@ def batch_cov(x, rowvar=True, bias=False, ddof=None):
     return cov_matrices
 
 
-def map(
+def vmap(
     fun,
     in_axes=0,
     out_axes=0,
@@ -481,7 +474,7 @@ def map(
     fn_supports_batch=False,
     disable_jit=False,
 ):
-    """Batched version of map.
+    """`vmap` with batching or chunking support to avoid memory issues.
 
     Basically a wrapper around `vmap` that splits the input into batches or chunks
     to avoid memory issues with large inputs.
@@ -510,7 +503,13 @@ def map(
     no_chunks_or_batch = batch_size is None and chunks is None
 
     if not fn_supports_batch or no_chunks_or_batch:
-        fun = vmap(fun, in_axes=in_axes, out_axes=out_axes, disable_jit=disable_jit)
+        # vmap to support batches
+        fun = _map(
+            fun,
+            in_axes=in_axes,
+            out_axes=out_axes,
+            map_fn=None if not disable_jit else simple_map,
+        )
 
     if no_chunks_or_batch:
         return fun
@@ -520,6 +519,7 @@ def map(
     if chunks is not None:
         assert chunks > 0, "chunks must be greater than 0."
 
+    # map (sequentially) to support batches/chunks that fit in memory
     map_fn = ops.map if not disable_jit else simple_map
 
     def batched_fun(*args):
