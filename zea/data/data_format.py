@@ -841,22 +841,3 @@ def _load_dataset_element_from_group(file, path):
         unit=unit,
         group_name="/".join(path_parts[1:-1]),
     )
-
-
-def _stack_waveforms(waveforms):
-    """Stacks a list of waveforms into a 2D numpy array.
-
-    Args:
-        waveforms (list): List of 1D numpy arrays.
-
-    Returns:
-        np.ndarray: 2D numpy array of shape (n_waveforms, max_length).
-    """
-    if waveforms is None or len(waveforms) == 0:
-        return np.zeros((0, 0), dtype=np.float32)
-
-    max_length = max([len(w) for w in waveforms])
-    stacked_waveforms = np.zeros((len(waveforms), max_length), dtype=np.float32)
-    for i, w in enumerate(waveforms):
-        stacked_waveforms[i, : len(w)] = w
-    return stacked_waveforms
