@@ -582,6 +582,7 @@ def generate_zea_dataset(
     additional_elements=None,
     event_structure=False,
     cast_to_float=True,
+    overwrite=False,
 ):
     """Generates a dataset in the zea format.
 
@@ -641,6 +642,7 @@ def generate_zea_dataset(
             Instead of just a single data and scan group.
         cast_to_float (bool): Whether to store data as float32. You may want to set this
             to False if storing images.
+        overwrite (bool): Whether to overwrite the file if it already exists. Defaults to False.
 
     """
     # check if all args are lists
@@ -680,10 +682,10 @@ def generate_zea_dataset(
     # make sure input arguments of func is same length as data_and_parameters
     # except `path` and `event_structure` arguments and ofcourse `data_and_parameters` itself
     assert (
-        len(data_and_parameters) == len(inspect.signature(generate_zea_dataset).parameters) - 3
+        len(data_and_parameters) == len(inspect.signature(generate_zea_dataset).parameters) - 4
     ), (
         "All arguments should be put in data_and_parameters except "
-        "`path`, `event_structure`, and `cast_to_float` arguments."
+        "`path`, `event_structure`, `cast_to_float`, and `overwrite` arguments."
     )
 
     if event_structure:
@@ -725,7 +727,7 @@ def generate_zea_dataset(
     # Convert path to Path object
     path = Path(path)
 
-    if path.exists():
+    if path.exists() and not overwrite:
         raise FileExistsError(f"The file {path} already exists.")
 
     # Create the directory if it does not exist

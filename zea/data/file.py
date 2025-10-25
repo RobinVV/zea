@@ -232,14 +232,28 @@ class File(h5py.File):
           indexing with lists of indices for both axes is not supported. In that case,
           try to define one of the axes with a slice.
 
-        .. code-block:: python
+        .. doctest::
 
-            # Load frame 5
-            File.load_data("raw_data", indices=5)
-            # Load frames 0, 2 and 4
-            File.load_data("raw_data", indices=[0, 2, 4])
-            # Load frames 0-9 and transmits 0, 2 and 4
-            File.load_data("raw_data", indices=(slice(10), [0, 2, 4]))
+            >>> from zea import File
+
+            >>> path_to_file = (
+            ...     "hf://zeahub/picmus/database/experiments/contrast_speckle/"
+            ...     "contrast_speckle_expe_dataset_iq/contrast_speckle_expe_dataset_iq.hdf5"
+            ... )
+
+            >>> with File(path_to_file, mode="r") as file:
+            ...     # data has shape (n_frames, n_tx, n_el, n_ax, n_ch)
+            ...     data = file.load_data("raw_data")
+            ...     data.shape
+            ...     # load first frame only
+            ...     data = file.load_data("raw_data", indices=0)
+            ...     data.shape
+            ...     # load frame 0 and transmits 0, 2 and 4
+            ...     data = file.load_data("raw_data", indices=(0, [0, 2, 4]))
+            ...     data.shape
+            (1, 75, 832, 128, 2)
+            (75, 832, 128, 2)
+            (3, 832, 128, 2)
 
         Args:
             data_type (str): The type of data to load. Options are 'raw_data', 'aligned_data',
@@ -845,15 +859,13 @@ def dict_to_sorted_list(dictionary: dict):
         This function operates on the top level of the dictionary only.
         If the dictionary contains nested dictionaries, those will not be sorted.
 
-    .. code-block:: python
+    Example:
+        .. doctest::
 
-        # Example usage
-        input_dict = {"number_000": 5, "number_001": 1, "number_002": 23}
-        output_list = dict_to_sorted_list(input_dict)
-        # output_list will be:
-        # [
-        #     5, 1, 23
-        # ]
+            >>> from zea.data.file import dict_to_sorted_list
+            >>> input_dict = {"number_000": 5, "number_001": 1, "number_002": 23}
+            >>> dict_to_sorted_list(input_dict)
+            [5, 1, 23]
 
     Args:
         dictionary (dict): The dictionary to convert. The keys must be sortable.

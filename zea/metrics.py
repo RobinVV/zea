@@ -314,11 +314,18 @@ class Metrics:
     if specified.
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            metrics = zea.metrics.Metrics(["psnr", "lpips"], image_range=[0, 255])
-            result = metrics(y_true, y_pred)
-            print(result)  # {"psnr": 30.5, "lpips": 0.15}
+            >>> from zea import metrics
+            >>> import numpy as np
+
+            >>> metrics = metrics.Metrics(["psnr", "lpips"], image_range=[0, 255])
+            >>> y_true = np.random.rand(4, 128, 128, 1)
+            >>> y_pred = np.random.rand(4, 128, 128, 1)
+            >>> result = metrics(y_true, y_pred)
+            >>> result = {k: float(v) for k, v in result.items()}
+            >>> print(result)  # doctest: +ELLIPSIS
+            {'psnr': ..., 'lpips': ...}
     """
 
     def __init__(
