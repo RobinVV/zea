@@ -772,7 +772,7 @@ def load_description(path):
         path (str): The path to the zea dataset.
 
     Returns:
-        str: The description of the dataset.
+        str: The description of the dataset, or an empty string if not found.
     """
     path = Path(path)
 
@@ -817,8 +817,9 @@ def _load_dataset_element_from_group(file, path):
     """Loads a specific dataset element from a group.
 
     Args:
-        group (h5py.Group): The group to load the dataset element from.
-        dataset_name (str): The name of the dataset element to load.
+        file (h5py.File): The HDF5 file object.
+        path (str): The full path to the dataset element.
+            e.g., "non_standard_elements/lens/lens_profile"
 
     Returns:
         DatasetElement: The loaded dataset element.
