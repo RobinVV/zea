@@ -6,7 +6,7 @@ To try this model, simply load one of the available presets:
 
     >>> from zea.models.echonetlvh import EchoNetLVH
 
-    >>> model = EchoNetLVH.from_preset("echonetlvh")
+    >>> model = EchoNetLVH.from_preset("echonetlvh")  # doctest: +SKIP
 
 .. important::
     This is a ``zea`` implementation of the model.

@@ -5,7 +5,7 @@ Tiny Autoencoder (TAESD) model.
 
     >>> from zea.models.taesd import TinyAutoencoder
 
-    >>> model = TinyAutoencoder.from_preset("taesdxl")
+    >>> model = TinyAutoencoder.from_preset("taesdxl")  # doctest: +SKIP
 
 .. important::
     This is a ``zea`` implementation of the model.
