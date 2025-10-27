@@ -33,7 +33,13 @@ tf = _import_tf()
 
 @model_registry(name="taesdxl")
 class TinyAutoencoder(BaseModel):
-    """[TAESD](https://github.com/madebyollin/taesd) model in TensorFlow."""
+    """Tiny Autoencoder model.
+
+    .. note::
+
+        This model currently only supports TensorFlow and Jax backends.
+
+    """
 
     def __init__(self, **kwargs):
         """
