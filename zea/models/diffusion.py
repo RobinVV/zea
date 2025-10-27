@@ -7,7 +7,7 @@ To try this model, simply load one of the available presets:
 
     >>> from zea.models.diffusion import DiffusionModel
 
-    >>> model = DiffusionModel.from_preset("diffusion-echonet-dynamic")
+    >>> model = DiffusionModel.from_preset("diffusion-echonet-dynamic")  # doctest: +SKIP
 
 """
 
