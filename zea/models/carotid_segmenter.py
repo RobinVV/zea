@@ -18,8 +18,7 @@ To try this model, simply load one of the available presets:
 
 .. seealso::
     A tutorial notebook where this model is used:
-    :doc:`../notebooks/models/left_ventricle_segmentation_example`.
-
+    :doc:`../notebooks/models/carotid_segmentation_example`.
 """
 
 import keras
