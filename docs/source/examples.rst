@@ -9,7 +9,7 @@ Data
 
 .. toctree::
     :maxdepth: 2
-   
+
     notebooks/data
 
 Pipeline
@@ -43,5 +43,5 @@ Agent
     :maxdepth: 2
 
     notebooks/agent
-    
+
 
