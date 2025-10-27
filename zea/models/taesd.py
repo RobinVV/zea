@@ -1,9 +1,19 @@
-"""Tiny Autoencoder (TAESD) model converted to Tensorflow.
+"""
+Tiny Autoencoder (TAESD) model.
 
-For the original implementation, see the `TAESD repository <https://github.com/madebyollin/taesd>`_.
+.. doctest::
 
-You can see an example of how to use this model in the example notebook:
-:doc:`../notebooks/models/taesd_autoencoder_example`.
+    >>> from zea.models.regional_quality import MobileNetv2RegionalQuality
+
+    >>> model = MobileNetv2RegionalQuality.from_preset("mobilenetv2_regional_quality")
+
+.. important::
+    This is a ``zea`` implementation of the model.
+    For the original code, see `here <https://github.com/madebyollin/taesd>`_.
+
+.. seealso::
+    A tutorial notebook where this model is used:
+    :doc:`../notebooks/models/taesd_autoencoder_example`.
 
 """
 

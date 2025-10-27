@@ -1,4 +1,15 @@
-"""Diffusion models"""
+"""
+Diffusion models for ultrasound image generation and posterior sampling.
+
+To try this model, simply load one of the available presets:
+
+.. doctest::
+
+    >>> from zea.models.diffusion import DiffusionModel
+
+    >>> model = DiffusionModel.from_preset("diffusion-echonet-dynamic")
+
+"""
 
 import abc
 from typing import Literal

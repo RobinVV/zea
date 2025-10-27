@@ -10,6 +10,8 @@ Currently, the following models are available (all inherited from :class:`zea.mo
 - :class:`zea.models.unet.UNet`: A simple U-Net implementation.
 - :class:`zea.models.lpips.LPIPS`: A model implementing the perceptual similarity metric.
 - :class:`zea.models.taesd.TinyAutoencoder`: A tiny autoencoder model for image compression.
+- :class:`zea.models.regional_quality.MobileNetv2RegionalQuality`: A scoring model for myocardial regions in apical views.
+- :class:`zea.models.lv_segmentation.AugmentedCamusSeg`: A nnU-Net based left ventricle and myocardium segmentation model.
 
 Presets for these models can be found in :mod:`zea.models.presets`.
 
