@@ -120,7 +120,7 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import patched_map, resample, reshape_axis, translate
+from zea.tensor_ops import resample, reshape_axis, translate, vmap
 from zea.utils import (
     FunctionTimer,
     deep_compare,
@@ -1347,25 +1347,21 @@ class PatchedGrid(Pipeline):
         flatgrid = inputs.pop("flatgrid")
 
         # Define a list of keys to look up for patching
-        patch_keys = ["flat_pfield"]
+        flat_pfield = inputs.pop("flat_pfield", None)
 
-        patch_arrays = {}
-        for key in patch_keys:
-            if key in inputs:
-                patch_arrays[key] = inputs.pop(key)
-
-        def patched_call(flatgrid, **patch_kwargs):
-            patch_args = {k: v for k, v in patch_kwargs.items() if v is not None}
-            out = super(PatchedGrid, self).call(flatgrid=flatgrid, **patch_args, **inputs)
+        def patched_call(flatgrid, flat_pfield):
+            out = super(PatchedGrid, self).call(
+                flatgrid=flatgrid, flat_pfield=flat_pfield, **inputs
+            )
             return out[self.output_key]
 
-        out = patched_map(
+        out = vmap(
             patched_call,
-            flatgrid,
-            self.num_patches,
-            **patch_arrays,
-            jit=bool(self.jit_options),
-        )
+            chunks=self.num_patches,
+            fn_supports_batch=True,
+            disable_jit=not bool(self.jit_options),
+        )(flatgrid, flat_pfield)
+
         return ops.reshape(out, (grid_size_z, grid_size_x, *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
