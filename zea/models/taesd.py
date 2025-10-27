@@ -3,9 +3,9 @@ Tiny Autoencoder (TAESD) model.
 
 .. doctest::
 
-    >>> from zea.models.regional_quality import MobileNetv2RegionalQuality
+    >>> from zea.models.taesd import TinyAutoencoder
 
-    >>> model = MobileNetv2RegionalQuality.from_preset("mobilenetv2_regional_quality")
+    >>> model = TinyAutoencoder.from_preset("taesdxl")
 
 .. important::
     This is a ``zea`` implementation of the model.
