@@ -13,7 +13,7 @@ Data
     notebooks/data
 
 Pipeline
-----
+--------
 
 .. toctree::
     :maxdepth: 2
@@ -21,7 +21,7 @@ Pipeline
     notebooks/pipeline
 
 Models
-----
+------
 
 .. toctree::
     :maxdepth: 2
@@ -29,7 +29,7 @@ Models
     notebooks/models
 
 Metrics
-----
+-------
 
 .. toctree::
     :maxdepth: 2
@@ -37,7 +37,7 @@ Metrics
     notebooks/metrics
 
 Agent
-----
+-----
 
 .. toctree::
     :maxdepth: 2
