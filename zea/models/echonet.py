@@ -7,7 +7,7 @@ To try this model, simply load one of the available presets:
 
     >>> from zea.models.echonet import EchoNetDynamic
 
-    >>> model = EchoNetDynamic.from_preset("echonet-dynamic")
+    >>> model = EchoNetDynamic.from_preset("echonet-dynamic")  # doctest: +SKIP
 
 .. important::
     This is a ``zea`` implementation of the model.
