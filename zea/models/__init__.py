@@ -2,16 +2,18 @@
 
 ``zea`` contains a collection of models for various tasks, all located in the :mod:`zea.models` package.
 
-Currently, the following models are available (all inherited from :class:`zea.models.BaseModel`):
+See the following dropdown for a list of available models:
 
-- :class:`zea.models.echonet.EchoNetDynamic`: A model for left ventricle segmentation.
-- :class:`zea.models.carotid_segmenter.CarotidSegmenter`: A model for carotid artery segmentation.
-- :class:`zea.models.echonetlvh.EchoNetLVH`: A model for left ventricle hypertrophy segmentation.
-- :class:`zea.models.unet.UNet`: A simple U-Net implementation.
-- :class:`zea.models.lpips.LPIPS`: A model implementing the perceptual similarity metric.
-- :class:`zea.models.taesd.TinyAutoencoder`: A tiny autoencoder model for image compression.
-- :class:`zea.models.regional_quality.MobileNetv2RegionalQuality`: A scoring model for myocardial regions in apical views.
-- :class:`zea.models.lv_segmentation.AugmentedCamusSeg`: A nnU-Net based left ventricle and myocardium segmentation model.
+.. dropdown:: **Available models**
+
+    - :class:`zea.models.echonet.EchoNetDynamic`: A model for left ventricle segmentation.
+    - :class:`zea.models.carotid_segmenter.CarotidSegmenter`: A model for carotid artery segmentation.
+    - :class:`zea.models.echonetlvh.EchoNetLVH`: A model for left ventricle hypertrophy segmentation.
+    - :class:`zea.models.unet.UNet`: A simple U-Net implementation.
+    - :class:`zea.models.lpips.LPIPS`: A model implementing the perceptual similarity metric.
+    - :class:`zea.models.taesd.TinyAutoencoder`: A tiny autoencoder model for image compression.
+    - :class:`zea.models.regional_quality.MobileNetv2RegionalQuality`: A scoring model for myocardial regions in apical views.
+    - :class:`zea.models.lv_segmentation.AugmentedCamusSeg`: A nnU-Net based left ventricle and myocardium segmentation model.
 
 Presets for these models can be found in :mod:`zea.models.presets`.
 
@@ -44,10 +46,12 @@ Typically, these models have some additional methods, such as:
 - :meth:`posterior_sample` for drawing samples from the posterior given measurements
 - :meth:`log_density` for computing the log-probability of data under the model
 
-The following generative models are currently available:
+See the following dropdown for a list of available *generative* models:
 
-- :class:`zea.models.diffusion.DiffusionModel`: A deep generative diffusion model for ultrasound image generation.
-- :class:`zea.models.gmm.GaussianMixtureModel`: A Gaussian Mixture Model.
+.. dropdown:: **Available models**
+
+    - :class:`zea.models.diffusion.DiffusionModel`: A deep generative diffusion model for ultrasound image generation.
+    - :class:`zea.models.gmm.GaussianMixtureModel`: A Gaussian Mixture Model.
 
 An example of how to use the :class:`zea.models.diffusion.DiffusionModel` is shown below:
 
