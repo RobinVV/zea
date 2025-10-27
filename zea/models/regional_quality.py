@@ -25,7 +25,7 @@ it is the state-of-the-art model for left ventricle segmentation on the CAMUS da
 
 .. seealso::
     A tutorial notebook where this model is used:
-    :doc:`../notebooks/models/myocardial_quality_example`.
+    :doc:`../notebooks/metrics/myocardial_quality_example`.
 
 .. note::
     The model is originally a PyTorch model converted to ONNX. To use this model, you must have `onnxruntime` installed. This is required for ONNX model inference.
