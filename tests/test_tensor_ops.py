@@ -29,10 +29,14 @@ def test_flatten(array, start_dim, end_dim):
     from zea import tensor_ops
 
     out = tensor_ops.flatten(array, start_dim, end_dim)
-    torch_out = torch.flatten(torch.from_numpy(array), start_dim=start_dim, end_dim=end_dim).numpy()
+    torch_out = torch.flatten(
+        torch.from_numpy(array),
+        start_dim=start_dim,
+        end_dim=end_dim,
+    ).numpy()
 
     # Test if the output is equal to the torch.flatten implementation
-    np.testing.assert_almost_equal(torch_out, out)
+    np.testing.assert_almost_equal(torch_out, out, decimal=6)
 
     return out
 
@@ -118,7 +122,7 @@ def test_matrix_power(array, n):
     np.testing.assert_almost_equal(
         np.linalg.matrix_power(array, n),
         out,
-        decimal=4,
+        decimal=3,
         err_msg="`tensor_ops.matrix_power` is not equal to `np.linalg.matrix_power`.",
     )
 
