@@ -29,7 +29,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "keras >=3.11",
+    "keras >=3.12",
     "h5py >=3.11",
     "numpy >= 1.24",
     "matplotlib >=3.8",

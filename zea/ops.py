@@ -100,7 +100,7 @@ import numpy as np
 import scipy
 import yaml
 from keras import ops
-from keras.src.layers.preprocessing.tf_data_layer import TFDataLayer
+from keras.src.layers.preprocessing.data_layer import DataLayer
 
 from zea import log
 from zea.backend import jit
@@ -2294,7 +2294,7 @@ class Lambda(Operation):
 
 
 @ops_registry("pad")
-class Pad(Operation, TFDataLayer):
+class Pad(Operation, DataLayer):
     """Pad layer for padding tensors to a specified shape."""
 
     def __init__(
