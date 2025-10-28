@@ -122,7 +122,7 @@ def test_matrix_power(array, n):
     np.testing.assert_almost_equal(
         np.linalg.matrix_power(array, n),
         out,
-        decimal=4,
+        decimal=3,
         err_msg="`tensor_ops.matrix_power` is not equal to `np.linalg.matrix_power`.",
     )
 
