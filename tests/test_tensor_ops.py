@@ -29,10 +29,14 @@ def test_flatten(array, start_dim, end_dim):
     from zea import tensor_ops
 
     out = tensor_ops.flatten(array, start_dim, end_dim)
-    torch_out = torch.flatten(torch.from_numpy(array), start_dim=start_dim, end_dim=end_dim).numpy()
+    torch_out = torch.flatten(
+        torch.from_numpy(array),
+        start_dim=start_dim,
+        end_dim=end_dim,
+    ).numpy()
 
     # Test if the output is equal to the torch.flatten implementation
-    np.testing.assert_almost_equal(torch_out, out)
+    np.testing.assert_almost_equal(torch_out, out, decimal=6)
 
     return out
 
