@@ -30,7 +30,7 @@ class RandomCircleInclusion(layers.Layer):
 
     def __init__(
         self,
-        radius: int,
+        radius: int | tuple[int, int],
         fill_value: float = 1.0,
         circle_axes: tuple[int, int] = (1, 2),
         with_batch_dim=True,
@@ -38,13 +38,15 @@ class RandomCircleInclusion(layers.Layer):
         recovery_threshold=0.1,
         randomize_location_across_batch=True,
         seed=None,
+        width_range: tuple[int, int] = None,
+        height_range: tuple[int, int] = None,
         **kwargs,
     ):
         """
         Initialize RandomCircleInclusion.
 
         Args:
-            radius (int): Radius of the circle to include.
+            radius (int or tuple[int, int]): Radius of the circle/ellipse to include.
             fill_value (float): Value to fill inside the circle.
             circle_axes (tuple[int, int]): Axes along which to draw the circle (height, width).
             with_batch_dim (bool): Whether input has a batch dimension.
@@ -53,10 +55,20 @@ class RandomCircleInclusion(layers.Layer):
             randomize_location_across_batch (bool): If True, randomize circle location
                 per batch element.
             seed (Any): Optional random seed for reproducibility.
+            width_range (tuple[int, int], optional): Range (min, max) for circle
+                center x (width axis).
+            height_range (tuple[int, int], optional): Range (min, max) for circle
+                center y (height axis).
             **kwargs: Additional keyword arguments for the parent Layer.
         """
         super().__init__(**kwargs)
-        self.radius = radius
+        # Convert radius to tuple if int, else validate tuple
+        if isinstance(radius, int):
+            self.radius = (radius, radius)
+        elif isinstance(radius, tuple) and len(radius) == 2:
+            self.radius = tuple(radius)
+        else:
+            raise ValueError("radius must be an int or a tuple of two ints")
         self.fill_value = fill_value
         self.circle_axes = circle_axes
         self.with_batch_dim = with_batch_dim
@@ -64,6 +76,8 @@ class RandomCircleInclusion(layers.Layer):
         self.recovery_threshold = recovery_threshold
         self.randomize_location_across_batch = randomize_location_across_batch
         self.seed = seed
+        self.width_range = width_range
+        self.height_range = height_range
         self._axis1 = None
         self._axis2 = None
         self._perm = None
@@ -165,7 +179,7 @@ class RandomCircleInclusion(layers.Layer):
             centers (Tensor): Tensor of shape (batch, 2) with circle centers.
             h (int): Height of the image.
             w (int): Width of the image.
-            radius (int): Radius of the circle.
+            radius (tuple[int, int]): Radii of the ellipse (rx, ry).
             dtype (str or dtype): Data type for the mask.
 
         Returns:
@@ -176,12 +190,12 @@ class RandomCircleInclusion(layers.Layer):
         Y, X = ops.meshgrid(Y, X, indexing="ij")
         Y = ops.expand_dims(Y, 0)  # (1, h, w)
         X = ops.expand_dims(X, 0)  # (1, h, w)
-        # cx = ops.cast(centers[:, 0], "float32")[:, None, None]
-        # cy = ops.cast(centers[:, 1], "float32")[:, None, None]
         cx = centers[:, 0][:, None, None]
         cy = centers[:, 1][:, None, None]
-        dist2 = (X - cx) ** 2 + (Y - cy) ** 2
-        mask = ops.cast(dist2 <= radius**2, dtype)
+        rx, ry = radius
+        # Ellipse equation: ((X-cx)/rx)^2 + ((Y-cy)/ry)^2 <= 1
+        dist = ((X - cx) / rx) ** 2 + ((Y - cy) / ry) ** 2
+        mask = ops.cast(dist <= 1, dtype)
         return mask
 
     def call(self, x, seed=None):
@@ -248,17 +262,28 @@ class RandomCircleInclusion(layers.Layer):
         flat, flat_batch_size, h, w = self._flatten_batch_and_other_dims(x)
 
         def _draw_circle_2d(img2d):
+            rx, ry = self.radius
+            # Determine allowed ranges for center
+            if self.width_range is not None:
+                min_x, max_x = self.width_range
+            else:
+                min_x, max_x = rx, w - rx
+            if self.height_range is not None:
+                min_y, max_y = self.height_range
+            else:
+                min_y, max_y = ry, h - ry
+            # Ensure the ellipse fits within the allowed region
             cx = ops.cast(
-                keras.random.uniform((), self.radius, w - self.radius, seed=seed),
+                keras.random.uniform((), min_x, max_x, seed=seed),
                 "int32",
             )
             new_seed, _ = split_seed(seed, 2)  # ensure that cx and cy are independent
             cy = ops.cast(
-                keras.random.uniform((), self.radius, h - self.radius, seed=new_seed),
+                keras.random.uniform((), min_y, max_y, seed=new_seed),
                 "int32",
             )
             mask = self._make_circle_mask(
-                ops.stack([cx, cy])[None, :], h, w, self.radius, img2d.dtype
+                ops.stack([cx, cy])[None, :], h, w, (rx, ry), img2d.dtype
             )[0]
             img_aug = img2d * (1 - mask) + self.fill_value * mask
             center = ops.stack([cx, cy])
@@ -285,6 +310,8 @@ class RandomCircleInclusion(layers.Layer):
                 "fill_value": self.fill_value,
                 "circle_axes": self.circle_axes,
                 "return_centers": self.return_centers,
+                "width_range": self.width_range,
+                "height_range": self.height_range,
             }
         )
         return cfg
@@ -293,7 +320,8 @@ class RandomCircleInclusion(layers.Layer):
         self, images, centers, recovery_threshold, fill_value=None
     ):
         """
-        Evaluate the percentage of the true circle that has been recovered in the images.
+        Evaluate the percentage of the true circle that has been recovered in the images,
+        and return a mask of the detected part of the circle.
 
         Args:
             images (Tensor): Tensor of images (any shape, with circle axes as specified).
@@ -303,7 +331,8 @@ class RandomCircleInclusion(layers.Layer):
                 where image range has changed.
 
         Returns:
-            Tensor: Percentage recovered for each circle (shape: [num_circles]).
+            Tuple[Tensor, Tensor]: (Percentage recovered for each circle [num_circles],
+                                   Mask of detected circle part [batch, h, w] or [h, w])
         """
         fill_value = fill_value or self.fill_value
 
@@ -318,12 +347,18 @@ class RandomCircleInclusion(layers.Layer):
             recovered_sum = ops.sum(recovered, axis=[1, 2])
             mask_sum = ops.sum(mask, axis=[1, 2])
             percent_recovered = recovered_sum / (mask_sum + 1e-8)
-            return percent_recovered
+            # recovered_mask: binary mask of detected part of the circle
+            recovered_mask = ops.cast(recovered > 0, flat_image.dtype)
+            return percent_recovered, recovered_mask
 
         if self.with_batch_dim:
-            return ops.vectorized_map(
+            results = ops.vectorized_map(
                 lambda args: _evaluate_recovered_circle_accuracy(args[0], args[1]),
                 (images, centers),
-            )[..., 0]
+            )
+            percent_recovered = results[0][..., 0]
+            recovered_masks = results[1]
+            return percent_recovered, recovered_masks
         else:
-            return _evaluate_recovered_circle_accuracy(images, centers)
+            percent_recovered, recovered_mask = _evaluate_recovered_circle_accuracy(images, centers)
+            return percent_recovered, recovered_mask
