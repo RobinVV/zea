@@ -106,13 +106,27 @@ class H5FileHandleCache:
 
         return self._file_handle_cache[file_path]
 
+    def close(self):
+        """Close all cached file handles."""
+        cache = getattr(self, "_file_handle_cache", None)
+        if not cache:
+            return
+
+        # iterate over a static list to avoid mutation during iteration
+        for fh in list(cache.values()):
+            if fh is None:
+                continue
+            try:
+                # attempt to close unconditionally and swallow exceptions
+                fh.close()
+            except Exception:
+                # During interpreter shutdown or if the h5py internals are already
+                # torn down, close() can raise weird errors (e.g. TypeError).
+                # Swallow them here to avoid exceptions from __del__.
+                pass
+
     def __del__(self):
-        """Ensure cached files are closed."""
-        if hasattr(self, "_file_handle_cache"):
-            for _, file in self._file_handle_cache.items():
-                if file is not None and self._check_if_open(file):
-                    file.close()
-            self._file_handle_cache = OrderedDict()
+        self.close()
 
 
 def find_h5_files(paths: str | list, key: str = None, search_file_tree_kwargs: dict | None = None):
@@ -540,14 +554,6 @@ class Dataset(H5FileHandleCache):
 
     def __str__(self):
         return f"Dataset with {self.n_files} files (key='{self.key}')"
-
-    def close(self):
-        """Close all cached file handles."""
-        for file in self._file_handle_cache.values():
-            if file is not None and file.id.valid:
-                file.close()
-        self._file_handle_cache.clear()
-        log.info("Closed all cached file handles.")
 
     def __enter__(self):
         return self
