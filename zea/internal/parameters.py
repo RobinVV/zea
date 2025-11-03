@@ -109,42 +109,46 @@ class Parameters(ZeaObject):
 
     **Usage Example:**
 
-    .. code-block:: python
+    .. doctest::
 
-        class MyParams(Parameters):
-            VALID_PARAMS = {
-                "a": {"type": int, "default": 1},
-                "b": {"type": float, "default": 2.0},
-                "d": {"type": float},  # optional dependency
-            }
+        >>> class MyParams(Parameters):
+        ...     VALID_PARAMS = {
+        ...         "a": {"type": int, "default": 1},
+        ...         "b": {"type": float, "default": 2.0},
+        ...         "d": {"type": float},  # optional dependency
+        ...     }
 
-            @cache_with_dependencies("a", "b")
-            def c(self):
-                return self.a + self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def c(self):
+        ...        return self.a + self.b
 
-            @cache_with_dependencies("a", "b")
-            def d(self):
-                if self._params.get("d") is not None:
-                    return self._params["d"]
-                return self.a * self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def d(self):
+        ...         if self._params.get("d") is not None:
+        ...             return self._params["d"]
+        ...         return self.a * self.b
 
-
-        p = MyParams(a=3)
-        print(p.c)  # Computes and caches c
-        print(p.c)  # Returns cached value
+        >>> p = MyParams(a=3)
+        >>> print(p.c)  # Computes and caches c
+        5.0
+        >>> print(p.c)  # Returns cached value
+        5.0
 
         # Changing a parameter invalidates the cache
-        p.a = 4
-        print(p.c)  # Recomputes c
+        >>> p.a = 4
+        >>> print(p.c)  # Recomputes c, now 4 + 2.0 = 6.0
+        6.0
 
-        # You are not allowed to set computed properties
-        # p.c = 5  # Raises ValueError
+        >>> # You are not allowed to set computed properties
+        >>> # p.c = 5  # Raises ValueError
 
-        # Now check out the optional dependency, this can be either
-        # set directly during initialization or computed from dependencies (default)
-        print(p.d)  # Returns 6 (=3 * 2.0)
-        p = MyParams(a=3, d=9.99)
-        print(p.d)  # Returns 9.99
+        >>> # Now check out the optional dependency, this can be either
+        >>> # set directly during initialization or computed from dependencies (default)
+        >>> print(p.d)  # Returns 8 (=4 * 2.0)
+        8.0
+        >>> p = MyParams(a=3, d=9.99)
+        >>> print(p.d)
+        9.99
 
     """
 
@@ -448,7 +452,8 @@ class Parameters(ZeaObject):
         Args:
             include ("all", or list): Only include these parameter/property names.
                 If "all", include all available parameters (i.e. their dependencies are met).
-                Default is "all".
+                If specified, will take the intersection with possible parameters, so non-existing
+                keys will be ignored. Default is "all".
             exclude (None or list): Exclude these parameter/property names.
                 If provided, these keys will be excluded from the output.
             keep_as_is (list): List of parameter/property names that should not be converted to
@@ -468,8 +473,10 @@ class Parameters(ZeaObject):
         if include == "all":
             keys = all_keys
         elif include is not None:
+            # Filter include list to only existing keys
             keys = set(include).intersection(all_keys)
         elif exclude is not None:
+            # Take all keys except those in exclude
             keys = all_keys - set(exclude)
 
         tensor_dict = {}

@@ -80,20 +80,20 @@ def plot_image_grid(
         fig_contents (list): List of matplotlib image objects.
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            from zea.visualize import plot_image_grid
-            import numpy as np
+            >>> from zea.visualize import plot_image_grid
+            >>> import numpy as np
 
-            images = [np.random.rand(128, 128) for _ in range(6)]
+            >>> images = [np.random.rand(128, 128) for _ in range(6)]
 
-            fig, fig_contents = plot_image_grid(
-                images,
-                ncols=3,
-                cmap="gray",
-                vmin=0,
-                vmax=1,
-            )
+            >>> fig, fig_contents = plot_image_grid(
+            ...     images,
+            ...     ncols=3,
+            ...     cmap="gray",
+            ...     vmin=0,
+            ...     vmax=1,
+            ... )
 
     """
     if ncols is None:
@@ -462,24 +462,22 @@ def plot_frustum_vertices(
         ValueError: If no plane is specified (phi_plane, theta_plane, or rho_plane).
 
     Example:
-        .. code-block:: python
+        .. doctest::
 
-            from zea.visualize import plot_frustum_vertices
-
-            rho_range = [0.1, 10]  # in mm
-            theta_range = [-0.6, 0.6]  # in rad
-            phi_range = [-0.6, 0.6]  # in rad
-
-            fig, ax = plot_frustum_vertices(
-                rho_range,
-                theta_range=theta_range,
-                phi_range=phi_range,
-                phi_plane=0,
-                phi_style={"color": "red", "linestyle": "--", "linewidth": 2},
-                theta_plane=0.2,
-                theta_style={"color": "green", "linestyle": ":", "alpha": 0.7},
-                frustum_style={"color": "blue", "linewidth": 1.5},
-            )
+            >>> from zea.visualize import plot_frustum_vertices
+            >>> rho_range = [0.1, 10]  # in mm
+            >>> theta_range = [-0.6, 0.6]  # in rad
+            >>> phi_range = [-0.6, 0.6]  # in rad
+            >>> fig, ax = plot_frustum_vertices(
+            ...     rho_range,
+            ...     theta_range=theta_range,
+            ...     phi_range=phi_range,
+            ...     phi_plane=0,
+            ...     phi_style={"color": "red", "linestyle": "--", "linewidth": 2},
+            ...     theta_plane=0.2,
+            ...     theta_style={"color": "green", "linestyle": ":", "alpha": 0.7},
+            ...     frustum_style={"color": "blue", "linewidth": 1.5},
+            ... )
     """
     # Convert single values to lists
     phi_plane = [phi_plane] if isinstance(phi_plane, (int, float)) else phi_plane

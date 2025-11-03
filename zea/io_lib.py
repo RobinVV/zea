@@ -321,7 +321,7 @@ def search_file_tree(
             dataset_info = yaml.load(file, Loader=yaml.FullLoader)
 
         # Check if the version key is present in the dataset_info, otherwise redo the search
-        if hdf5_key_for_length in dataset_info["file_shapes"]:
+        if "file_shapes" in dataset_info and hdf5_key_for_length in dataset_info["file_shapes"]:
             if verbose:
                 log.info(
                     "Using pregenerated dataset info file: "
@@ -415,7 +415,7 @@ def search_file_tree(
             with open(directory / dataset_info_filename, "w", encoding="utf-8") as file:
                 yaml.dump(dataset_info, file)
         except Exception as e:
-            log.warning(f"Unable to write dataset info to YAML file (Write permissions?): {e}")
+            log.warning(f"Unable to write dataset info to YAML file: {e}")
 
     return dataset_info
 
