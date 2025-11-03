@@ -315,20 +315,20 @@ def search_file_tree(
         f"using `search_file_tree`, got {dataset_info_filename}"
     )
 
-    dataset_info = None
     if (directory / dataset_info_filename).is_file() and not redo:
         with open(directory / dataset_info_filename, "r", encoding="utf-8") as file:
             dataset_info = yaml.load(file, Loader=yaml.FullLoader)
 
         # Check if the version key is present in the dataset_info, otherwise redo the search
-        if "file_shapes" in dataset_info and hdf5_key_for_length in dataset_info["file_shapes"]:
-            if verbose:
-                log.info(
-                    "Using pregenerated dataset info file: "
-                    f"{log.yellow(directory / dataset_info_filename)} ..."
-                )
-                log.info(f"...for reading file paths in {log.yellow(directory)}")
-            return dataset_info
+        if "file_shapes" in dataset_info:
+            if hdf5_key_for_length in dataset_info["file_shapes"]:
+                if verbose:
+                    log.info(
+                        "Using pregenerated dataset info file: "
+                        f"{log.yellow(directory / dataset_info_filename)} ..."
+                    )
+                    log.info(f"...for reading file paths in {log.yellow(directory)}")
+                return dataset_info
 
     if redo and verbose:
         log.info(f"Overwriting dataset info file: {log.yellow(directory / dataset_info_filename)}")
