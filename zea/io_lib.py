@@ -314,13 +314,14 @@ def search_file_tree(
         "Currently only YAML files are supported for dataset info file when "
         f"using `search_file_tree`, got {dataset_info_filename}"
     )
+    assert hdf5_key_for_length is not None, "hdf5_key_for_length must be defined"
 
     if (directory / dataset_info_filename).is_file() and not redo:
         with open(directory / dataset_info_filename, "r", encoding="utf-8") as file:
             dataset_info = yaml.load(file, Loader=yaml.FullLoader)
 
-        # Check if the file_shapes key is present in the dataset_info, otherwise redo the search
-        if "file_shapes" in dataset_info:
+        # Check if the version key is present in the dataset_info, otherwise redo the search
+        if hdf5_key_for_length in dataset_info["file_shapes"]:
             if verbose:
                 log.info(
                     "Using pregenerated dataset info file: "
@@ -341,12 +342,11 @@ def search_file_tree(
     if isinstance(filetypes, str):
         filetypes = [filetypes]
 
-    if hdf5_key_for_length is not None:
-        assert isinstance(hdf5_key_for_length, str), "hdf5_key_for_length must be a string"
-        assert set(filetypes).issubset({".hdf5", ".h5"}), (
-            "hdf5_key_for_length only works with when filetypes is set to "
-            f"`.hdf5` or `.h5`, got {filetypes}"
-        )
+    assert isinstance(hdf5_key_for_length, str), "hdf5_key_for_length must be a string"
+    assert set(filetypes).issubset({".hdf5", ".h5"}), (
+        "hdf5_key_for_length only works with when filetypes is set to "
+        f"`.hdf5` or `.h5`, got {filetypes}"
+    )
 
     # Traverse file tree to index all files from filetypes
     if verbose:
@@ -359,54 +359,61 @@ def search_file_tree(
                 file_path = file_path.relative_to(directory)
                 file_paths.append(str(file_path))
 
-    if hdf5_key_for_length is not None:
-        # using multiprocessing to speed up reading hdf5 files
-        # and getting the number of frames in each file
-        if verbose:
-            log.info("Getting number of frames in each hdf5 file...")
 
-        get_shape_partial = functools.partial(File.get_shape, key=hdf5_key_for_length)
-        # make sure to call search_file_tree from within a function
-        # or use if __name__ == "__main__":
-        # to avoid freezing the main process
-        absolute_file_paths = [directory / file for file in file_paths]
-        if parallel:
-            with multiprocessing.Pool() as pool:
-                file_shapes = list(
-                    tqdm.tqdm(
-                        pool.imap(
-                            get_shape_partial,
-                            absolute_file_paths,
-                        ),
-                        total=len(file_paths),
-                        desc="Getting number of frames in each hdf5 file",
-                        disable=not verbose,
-                    )
+    # using multiprocessing to speed up reading hdf5 files
+    # and getting the number of frames in each file
+    if verbose:
+        log.info("Getting number of frames in each hdf5 file...")
+
+    get_shape_partial = functools.partial(File.get_shape, key=hdf5_key_for_length)
+    # make sure to call search_file_tree from within a function
+    # or use if __name__ == "__main__":
+    # to avoid freezing the main process
+    absolute_file_paths = [directory / file for file in file_paths]
+    if parallel:
+        with multiprocessing.Pool() as pool:
+            file_shapes = list(
+                tqdm.tqdm(
+                    pool.imap(
+                        get_shape_partial,
+                        absolute_file_paths,
+                    ),
+                    total=len(file_paths),
+                    desc="Getting number of frames in each hdf5 file",
+                    disable=not verbose,
                 )
-        else:
-            file_shapes = []
-            for file_path in tqdm.tqdm(
-                absolute_file_paths,
-                desc="Getting number of frames in each hdf5 file",
-                disable=not verbose,
-            ):
-                file_shapes.append(File.get_shape(file_path, hdf5_key_for_length))
-
+            )
+    else:
+        file_shapes = []
+        for file_path in tqdm.tqdm(
+            absolute_file_paths,
+            desc="Getting number of frames in each hdf5 file",
+            disable=not verbose,
+        ):
+            file_shapes.append(File.get_shape(file_path, hdf5_key_for_length))
     assert len(file_paths) > 0, f"No image files were found in: {directory}"
+    
     if verbose:
         log.info(f"Found {len(file_paths)} image files in {log.yellow(directory)}")
         log.info(f"Writing dataset info to {log.yellow(directory / dataset_info_filename)}")
 
-    dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths)}
+    # Only create a new dataset_info if we did not load an existing one
+    if "dataset_info" not in locals():
+        dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths), "file_shapes": {}}
     if len(file_shapes) > 0:
-        dataset_info["file_shapes"] = file_shapes
+        # Convert list of tuples to list of lists for YAML serialization
+        file_shapes = [list(shape) for shape in file_shapes]
+        dataset_info["file_shapes"][hdf5_key_for_length] = file_shapes
         file_lengths = [shape[0] for shape in file_shapes]
         dataset_info["file_lengths"] = file_lengths
         dataset_info["total_num_frames"] = sum(file_lengths)
 
     if write:
-        with open(directory / dataset_info_filename, "w", encoding="utf-8") as file:
-            yaml.dump(dataset_info, file)
+        try:
+            with open(directory / dataset_info_filename, "w", encoding="utf-8") as file:
+                yaml.dump(dataset_info, file)
+        except Exception as e:
+            log.warning(f"Unable to write dataset info to YAML file (Write permissions?): {e}")
 
     return dataset_info
 
