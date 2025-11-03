@@ -414,7 +414,7 @@ def search_file_tree(
             with open(directory / dataset_info_filename, "w", encoding="utf-8") as file:
                 yaml.dump(dataset_info, file)
         except Exception as e:
-            log.warning(f"Unable to write dataset info to YAML file (Write permissions?): {e}")
+            log.warning(f"Unable to write dataset info to YAML file: {e}")
 
     return dataset_info
 
