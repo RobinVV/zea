@@ -17,10 +17,10 @@ from . import backend_equality_check
 @pytest.mark.parametrize(
     "array, start_dim, end_dim",
     [
-        [np.random.normal(size=(5, 10)), 0, 1],
-        [np.random.normal(size=(5, 10, 15, 20)), 1, -1],
-        [np.random.normal(size=(5, 10, 15, 20)), 2, 3],
-        [np.random.normal(size=(5, 10, 15, 20, 25)), 0, 2],
+        [np.random.default_rng(42).normal(size=(5, 10)), 0, 1],
+        [np.random.default_rng(42).normal(size=(5, 10, 15, 20)), 1, -1],
+        [np.random.default_rng(42).normal(size=(5, 10, 15, 20)), 2, 3],
+        [np.random.default_rng(42).normal(size=(5, 10, 15, 20, 25)), 0, 2],
     ],
 )
 @backend_equality_check()
@@ -57,10 +57,13 @@ _DEFAULT_BATCH_COV_KWARGS = {"rowvar": True, "bias": False, "ddof": None}
 @pytest.mark.parametrize(
     "data, rowvar, bias, ddof",
     [
-        [np.random.normal(size=(5, 30, 10, 20)), *_DEFAULT_BATCH_COV_KWARGS.values()],
-        [np.random.normal(size=(5, 30, 10, 20)), False, False, None],
-        [np.random.normal(size=(2, 1, 5, 8)), True, True, 0],
-        [np.random.normal(size=(1, 4, 3, 3)), False, True, 1],
+        [
+            np.random.default_rng(42).normal(size=(5, 30, 10, 20)),
+            *_DEFAULT_BATCH_COV_KWARGS.values(),
+        ],
+        [np.random.default_rng(42).normal(size=(5, 30, 10, 20)), False, False, None],
+        [np.random.default_rng(42).normal(size=(2, 1, 5, 8)), True, True, 0],
+        [np.random.default_rng(42).normal(size=(1, 4, 3, 3)), False, True, 1],
     ],
 )
 @backend_equality_check()
@@ -107,8 +110,8 @@ def test_extend_n_dims():
 @pytest.mark.parametrize(
     "array, n",
     [
-        [np.random.normal(size=(3, 5, 5)), 3],
-        [np.random.normal(size=(3, 5, 5)), 5],
+        [np.random.default_rng(42).normal(size=(3, 5, 5)), 3],
+        [np.random.default_rng(42).normal(size=(3, 5, 5)), 5],
     ],
 )
 @backend_equality_check()
@@ -312,9 +315,9 @@ def test_patches_to_images(patches, image_shape, overlap, window_type):
 @pytest.mark.parametrize(
     "image, patch_size, overlap, window_type",
     [
-        [np.random.normal(size=(1, 28, 28, 3)), (7, 7), (0, 0), "average"],
-        [np.random.normal(size=(2, 32, 32, 3)), (8, 8), (4, 4), "replace"],
-        [np.random.normal(size=(1, 28, 28, 1)), (4, 4), (2, 2), "average"],
+        [np.random.default_rng(42).normal(size=(1, 28, 28, 3)), (7, 7), (0, 0), "average"],
+        [np.random.default_rng(42).normal(size=(2, 32, 32, 3)), (8, 8), (4, 4), "replace"],
+        [np.random.default_rng(42).normal(size=(1, 28, 28, 1)), (4, 4), (2, 2), "average"],
     ],
 )
 @backend_equality_check()
@@ -481,6 +484,7 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     from zea import tensor_ops
 
     shape = (10, 10, 3, 2)
+    rng = np.random.default_rng(42)
 
     if isinstance(in_axes, int):
         _in_axes = (in_axes, in_axes)
@@ -544,8 +548,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
             return a, b
 
     # Create batched data
-    x = np.random.randn(*shape).astype(np.float32)
-    y = np.random.randn(*shape).astype(np.float32)
+    x = rng.standard_normal(size=shape).astype(np.float32)
+    y = rng.standard_normal(size=shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
 
@@ -591,7 +595,7 @@ def test_vmap_none_arg():
         return a + 1
 
     # Create batched data
-    x = np.random.randn(*shape).astype(np.float32)
+    x = np.random.default_rng(42).standard_normal(size=shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
 
     # Apply map
@@ -613,7 +617,7 @@ def test_simple_map_one_input():
     def func_one_input(x):
         return x * 2
 
-    x = np.random.randn(10, 5).astype(np.float32)
+    x = np.random.default_rng(42).standard_normal(size=(10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     expected_one_input = ops.map(func_one_input, x_tensor)
     result_one_input = tensor_ops.simple_map(func_one_input, x_tensor)
@@ -634,8 +638,9 @@ def test_simple_map_multiple_inputs():
         x, y = inputs
         return x + y
 
-    x = np.random.randn(10, 5).astype(np.float32)
-    y = np.random.randn(10, 5).astype(np.float32)
+    rng = np.random.default_rng(42)
+    x = rng.standard_normal(size=(10, 5)).astype(np.float32)
+    y = rng.standard_normal(size=(10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
     expected_multiple_inputs = ops.map(func_multiple_inputs, [x_tensor, y_tensor])
