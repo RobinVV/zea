@@ -444,7 +444,7 @@ def vmap(
 
     Basically a wrapper around `vmap` that splits the input into batches or chunks
     to avoid memory issues with large inputs. Choose the `batch_size` or `chunks` wisely, because
-    it pad the input to make it divisible, and then crop the output back to the original size.
+    it pads the input to make it divisible, and then crop the output back to the original size.
 
     Args:
         fun: Function to be mapped.
