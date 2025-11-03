@@ -400,8 +400,11 @@ def search_file_tree(
 
     # Only create a new dataset_info if we did not load an existing one
     if dataset_info is None:
-        dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths),
-                        "file_shapes": {}}
+        dataset_info = {
+            "file_paths": file_paths,
+            "total_num_files": len(file_paths),
+            "file_shapes": {},
+        }
     if len(file_shapes) > 0:
         # Convert list of tuples to list of lists for YAML serialization
         file_shapes = [list(shape) for shape in file_shapes]
