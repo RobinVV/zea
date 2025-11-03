@@ -160,7 +160,7 @@ def find_h5_files(paths: str | list, key: str = None, search_file_tree_kwargs: d
             hdf5_key_for_length=key,
             **search_file_tree_kwargs,
         )
-        file_shapes += dataset_info["file_shapes"]
+        file_shapes += dataset_info["file_shapes"][key]
         file_paths += [str(Path(path) / file_path) for file_path in dataset_info["file_paths"]]
 
     return file_paths, file_shapes

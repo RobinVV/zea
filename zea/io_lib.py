@@ -314,7 +314,7 @@ def search_file_tree(
         "Currently only YAML files are supported for dataset info file when "
         f"using `search_file_tree`, got {dataset_info_filename}"
     )
-
+    dataset_info = None
     if (directory / dataset_info_filename).is_file() and not redo:
         with open(directory / dataset_info_filename, "r", encoding="utf-8") as file:
             dataset_info = yaml.load(file, Loader=yaml.FullLoader)
