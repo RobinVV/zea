@@ -392,14 +392,15 @@ def search_file_tree(
         ):
             file_shapes.append(File.get_shape(file_path, hdf5_key_for_length))
     assert len(file_paths) > 0, f"No image files were found in: {directory}"
-    
+
     if verbose:
         log.info(f"Found {len(file_paths)} image files in {log.yellow(directory)}")
         log.info(f"Writing dataset info to {log.yellow(directory / dataset_info_filename)}")
 
     # Only create a new dataset_info if we did not load an existing one
     if "dataset_info" not in locals():
-        dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths), "file_shapes": {}}
+        dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths),
+                        "file_shapes": {}}
     if len(file_shapes) > 0:
         # Convert list of tuples to list of lists for YAML serialization
         file_shapes = [list(shape) for shape in file_shapes]
