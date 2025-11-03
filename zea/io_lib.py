@@ -316,6 +316,7 @@ def search_file_tree(
     )
     assert hdf5_key_for_length is not None, "hdf5_key_for_length must be defined"
 
+    dataset_info = None
     if (directory / dataset_info_filename).is_file() and not redo:
         with open(directory / dataset_info_filename, "r", encoding="utf-8") as file:
             dataset_info = yaml.load(file, Loader=yaml.FullLoader)
@@ -398,7 +399,7 @@ def search_file_tree(
         log.info(f"Writing dataset info to {log.yellow(directory / dataset_info_filename)}")
 
     # Only create a new dataset_info if we did not load an existing one
-    if "dataset_info" not in locals():
+    if dataset_info is None:
         dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths),
                         "file_shapes": {}}
     if len(file_shapes) > 0:
