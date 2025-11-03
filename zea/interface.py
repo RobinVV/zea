@@ -3,15 +3,15 @@
 Example usage
 ^^^^^^^^^^^^^^
 
-.. code-block:: python
+.. doctest::
 
-    import zea
-    from zea.internal.setup_zea import setup_config
+    >>> import zea
+    >>> from zea.internal.setup_zea import setup_config
 
-    config = setup_config("hf://zeahub/configs/config_camus.yaml")
+    >>> config = setup_config("hf://zeahub/configs/config_camus.yaml")
 
-    interface = zea.Interface(config)
-    interface.run(plot=True)
+    >>> interface = zea.Interface(config)
+    >>> interface.run(plot=True)  # doctest: +SKIP
 
 """
 
@@ -266,10 +266,11 @@ class Interface:
         save = self.config.plot.save
 
         if self.frame_no == "all":
-            if not asyncio.get_event_loop().is_running():
-                asyncio.run(self.run_movie(save))
-            else:
-                asyncio.create_task(self.run_movie(save))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self.run_movie(save))  # already running loop
+            except RuntimeError:
+                asyncio.run(self.run_movie(save))  # no loop yet
 
         else:
             if plot:
