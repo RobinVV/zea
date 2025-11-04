@@ -195,9 +195,9 @@ def test_single_action():
 
 def test_maximum_actions():
     """Test maximum actions."""
-    np.random.seed(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_SEED)
     h, w = 8, 8
-    particles = np.random.rand(1, 2, h, w).astype(np.float32)
+    particles = rng.random((1, 2, h, w)).astype(np.float32)
 
     agent = selection.GreedyEntropy(w, w, h, w)
     selected_lines, mask = agent.sample(particles)
@@ -267,7 +267,6 @@ def test_equispaced_lines_class():
 
 def test_uniform_random_lines():
     """Test UniformRandomLines action selection."""
-    np.random.seed(DEFAULT_SEED)
     h, w = 8, 8
     batch_size = 3
 
