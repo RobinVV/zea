@@ -171,7 +171,10 @@ def compound_frames(input_path: Path, output_path: Path, overwrite=False):
         if data_dict[key] is None:
             compounded_data[key] = None
             continue
-        compounded_data[key] = np.mean(data_dict[key], axis=0, keepdims=True)
+        if key == "image" or key == "image_sc":
+            compounded_data[key] = np.log(np.mean(np.exp(data_dict[key]), axis=0, keepdims=True))
+        else:
+            compounded_data[key] = np.mean(data_dict[key], axis=0, keepdims=True)
 
     scan = _scan_reduce_frames(scan, [0])
 
