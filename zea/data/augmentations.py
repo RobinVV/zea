@@ -383,7 +383,7 @@ class RandomCircleInclusion(layers.Layer):
 
         Args:
             flat (Tensor): Flattened image data of shape (flat_batch, h, w).
-            center (Tensor): Center coordinates (2,).
+            center (Tensor): Center coordinates, either (2,) or (flat_batch, 2).
             h (int): Height of images.
             w (int): Width of images.
 
@@ -391,16 +391,17 @@ class RandomCircleInclusion(layers.Layer):
             Tensor: Augmented images with circle applied.
         """
         rx, ry = self.radius
-        cx, cy = center[0], center[1]
 
-        # Create mask for all slices using the same center
-        masks = []
-        for i in range(flat.shape[0]):
-            mask = self._make_circle_mask(ops.stack([cx, cy])[None, :], h, w, (rx, ry), flat.dtype)[
-                0
-            ]
-            masks.append(mask)
-        masks = ops.stack(masks, axis=0)
+        # Ensure center has batch dimension for broadcasting
+        if len(center.shape) == 1:
+            # Single center (2,) -> broadcast to all slices
+            center_batched = ops.tile(ops.reshape(center, [1, 2]), [flat.shape[0], 1])
+        else:
+            # Already batched (flat_batch, 2)
+            center_batched = center
+
+        # Create masks for all slices using vectorized_map or broadcasting
+        masks = self._make_circle_mask(center_batched, h, w, (rx, ry), flat.dtype)
 
         # Apply masks
         aug_imgs = flat * (1 - masks) + self.fill_value * masks
@@ -411,7 +412,8 @@ class RandomCircleInclusion(layers.Layer):
 
         Args:
             x (Tensor): Input image tensor.
-            fixed_center (Tensor): Pre-determined center coordinates (2,).
+            fixed_center (Tensor): Pre-determined center coordinates, either (2,)
+                for a single center or (flat_batch, 2) for per-slice centers.
 
         Returns:
             tuple: (augmented image, center coordinates).
@@ -419,18 +421,21 @@ class RandomCircleInclusion(layers.Layer):
         x = self._permute_axes_to_circle_last(x)
         flat, flat_batch_size, h, w = self._flatten_batch_and_other_dims(x)
 
-        # Apply circle mask with fixed center
+        # Apply circle mask with fixed center (handles both single and batched centers)
         aug_imgs = self._apply_circle_mask(flat, fixed_center, h, w)
         aug_imgs = ops.reshape(aug_imgs, x.shape)
         aug_imgs = ops.transpose(aug_imgs, axes=self._inv_perm)
 
-        # Return the same center for all slices
-        centers_shape = [2] if flat_batch_size == 1 else [flat_batch_size, 2]
-        if flat_batch_size == 1:
-            centers = fixed_center
+        # Return centers matching the expected shape
+        if len(fixed_center.shape) == 1:
+            # Single center (2,) -> broadcast to match flat_batch_size
+            if flat_batch_size == 1:
+                centers = fixed_center
+            else:
+                centers = ops.tile(ops.reshape(fixed_center, [1, 2]), [flat_batch_size, 1])
         else:
-            centers = ops.stack([fixed_center] * flat_batch_size, axis=0)
-            centers = ops.reshape(centers, centers_shape)
+            # Already batched centers (flat_batch, 2)
+            centers = fixed_center
 
         return (aug_imgs, centers)
 
