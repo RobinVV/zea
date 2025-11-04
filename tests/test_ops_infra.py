@@ -756,7 +756,9 @@ def test_pipeline_parameter_tracing(ultrasound_scan: Scan):
     ultrasound_scan._params.pop("demodulation_frequency", None)
     params = pipeline.prepare_parameters(scan=ultrasound_scan)
     rng = np.random.default_rng(DEFAULT_SEED)
-    data = rng.random((1, ultrasound_scan.n_tx, ultrasound_scan.n_ax, ultrasound_scan.n_el, 1))
+    data = rng.standard_normal(
+        (1, ultrasound_scan.n_tx, ultrasound_scan.n_ax, ultrasound_scan.n_el, 1)
+    )
     output = pipeline(data=data, **params)
     assert "demodulation_frequency" in output
 

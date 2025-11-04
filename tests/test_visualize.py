@@ -24,12 +24,12 @@ matplotlib.use("Agg")
 
 def random_images(n, shape=(10, 10)):
     rng = np.random.default_rng(DEFAULT_SEED)
-    return [rng.random(shape) for _ in range(n)]
+    return [rng.standard_normal(shape) for _ in range(n)]
 
 
 def random_volume(shape=(20, 20, 20)):
     rng = np.random.default_rng(DEFAULT_SEED)
-    return rng.random(shape)
+    return rng.standard_normal(shape)
 
 
 def assert_is_figure(obj):

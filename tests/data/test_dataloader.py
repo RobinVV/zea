@@ -32,7 +32,7 @@ def dummy_hdf5(tmp_path):
     file_path = tmp_path / "dummy_data.hdf5"
     rng = np.random.default_rng(DEFAULT_SEED)
     with h5py.File(file_path, "w") as f:
-        data = rng.random((100, *DUMMY_IMAGE_SHAPE))
+        data = rng.standard_normal((100, *DUMMY_IMAGE_SHAPE))
         f.create_dataset("data", data=data)
     return file_path
 
@@ -42,10 +42,10 @@ def multi_shape_dataset(tmp_path):
     """Fixture to create and clean up a dummy hdf5 file."""
     rng = np.random.default_rng(DEFAULT_SEED)
     with h5py.File(tmp_path / "dummy_data_1.hdf5", "w") as f:
-        data = rng.random((1, 28, 28))
+        data = rng.standard_normal((1, 28, 28))
         f.create_dataset("data", data=data)
     with h5py.File(tmp_path / "dummy_data_2.hdf5", "w") as f:
-        data = rng.random((1, 32, 32))
+        data = rng.standard_normal((1, 32, 32))
         f.create_dataset("data", data=data)
     return tmp_path
 
@@ -62,7 +62,7 @@ def ndim_hdf5_dataset_path(tmp_path):
     rng = np.random.default_rng(DEFAULT_SEED)
     for i in range(n_files):
         with h5py.File(tmp_path / f"dummy_data_{i}.hdf5", "w") as f:
-            data = rng.random((n_samples, *image_shape))
+            data = rng.standard_normal((n_samples, *image_shape))
             f.create_dataset("data", data=data)
     return tmp_path
 
@@ -338,7 +338,7 @@ def test_crop_or_pad():
     """Test the resize_type="crop_or_pad" for to behave as expected"""
     resizer = Resizer(np.array(DUMMY_IMAGE_SHAPE) * 2, resize_type="crop_or_pad")
     rng = np.random.default_rng(DEFAULT_SEED)
-    inp = rng.random((1, *DUMMY_IMAGE_SHAPE, 1))
+    inp = rng.standard_normal((1, *DUMMY_IMAGE_SHAPE, 1))
     out = resizer(inp)
 
     assert ops.sum(keras.layers.CenterCrop(*DUMMY_IMAGE_SHAPE)(out) - inp) == 0.0, (

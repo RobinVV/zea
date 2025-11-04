@@ -160,7 +160,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
         DatasetElement(
             group_name="scan",
             dataset_name="sound_speed_map",
-            data=rng.random((10, 10)),
+            data=rng.standard_normal((10, 10)),
             description="The local speed of sound in the medium.",
             unit="m/s",
         )

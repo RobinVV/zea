@@ -48,7 +48,7 @@ def test_companding(comp_type, size, parameter_value_range):
 
         companding = ops.Companding(comp_type=comp_type, expand=False)
         rng = np.random.default_rng(DEFAULT_SEED)
-        signal = np.clip((rng.random(size) - 0.5) * 2, -1, 1)
+        signal = np.clip((rng.standard_normal(size) - 0.5) * 2, -1, 1)
         signal = signal.astype("float32")
         signal = keras.ops.convert_to_tensor(signal)
 
@@ -100,7 +100,7 @@ def test_converting_to_image(size, dynamic_range, input_range):
         _input_range = input_range
 
     rng = np.random.default_rng(DEFAULT_SEED)
-    data = rng.random(size) * (_input_range[1] - _input_range[0]) + _input_range[0]
+    data = rng.standard_normal(size) * (_input_range[1] - _input_range[0]) + _input_range[0]
     output_range = (0, 1)
     normalize = ops.Normalize(output_range, input_range)
     log_compress = ops.LogCompress()

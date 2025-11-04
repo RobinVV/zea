@@ -176,7 +176,7 @@ def test_single_action():
     """Test single action."""
     rng = np.random.default_rng(DEFAULT_SEED)
     h, w = 8, 8
-    particles = rng.random((1, 2, h, w)).astype(np.float32)
+    particles = rng.standard_normal((1, 2, h, w)).astype(np.float32)
 
     agent = selection.GreedyEntropy(1, w, h, w)
     selected_lines, mask = agent.sample(particles)

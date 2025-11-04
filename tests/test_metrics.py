@@ -19,8 +19,8 @@ def test_smsle():
     """Test SMSLE loss function"""
     # Create random y_true and y_pred data
     rng = np.random.default_rng(DEFAULT_SEED)
-    y_true = rng.random((1, 11, 128, 512, 2)).astype(np.float32)
-    y_pred = rng.random((1, 11, 128, 512, 2)).astype(np.float32)
+    y_true = rng.standard_normal((1, 11, 128, 512, 2)).astype(np.float32)
+    y_pred = rng.standard_normal((1, 11, 128, 512, 2)).astype(np.float32)
 
     # Calculate SMSLE loss
     smsle = SMSLE()
@@ -41,8 +41,8 @@ def test_metrics(metric_name):
     paired = metrics_registry.get_parameter(metric_name, "paired")
 
     rng = np.random.default_rng(DEFAULT_SEED)
-    y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
-    y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_true = rng.standard_normal((2, 16, 16, 3)).astype(np.float32) * 255.0
+    y_pred = rng.standard_normal((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_true = ops.convert_to_tensor(y_true)
     y_pred = ops.convert_to_tensor(y_pred)
 

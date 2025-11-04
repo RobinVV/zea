@@ -29,7 +29,7 @@ def test_scan_conversion(size, resolution, order):
     from zea import display
 
     rng = np.random.default_rng(DEFAULT_SEED)
-    data = rng.random(size).astype(np.float32)
+    data = rng.standard_normal(size).astype(np.float32)
 
     rho_range = (0, 100)
     theta_range = (-45, 45)
@@ -198,7 +198,7 @@ def test_converting_to_image(size, dynamic_range):
     else:
         _dynamic_range = dynamic_range
 
-    data = rng.random(size) * (_dynamic_range[1] - _dynamic_range[0]) + _dynamic_range[0]
+    data = rng.standard_normal(size) * (_dynamic_range[1] - _dynamic_range[0]) + _dynamic_range[0]
     _data = display.to_8bit(data, dynamic_range, pillow=False)
     assert np.all(np.logical_and(_data >= 0, _data <= 255))
     assert _data.dtype == "uint8"
