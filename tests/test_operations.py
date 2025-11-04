@@ -262,8 +262,6 @@ def test_up_and_down_conversion(factor, batch_size):
     )
     parameters = simulator_pipeline.prepare_parameters(probe=probe, scan=scan)
 
-    rng = np.random.default_rng(42)
-
     data = []
     _data = []
     rng = np.random.default_rng(DEFAULT_SEED)
@@ -317,7 +315,7 @@ def test_hilbert_transform():
 
     from zea import ops
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
     # sinusoids on axis 1
@@ -363,7 +361,7 @@ def spiral_image():
     spiral = np.sin(8 * theta + 8 * r)
     spiral = (spiral - spiral.min()) / (spiral.max() - spiral.min())
 
-    rng = np.random.default_rng(seed=DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_SEED)
     noisy = spiral + 0.2 * rng.normal(size=spiral.shape)
     noisy = np.clip(noisy, 0, 1)
     speckle = spiral * (1 + 0.5 * rng.normal(size=spiral.shape))

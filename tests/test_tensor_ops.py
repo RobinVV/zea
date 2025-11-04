@@ -354,10 +354,10 @@ def test_images_to_patches_and_back(image, patch_size, overlap, window_type):
 @pytest.mark.parametrize(
     "array, sigma, order, truncate",
     [
-        [default_rng(seed=DEFAULT_SEED + 1).normal(size=(32, 32)), 0.5, 0, 4.0],
-        [default_rng(seed=DEFAULT_SEED + 2).normal(size=(32, 32)), 1.0, 0, 5.0],
-        [default_rng(seed=DEFAULT_SEED + 3).normal(size=(32, 32)), 1.5, (0, 1), 4.0],
-        [default_rng(seed=DEFAULT_SEED + 4).normal(size=(32, 32)), (1.0, 2.0), (1, 0), 4.0],
+        [default_rng(DEFAULT_SEED + 1).normal(size=(32, 32)), 0.5, 0, 4.0],
+        [default_rng(DEFAULT_SEED + 2).normal(size=(32, 32)), 1.0, 0, 5.0],
+        [default_rng(DEFAULT_SEED + 3).normal(size=(32, 32)), 1.5, (0, 1), 4.0],
+        [default_rng(DEFAULT_SEED + 4).normal(size=(32, 32)), (1.0, 2.0), (1, 0), 4.0],
     ],
 )
 @backend_equality_check(backends=["jax", "tensorflow"])
@@ -397,9 +397,9 @@ def test_linear_sum_assignment_greedy():
 @pytest.mark.parametrize(
     "array, axis, fn",
     [
-        [default_rng(seed=DEFAULT_SEED + 1).normal(size=(2, 3)), 0, "sum"],
-        [default_rng(seed=DEFAULT_SEED + 2).normal(size=(2, 3, 4)), 1, "argmax"],
-        [default_rng(seed=DEFAULT_SEED + 3).normal(size=(2, 3, 4, 5)), 2, "var"],
+        [default_rng(DEFAULT_SEED + 1).normal(size=(2, 3)), 0, "sum"],
+        [default_rng(DEFAULT_SEED + 2).normal(size=(2, 3, 4)), 1, "argmax"],
+        [default_rng(DEFAULT_SEED + 3).normal(size=(2, 3, 4, 5)), 2, "var"],
     ],
 )
 def test_apply_along_axis(array, axis, fn):
@@ -434,11 +434,11 @@ def test_correlate(mode):
     from zea import tensor_ops
 
     # Set random seed for reproducibility
-    np.random.seed(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_SEED)
 
     # Test with real vectors
-    a_real = np.random.randn(10).astype(np.float32)
-    v_real = np.random.randn(7).astype(np.float32)
+    a_real = rng.standard_normal(10).astype(np.float32)
+    v_real = rng.standard_normal(7).astype(np.float32)
 
     result_real = tensor_ops.correlate(a_real, v_real, mode=mode)
     expected_real = np.correlate(a_real, v_real, mode=mode)
@@ -446,8 +446,8 @@ def test_correlate(mode):
     np.testing.assert_allclose(result_real, expected_real, rtol=1e-5, atol=1e-5)
 
     # Test with complex vectors
-    a_complex = (np.random.randn(8) + 1j * np.random.randn(8)).astype(np.complex64)
-    v_complex = (np.random.randn(5) + 1j * np.random.randn(5)).astype(np.complex64)
+    a_complex = (rng.standard_normal(8) + 1j * rng.standard_normal(8)).astype(np.complex64)
+    v_complex = (rng.standard_normal(5) + 1j * rng.standard_normal(5)).astype(np.complex64)
 
     result_complex = tensor_ops.correlate(a_complex, v_complex, mode=mode)
     expected_complex = np.correlate(a_complex, v_complex, mode=mode)
@@ -455,8 +455,8 @@ def test_correlate(mode):
     np.testing.assert_allclose(result_complex, expected_complex, rtol=1e-5, atol=1e-5)
 
     # Test edge case: different lengths
-    a_short = np.random.randn(3).astype(np.float32)
-    v_long = np.random.randn(12).astype(np.float32)
+    a_short = rng.standard_normal(3).astype(np.float32)
+    v_long = rng.standard_normal(12).astype(np.float32)
 
     result_edge = tensor_ops.correlate(a_short, v_long, mode=mode)
     expected_edge = np.correlate(a_short, v_long, mode=mode)
