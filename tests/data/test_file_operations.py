@@ -18,7 +18,7 @@ from zea.data.file_operations import (
     compound_transmits,
     extract_frames_transmits,
     resave,
-    sum_raw_data,
+    sum_data,
 )
 
 
@@ -29,7 +29,7 @@ def tmp_hdf5_path(tmp_path) -> Generator[Path, None, None]:
 
 
 def test_file_operations_sum(tmp_hdf5_path):
-    """Tests the sum_raw_data function by creating two example datasets,
+    """Tests the sum_data function by creating two example datasets,
     summing them and checking if the result is correct."""
 
     # Create two example datasets
@@ -44,7 +44,7 @@ def test_file_operations_sum(tmp_hdf5_path):
     # Sum the datasets
     output_path = tmp_hdf5_path.parent / "summed_dataset.hdf5"
 
-    sum_raw_data([input_path1, input_path2], output_path)
+    sum_data([input_path1, input_path2], output_path)
 
     _assert_descriptions_and_additional_elements_equal(input_path1, output_path)
 
@@ -146,7 +146,7 @@ def test_file_operations_compound_transmits(tmp_hdf5_path):
 
 
 def test_file_operations_cli_sum(tmp_hdf5_path):
-    """Tests the sum_raw_data function CLI by creating two example datasets,
+    """Tests the sum_data function CLI by creating two example datasets,
     summing them and checking if the result is correct."""
 
     # Create two example datasets

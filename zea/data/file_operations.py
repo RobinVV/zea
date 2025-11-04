@@ -94,7 +94,7 @@ def save_file(
     )
 
 
-def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
+def sum_data(input_paths: list[Path], output_path: Path, overwrite=False):
     """
     Sums multiple raw data files and saves the result to a new file.
 
@@ -127,6 +127,22 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
                 data_dict["beamformed_data"], new_data["beamformed_data"], "beamformed_data"
             )
             data_dict["beamformed_data"] += new_data["beamformed_data"]
+
+        if data_dict["envelope_data"] is not None:
+            _assert_shapes_equal(
+                data_dict["envelope_data"], new_data["envelope_data"], "envelope_data"
+            )
+            data_dict["envelope_data"] += new_data["envelope_data"]
+
+        if data_dict["image"] is not None:
+            _assert_shapes_equal(data_dict["image"], new_data["image"], "image")
+            data_dict["image"] = np.log(np.exp(new_data["image"]) + np.exp(data_dict["image"]))
+
+        if data_dict["image_sc"] is not None:
+            _assert_shapes_equal(data_dict["image_sc"], new_data["image_sc"], "image_sc")
+            data_dict["image_sc"] = np.log(
+                np.exp(new_data["image_sc"]) + np.exp(data_dict["image_sc"])
+            )
         assert scan == new_scan, "Scan parameters do not match."
         assert probe == new_probe, "Probe parameters do not match."
 
@@ -475,6 +491,6 @@ if __name__ == "__main__":
             overwrite=args.overwrite,
         )
     else:
-        sum_raw_data(
+        sum_data(
             input_paths=args.input_paths, output_path=args.output_path, overwrite=args.overwrite
         )
