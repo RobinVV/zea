@@ -76,7 +76,7 @@ class RandomCircleInclusion(layers.Layer):
                 ...     radius=5,
                 ...     circle_axes=(1, 2),
                 ...     with_batch_dim=True,
-                >>> )
+                ... )
                 >>> image = np.zeros((1, 28, 28), dtype=np.float32)
                 >>> out = layer(ops.convert_to_tensor(image))  # doctest: +SKIP
 
@@ -282,8 +282,10 @@ class RandomCircleInclusion(layers.Layer):
                     "instead of keras.random.SeedGenerator."
                 )
             else:
-                raise NotImplementedError(
-                    "jax.random.key() is not supported, please use jax.random.PRNGKey()"
+                raise TypeError(
+                    f"When using JAX backend, seed must be a JAX PRNG key (created with "
+                    f"jax.random.PRNGKey()), but got {type(seed)}. Note: jax.random.key() "
+                    f"keys are not currently supported."
                 )
         seed = seed if seed is not None else self.seed
 
