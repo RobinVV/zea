@@ -435,8 +435,11 @@ class File(h5py.File):
         Returns:
             bool: True if the key exists, False otherwise.
         """
-        key = self.format_key(key)
-        return key in self.keys()
+        try:
+            key = self.format_key(key)
+        except AssertionError:
+            return False
+        return True
 
     @classmethod
     def get_shape(cls, path: str, key: str) -> tuple:
