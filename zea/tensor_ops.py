@@ -443,7 +443,8 @@ def vmap(
     """`vmap` with batching or chunking support to avoid memory issues.
 
     Basically a wrapper around `vmap` that splits the input into batches or chunks
-    to avoid memory issues with large inputs.
+    to avoid memory issues with large inputs. Choose the `batch_size` or `chunks` wisely, because
+    it pads the input to make it divisible, and then crop the output back to the original size.
 
     Args:
         fun: Function to be mapped.

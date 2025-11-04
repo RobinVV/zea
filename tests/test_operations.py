@@ -40,6 +40,8 @@ def test_companding(comp_type, size, parameter_value_range):
 
     from zea import ops
 
+    rng = np.random.default_rng(42)
+
     for parameter_value in np.linspace(*parameter_value_range, 10):
         A = parameter_value if comp_type == "a" else 0
         mu = parameter_value if comp_type == "mu" else 0
@@ -260,6 +262,8 @@ def test_up_and_down_conversion(factor, batch_size):
     )
     parameters = simulator_pipeline.prepare_parameters(probe=probe, scan=scan)
 
+    rng = np.random.default_rng(42)
+
     data = []
     _data = []
     rng = np.random.default_rng(DEFAULT_SEED)
@@ -312,6 +316,8 @@ def test_hilbert_transform():
     import keras
 
     from zea import ops
+
+    rng = np.random.default_rng(42)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
     # sinusoids on axis 1

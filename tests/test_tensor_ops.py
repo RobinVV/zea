@@ -499,6 +499,7 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     from zea import tensor_ops
 
     shape = (10, 10, 3, 2)
+    rng = np.random.default_rng(DEFAULT_SEED)
 
     if isinstance(in_axes, int):
         _in_axes = (in_axes, in_axes)
@@ -562,9 +563,8 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
             return a, b
 
     # Create batched data
-    rng = default_rng(DEFAULT_SEED)
-    x = rng.random(shape).astype(np.float32)
-    y = rng.random(shape).astype(np.float32)
+    x = rng.standard_normal(size=shape).astype(np.float32)
+    y = rng.standard_normal(size=shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
 
@@ -611,7 +611,7 @@ def test_vmap_none_arg():
 
     # Create batched data
     rng = default_rng(DEFAULT_SEED)
-    x = rng.random(shape).astype(np.float32)
+    x = rng.standard_normal(shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
 
     # Apply map
@@ -634,7 +634,7 @@ def test_simple_map_one_input():
         return x * 2
 
     rng = default_rng(DEFAULT_SEED)
-    x = rng.random((10, 5)).astype(np.float32)
+    x = rng.standard_normal((10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     expected_one_input = ops.map(func_one_input, x_tensor)
     result_one_input = tensor_ops.simple_map(func_one_input, x_tensor)
@@ -656,8 +656,8 @@ def test_simple_map_multiple_inputs():
         return x + y
 
     rng = default_rng(DEFAULT_SEED)
-    x = rng.random((10, 5)).astype(np.float32)
-    y = rng.random((10, 5)).astype(np.float32)
+    x = rng.standard_normal((10, 5)).astype(np.float32)
+    y = rng.standard_normal((10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
     expected_multiple_inputs = ops.map(func_multiple_inputs, [x_tensor, y_tensor])
