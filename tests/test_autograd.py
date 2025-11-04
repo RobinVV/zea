@@ -17,7 +17,8 @@ OTHER_BACKENDS = ["torch", "tensorflow"]  # reference backends for equality chec
 @pytest.fixture
 def x_input():
     """Generate random input tensor for testing."""
-    return np.random.rand(5)
+    rng = np.random.default_rng(42)
+    return rng.uniform(size=5)
 
 
 @pytest.fixture

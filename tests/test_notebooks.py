@@ -45,6 +45,11 @@ NOTEBOOK_PARAMETERS = {
         "n_conditional_steps": 2,
         "n_conditional_samples": 2,
     },
+    "task_based_perception_action_loop.ipynb": {
+        "n_prior_steps": 2,
+        "n_posterior_steps": 2,
+        "n_particles": 2,
+    },
     "zea_sequence_example.ipynb": {
         "n_frames": 15,
         "n_tx": 1,
