@@ -75,7 +75,7 @@ def test_probe_from_file(tmp_path):
 
     # Create dummy probe_geometry
     rng = np.random.default_rng(DEFAULT_SEED)
-    probe_geometry = rng.random((32, 3))
+    probe_geometry = rng.standard_normal((32, 3))
 
     # Create HDF5 file with unknown probe name and probe_geometry
     file_path = tmp_path / "unknown_probe.hdf5"

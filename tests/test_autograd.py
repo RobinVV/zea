@@ -18,7 +18,8 @@ DEFAULT_SEED = 42
 @pytest.fixture
 def x_input():
     """Generate random input tensor for testing."""
-    return np.random.rand(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_SEED)
+    return rng.random(5)
 
 
 @pytest.fixture

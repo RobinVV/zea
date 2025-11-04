@@ -262,6 +262,7 @@ def test_up_and_down_conversion(factor, batch_size):
 
     data = []
     _data = []
+    rng = np.random.default_rng(DEFAULT_SEED)
     for _ in range(batch_size):
         # Define scatterers with random variation
         scat_x_base, scat_z_base = np.meshgrid(
@@ -270,7 +271,6 @@ def test_up_and_down_conversion(factor, batch_size):
             indexing="ij",
         )
         # Add random perturbations
-        rng = np.random.default_rng(DEFAULT_SEED)
         scat_x = np.ravel(scat_x_base) + rng.uniform(-1e-3, 1e-3, 25)
         scat_z = np.ravel(scat_z_base) + rng.uniform(-1e-3, 1e-3, 25)
         n_scat = len(scat_x)
