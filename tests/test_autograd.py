@@ -12,12 +12,13 @@ from . import backend_equality_check
 
 GT_BACKEND = "jax"  # ground truth backend for equality check
 OTHER_BACKENDS = ["torch", "tensorflow"]  # reference backends for equality check
+DEFAULT_SEED = 42
 
 
 @pytest.fixture
 def x_input():
     """Generate random input tensor for testing."""
-    return np.random.rand(5)
+    return np.random.rand(DEFAULT_SEED)
 
 
 @pytest.fixture

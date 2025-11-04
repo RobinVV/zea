@@ -12,12 +12,15 @@ from zea.internal.registry import metrics_registry
 
 from . import backend_equality_check
 
+DEFAULT_SEED = 42
+
 
 def test_smsle():
     """Test SMSLE loss function"""
     # Create random y_true and y_pred data
-    y_true = np.random.rand(1, 11, 128, 512, 2).astype(np.float32)
-    y_pred = np.random.rand(1, 11, 128, 512, 2).astype(np.float32)
+    rng = np.random.default_rng(DEFAULT_SEED)
+    y_true = rng.random((1, 11, 128, 512, 2)).astype(np.float32)
+    y_pred = rng.random((1, 11, 128, 512, 2)).astype(np.float32)
 
     # Calculate SMSLE loss
     smsle = SMSLE()
@@ -37,7 +40,7 @@ def test_metrics(metric_name):
         metric = metrics.get_metric(metric_name)
     paired = metrics_registry.get_parameter(metric_name, "paired")
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
     y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_true = ops.convert_to_tensor(y_true)
@@ -74,7 +77,7 @@ def test_metrics(metric_name):
 @backend_equality_check(decimal=2)
 def test_metrics_class():
     """Test Metrics class"""
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
     y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_true = ops.convert_to_tensor(y_true)

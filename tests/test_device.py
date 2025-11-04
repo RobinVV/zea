@@ -10,6 +10,8 @@ from zea.internal.device import init_device
 
 from . import backend_equality_check
 
+DEFAULT_SEED = 42
+
 devices = ["cpu", "gpu:0", "cuda:0", "auto:-1", "auto:1"]
 backends = ["tensorflow", "torch", "jax", "auto", "numpy"]
 
@@ -30,7 +32,7 @@ def test_default_init_device(backend):
 def test_func_on_device():
     """Test func_on_device with all backends."""
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
     x = rng.standard_normal((3, 3))
     y = rng.standard_normal((3, 3))
 

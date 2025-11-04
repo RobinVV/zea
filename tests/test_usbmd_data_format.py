@@ -40,6 +40,7 @@ DATASET_PARAMETERS = {
     "waveforms_two_way": [np.zeros((512,), dtype=np.float32)],
     "tx_waveform_indices": np.zeros((n_tx,), dtype=np.int32),
 }
+DEFAULT_SEED = 42
 
 
 @pytest.fixture
@@ -145,6 +146,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
     dataset."""
 
     elements = []
+    rng = np.random.default_rng(DEFAULT_SEED)
     elements.append(
         DatasetElement(
             group_name="scan",
@@ -158,7 +160,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
         DatasetElement(
             group_name="scan",
             dataset_name="sound_speed_map",
-            data=np.random.rand(10, 10),
+            data=rng.random((10, 10)),
             description="The local speed of sound in the medium.",
             unit="m/s",
         )

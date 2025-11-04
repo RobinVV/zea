@@ -11,6 +11,7 @@ from zea.internal.core import Object
 
 # Global variable for the expected duration of the expensive operation
 EXPECTED_DURATION = 0.05
+DEFAULT_SEED = 42
 
 
 @cache_output("x")
@@ -266,7 +267,7 @@ def test_nested_cache():
 
 def test_caching_seed_generator():
     """Test caching for expensive_operation with keras.seed.SeedGenerator."""
-    seed_gen = keras.random.SeedGenerator(42)
+    seed_gen = keras.random.SeedGenerator(DEFAULT_SEED)
 
     # First time should not be cached
     start_time = time.time()

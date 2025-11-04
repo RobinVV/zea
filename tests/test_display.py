@@ -7,6 +7,8 @@ from zea import display
 
 from . import backend_equality_check
 
+DEFAULT_SEED = 42
+
 
 @pytest.mark.parametrize(
     "size, resolution, order",
@@ -26,7 +28,7 @@ def test_scan_conversion(size, resolution, order):
 
     from zea import display
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
     data = rng.random(size).astype(np.float32)
 
     rho_range = (0, 100)
@@ -190,12 +192,13 @@ def test_scan_conversion_and_inverse_padded(size, pattern_creator, allowed_error
 def test_converting_to_image(size, dynamic_range):
     """Test converting to image functions"""
     # create random data between dynamic range
+    rng = np.random.default_rng(DEFAULT_SEED)
     if dynamic_range is None:
         _dynamic_range = (-60, 0)
     else:
         _dynamic_range = dynamic_range
 
-    data = np.random.random(size) * (_dynamic_range[1] - _dynamic_range[0]) + _dynamic_range[0]
+    data = rng.random(size) * (_dynamic_range[1] - _dynamic_range[0]) + _dynamic_range[0]
     _data = display.to_8bit(data, dynamic_range, pillow=False)
     assert np.all(np.logical_and(_data >= 0, _data <= 255))
     assert _data.dtype == "uint8"
@@ -223,7 +226,7 @@ def test_map_coordinates_dtype(dtype, order):
     from zea import display
 
     # Create a simple 2D test image
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_SEED)
     image = rng.random((32, 32)).astype(dtype)
 
     # Create simple coordinates for interpolation
