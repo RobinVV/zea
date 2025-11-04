@@ -508,7 +508,7 @@ class Scan(Parameters):
         value = self._params.get("azimuth_angles")
         if value is None:
             log.warning("No azimuth angles provided, using zeros")
-            value = np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
 
@@ -529,7 +529,7 @@ class Scan(Parameters):
         value = self._params.get("tx_apodizations")
         if value is None:
             log.warning("No transmit apodizations provided, using ones")
-            value = np.ones((self.n_tx_selected, self.n_el))
+            return np.ones((self.n_tx_selected, self.n_el))
 
         return value[self.selected_transmits]
 
@@ -539,7 +539,7 @@ class Scan(Parameters):
         value = self._params.get("focus_distances")
         if value is None:
             log.warning("No focus distances provided, using zeros")
-            value = np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
 
@@ -549,7 +549,7 @@ class Scan(Parameters):
         value = self._params.get("initial_times")
         if value is None:
             log.warning("No initial times provided, using zeros")
-            value = np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx_selected)
 
         return value[self.selected_transmits]
 
