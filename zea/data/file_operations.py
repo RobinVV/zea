@@ -214,7 +214,7 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
         )
 
     # Assuming the second dimension is the transmit dimension
-    for key in data_dict.keys():
+    for key in ["raw_data", "aligned_data"]:
         if data_dict[key] is None:
             continue
         data_dict[key] = np.mean(data_dict[key], axis=1, keepdims=True)
