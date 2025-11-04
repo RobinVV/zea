@@ -22,8 +22,9 @@ import numpy as np
 
 from zea import Probe, Scan
 from zea.data.data_format import generate_zea_dataset, load_additional_elements, load_description
-from zea.data.file import File, load_file
+from zea.data.file import File, load_file, load_file_all_data_types
 from zea.internal.checks import _IMAGE_DATA_TYPES, _NON_IMAGE_DATA_TYPES
+from zea.internal.core import DataTypes
 from zea.log import logger
 
 ALL_DATA_TYPES_EXCEPT_RAW = set(_IMAGE_DATA_TYPES + _NON_IMAGE_DATA_TYPES) - {"raw_data"}
@@ -39,9 +40,14 @@ OPERATION_NAMES = [
 
 def save_file(
     path,
-    raw_data: np.ndarray,
     scan: Scan,
     probe: Probe,
+    raw_data: np.ndarray = None,
+    aligned_data: np.ndarray = None,
+    beamformed_data: np.ndarray = None,
+    envelope_data: np.ndarray = None,
+    image: np.ndarray = None,
+    image_sc: np.ndarray = None,
     additional_elements=None,
     description="",
     **kwargs,
@@ -60,7 +66,11 @@ def save_file(
     generate_zea_dataset(
         path=path,
         raw_data=raw_data,
-        **kwargs,
+        aligned_data=aligned_data,
+        beamformed_data=beamformed_data,
+        image=image,
+        image_sc=image_sc,
+        envelope_data=envelope_data,
         probe_name="generic",
         probe_geometry=probe.probe_geometry,
         sampling_frequency=scan.sampling_frequency,
@@ -95,17 +105,19 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
             False.
     """
 
-    raw_data, scan, probe = load_file(input_paths[0])
-    other_data = _load_all_data_types_except_raw(File(input_paths[0]))
+    data_dict, scan, probe = load_file_all_data_types(input_paths[0])
     description = load_description(input_paths[0])
     additional_elements = load_additional_elements(input_paths[0])
 
     for file in input_paths[1:]:
-        new_data, new_scan, new_probe = load_file(file)
-        assert raw_data.shape == new_data.shape, (
-            f"Data shapes do not match. Got {raw_data.shape} and {new_data.shape}."
+        new_data, new_scan, new_probe = load_file_all_data_types(file)
+        assert data_dict["raw_data"].shape == new_data["raw_data"].shape, (
+            f"Data shapes do not match. Got {data_dict['raw_data'].shape} and "
+            f"{new_data['raw_data'].shape}."
         )
-        raw_data += new_data
+        data_dict["raw_data"] += new_data["raw_data"]
+        data_dict["aligned_data"] += new_data["aligned_data"]
+        data_dict["beamformed_data"] += new_data["beamformed_data"]
         assert scan == new_scan, "Scan parameters do not match."
         assert probe == new_probe, "Probe parameters do not match."
 
@@ -113,13 +125,12 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
         _delete_file_if_exists(output_path)
 
     save_file(
-        output_path,
-        raw_data,
-        scan,
-        probe,
+        path=output_path,
+        scan=scan,
+        probe=probe,
         additional_elements=additional_elements,
         description=description,
-        **other_data,
+        **data_dict,
     )
 
 
@@ -134,13 +145,19 @@ def compound_frames(input_path: Path, output_path: Path, overwrite=False):
             False.
     """
 
-    raw_data, scan, probe = load_file(input_path)
-    other_data = _load_all_data_types_except_raw(File(input_path))
+    data_dict, scan, probe = load_file_all_data_types(input_path)
     additional_elements = load_additional_elements(input_path)
     description = load_description(input_path)
 
     # Assuming the first dimension is the frame dimension
-    compounded_data = np.mean(raw_data, axis=0, keepdims=True)
+
+    compounded_data = {}
+    for data_type in DataTypes:
+        key = data_type.value
+        if data_dict[key] is None:
+            compounded_data[key] = None
+            continue
+        compounded_data[key] = np.mean(data_dict[key], axis=0, keepdims=True)
 
     scan = _scan_reduce_frames(scan, [0])
 
@@ -148,13 +165,12 @@ def compound_frames(input_path: Path, output_path: Path, overwrite=False):
         _delete_file_if_exists(output_path)
 
     save_file(
-        output_path,
-        compounded_data,
-        scan,
-        probe,
+        path=output_path,
+        scan=scan,
+        probe=probe,
         additional_elements=additional_elements,
         description=description,
-        **other_data,
+        **compounded_data,
     )
 
 
@@ -174,8 +190,7 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
         False.
     """
 
-    raw_data, scan, probe = load_file(input_path)
-    other_data = _load_all_data_types_except_raw(File(input_path))
+    data_dict, scan, probe = load_file_all_data_types(input_path)
     additional_elements = load_additional_elements(input_path)
     description = load_description(input_path)
 
@@ -185,7 +200,10 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
         )
 
     # Assuming the second dimension is the transmit dimension
-    compounded_data = np.mean(raw_data, axis=1, keepdims=True)
+    for key in data_dict.keys():
+        if data_dict[key] is None:
+            continue
+        data_dict[key] = np.mean(data_dict[key], axis=1, keepdims=True)
 
     scan.set_transmits([0])
 
@@ -193,13 +211,12 @@ def compound_transmits(input_path: Path, output_path: Path, overwrite=False):
         _delete_file_if_exists(output_path)
 
     save_file(
-        output_path,
-        compounded_data,
-        scan,
-        probe,
+        path=output_path,
+        scan=scan,
+        probe=probe,
         additional_elements=additional_elements,
         description=description,
-        **other_data,
+        **data_dict,
     )
 
 
@@ -237,8 +254,7 @@ def resave(input_path: Path, output_path: Path, overwrite=False):
             False.
     """
 
-    raw_data, scan, probe = load_file(input_path)
-    other_data = _load_all_data_types_except_raw(File(input_path))
+    data_dict, scan, probe = load_file_all_data_types(input_path)
     additional_elements = load_additional_elements(input_path)
     description = load_description(input_path)
     scan.set_transmits("all")
@@ -246,13 +262,12 @@ def resave(input_path: Path, output_path: Path, overwrite=False):
     if overwrite:
         _delete_file_if_exists(output_path)
     save_file(
-        output_path,
-        raw_data,
-        scan,
-        probe,
+        path=output_path,
+        **data_dict,
+        scan=scan,
+        probe=probe,
         additional_elements=additional_elements,
         description=description,
-        **other_data,
     )
 
 
@@ -271,8 +286,7 @@ def extract_frames_transmits(
             False.
     """
     indices = (frame_indices, transmit_indices)
-    raw_data, scan, probe = load_file(input_path, indices=indices)
-    other_data = _load_all_data_types_except_raw(File(input_path), indices=indices)
+    data_dict, scan, probe = load_file_all_data_types(input_path, indices=indices)
 
     additional_elements = load_additional_elements(input_path)
     description = load_description(input_path)
@@ -283,13 +297,12 @@ def extract_frames_transmits(
         _delete_file_if_exists(output_path)
 
     save_file(
-        output_path,
-        raw_data,
-        scan,
-        probe,
+        path=output_path,
+        **data_dict,
+        scan=scan,
+        probe=probe,
         additional_elements=additional_elements,
         description=description,
-        **other_data,
     )
 
 
@@ -304,7 +317,7 @@ def _interpret_index(input_str):
         start, end = map(int, input_str.split("-"))
         return list(range(start, end + 1))
     else:
-        return [int(input_str)]
+        return [int(x) for x in input_str.split(" ")]
 
 
 def _interpret_indices(input_str_list):
@@ -328,16 +341,6 @@ def _scan_reduce_frames(scan, frame_indices):
         scan.time_to_next_transmit = scan.time_to_next_transmit[frame_indices]
     scan.set_transmits(transmit_indices)
     return scan
-
-
-def _load_all_data_types_except_raw(file: File, indices=None):
-    data = {}
-    for data_type in ALL_DATA_TYPES_EXCEPT_RAW:
-        try:
-            data[data_type] = file.load_data(data_type, indices=indices)
-        except AssertionError:
-            pass
-    return data
 
 
 def get_parser():

@@ -16,6 +16,7 @@ from zea.internal.checks import (
     _REQUIRED_SCAN_KEYS,
     get_check,
 )
+from zea.internal.core import DataTypes
 from zea.internal.utils import reduce_to_signature
 from zea.probes import Probe
 from zea.scan import Scan
@@ -425,6 +426,18 @@ class File(h5py.File):
                 ans[key] = self.recursively_load_dict_contents_from_group(path + "/" + key + "/")
         return ans
 
+    def has_key(self, key: str) -> bool:
+        """Check if the file has a specific key.
+
+        Args:
+            key (str): The key to check.
+
+        Returns:
+            bool: True if the key exists, False otherwise.
+        """
+        key = self.format_key(key)
+        return key in self.keys()
+
     @classmethod
     def get_shape(cls, path: str, key: str) -> tuple:
         """Get the shape of a key in a file.
@@ -488,6 +501,42 @@ class File(h5py.File):
     def summary(self):
         """Print the contents of the file."""
         _print_hdf5_attrs(self)
+
+
+def load_file_all_data_types(
+    path,
+    indices: str | int | List[int] = "all",
+    scan_kwargs: dict = None,
+):
+    # Define the additional keyword parameters from the scan object
+    if scan_kwargs is None:
+        scan_kwargs = {}
+
+    data_dict = {}
+
+    with File(path, mode="r") as file:
+        # Load the probe object from the file
+        probe = file.probe()
+
+        for data_type in DataTypes:
+            if not file.has_key(data_type.value):
+                data_dict[data_type.value] = None
+                continue
+
+            # Load the desired frames from the file
+            data_dict[data_type.value] = file.load_data(data_type.value, indices=indices)
+
+        # extract transmits from indices
+        # we only have to do this when the data has a n_tx dimension
+        # in that case we also have update scan parameters to match
+        # the number of selected transmits
+        indices = File._prepare_indices(indices)
+        if isinstance(indices, tuple) and len(indices) > 1:
+            scan_kwargs["selected_transmits"] = indices[1]
+
+        scan = file.scan(**scan_kwargs)
+
+        return data_dict, scan, probe
 
 
 def load_file(
