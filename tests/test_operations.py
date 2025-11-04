@@ -38,13 +38,15 @@ def test_companding(comp_type, size, parameter_value_range):
 
     from zea import ops
 
+    rng = np.random.default_rng(42)
+
     for parameter_value in np.linspace(*parameter_value_range, 10):
         A = parameter_value if comp_type == "a" else 0
         mu = parameter_value if comp_type == "mu" else 0
 
         companding = ops.Companding(comp_type=comp_type, expand=False)
 
-        signal = np.clip((np.random.random(size) - 0.5) * 2, -1, 1)
+        signal = np.clip((rng.random(size=size) - 0.5) * 2, -1, 1)
         signal = signal.astype("float32")
         signal = keras.ops.convert_to_tensor(signal)
 
@@ -254,6 +256,8 @@ def test_up_and_down_conversion(factor, batch_size):
     )
     parameters = simulator_pipeline.prepare_parameters(probe=probe, scan=scan)
 
+    rng = np.random.default_rng(42)
+
     data = []
     _data = []
     for _ in range(batch_size):
@@ -264,11 +268,11 @@ def test_up_and_down_conversion(factor, batch_size):
             indexing="ij",
         )
         # Add random perturbations
-        scat_x = np.ravel(scat_x_base) + np.random.uniform(-1e-3, 1e-3, 25)
-        scat_z = np.ravel(scat_z_base) + np.random.uniform(-1e-3, 1e-3, 25)
+        scat_x = np.ravel(scat_x_base) + rng.uniform(-1e-3, 1e-3, 25)
+        scat_z = np.ravel(scat_z_base) + rng.uniform(-1e-3, 1e-3, 25)
         n_scat = len(scat_x)
         # Select random subset of scatterers
-        idx = np.random.choice(n_scat, n_scat, replace=False)[:n_scat]
+        idx = rng.choice(n_scat, n_scat, replace=False)[:n_scat]
         scat_positions = np.stack(
             [
                 scat_x[idx],
@@ -306,13 +310,15 @@ def test_hilbert_transform():
 
     from zea import ops
 
+    rng = np.random.default_rng(42)
+
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
     # sinusoids on axis 1
     data = np.sin(np.linspace(0, 2 * math.e * np.pi, 500))
     data = data[np.newaxis, :, np.newaxis, np.newaxis]
     data = np.tile(data, (2, 1, 128, 1))
 
-    data = data + np.random.random(data.shape) * 0.1
+    data = data + rng.random(size=data.shape) * 0.1
 
     data = keras.ops.convert_to_tensor(data)
 
