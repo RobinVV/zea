@@ -111,13 +111,22 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
 
     for file in input_paths[1:]:
         new_data, new_scan, new_probe = load_file_all_data_types(file)
-        assert data_dict["raw_data"].shape == new_data["raw_data"].shape, (
-            f"Data shapes do not match. Got {data_dict['raw_data'].shape} and "
-            f"{new_data['raw_data'].shape}."
-        )
-        data_dict["raw_data"] += new_data["raw_data"]
-        data_dict["aligned_data"] += new_data["aligned_data"]
-        data_dict["beamformed_data"] += new_data["beamformed_data"]
+
+        if data_dict["raw_data"] is not None:
+            _assert_shapes_equal(data_dict["raw_data"], new_data["raw_data"], "raw_data")
+            data_dict["raw_data"] += new_data["raw_data"]
+
+        if data_dict["aligned_data"] is not None:
+            _assert_shapes_equal(
+                data_dict["aligned_data"], new_data["aligned_data"], "aligned_data"
+            )
+            data_dict["aligned_data"] += new_data["aligned_data"]
+
+        if data_dict["beamformed_data"] is not None:
+            _assert_shapes_equal(
+                data_dict["beamformed_data"], new_data["beamformed_data"], "beamformed_data"
+            )
+            data_dict["beamformed_data"] += new_data["beamformed_data"]
         assert scan == new_scan, "Scan parameters do not match."
         assert probe == new_probe, "Probe parameters do not match."
 
@@ -132,6 +141,11 @@ def sum_raw_data(input_paths: list[Path], output_path: Path, overwrite=False):
         description=description,
         **data_dict,
     )
+
+
+def _assert_shapes_equal(array0, array1, name="array"):
+    shape0, shape1 = array0.shape, array1.shape
+    assert shape0 == shape1, f"{name} shapes do not match. Got {shape0} and {shape1}."
 
 
 def compound_frames(input_path: Path, output_path: Path, overwrite=False):
