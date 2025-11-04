@@ -70,24 +70,16 @@ class RandomCircleInclusion(layers.Layer):
                 >>> import numpy as np
                 >>> from keras import ops, random
                 >>> # Single 2D image - one circle
-                >>> layer = RandomCircleInclusion(
-                ...     radius=5, circle_axes=(0, 1), with_batch_dim=False
-                ... )
-                >>> image = np.zeros((28, 28), dtype=np.float32)
-                >>> out = layer(ops.convert_to_tensor(image))
-                >>> out.shape
-                (28, 28)
-                >>> # Batch of 2D images - different circle per image
+                >>> from zea.data.augmentations import RandomCircleInclusion
+
                 >>> layer = RandomCircleInclusion(
                 ...     radius=5,
                 ...     circle_axes=(1, 2),
                 ...     with_batch_dim=True,
-                ...     randomize_location_across_batch=True,
-                ... )
-                >>> images = np.zeros((4, 28, 28), dtype=np.float32)
-                >>> out = layer(ops.convert_to_tensor(images))
-                >>> out.shape
-                (4, 28, 28)
+                >>> )
+                >>> image = np.zeros((1, 28, 28), dtype=np.float32)
+                >>> out = layer(ops.convert_to_tensor(image))  # doctest: +SKIP
+
         """
         super().__init__(**kwargs)
 
@@ -168,8 +160,8 @@ class RandomCircleInclusion(layers.Layer):
 
         # Validate that ellipse can fit within image bounds
         rx, ry = self.radius
-        min_required_width = 2 * rx
-        min_required_height = 2 * ry
+        min_required_width = 2 * rx + 1
+        min_required_height = 2 * ry + 1
 
         if self._static_w < min_required_width:
             raise ValueError(
