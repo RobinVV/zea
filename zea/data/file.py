@@ -508,6 +508,42 @@ def load_file_all_data_types(
     indices: str | int | List[int] = "all",
     scan_kwargs: dict = None,
 ):
+    """Loads a zea data files (h5py file).
+
+    Returns all data types together with a scan object containing the parameters
+    of the acquisition and a probe object containing the parameters of the probe.
+
+    Additionally, it can load a specific subset of frames / transmits.
+
+    The indices parameter can be used to load a subset of the data. This can be
+
+    - 'all' to load all data
+
+    - an int to load a single frame
+
+    - a list of ints to load specific frames
+
+    - a tuple of lists, ranges or slices to index frames and transmits. Note that
+        indexing with lists of indices for both axes is not supported. In that case,
+        try to define one of the axes with a slice.
+
+    # TODO: add support for event
+
+    Args:
+        path (str, pathlike): The path to the hdf5 file.
+        indices (str, int, list, optional): The indices to load. Defaults to "all" in
+            which case all frames are loaded. If an int is provided, it will be used
+            as a single index. If a list is provided, it will be used as a list of
+            indices.
+        scan_kwargs (Config, dict, optional): Additional keyword arguments
+            to pass to the Scan object. These will override the parameters from the file
+            if they are present in the file. Defaults to None.
+
+    Returns:
+        (dict): A dictionary with all data types as keys and the corresponding data as values.
+        (Scan): A scan object containing the parameters of the acquisition.
+        (Probe): A probe object containing the parameters of the probe.
+    """
     # Define the additional keyword parameters from the scan object
     if scan_kwargs is None:
         scan_kwargs = {}
@@ -553,6 +589,18 @@ def load_file(
     Additionally, it can load a specific subset of frames / transmits.
 
     # TODO: add support for event
+
+    The indices parameter can be used to load a subset of the data. This can be
+
+    - 'all' to load all data
+
+    - an int to load a single frame
+
+    - a list of ints to load specific frames
+
+    - a tuple of lists, ranges or slices to index frames and transmits. Note that
+        indexing with lists of indices for both axes is not supported. In that case,
+        try to define one of the axes with a slice.
 
     Args:
         path (str, pathlike): The path to the hdf5 file.

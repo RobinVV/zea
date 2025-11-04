@@ -272,16 +272,24 @@ def resave(input_path: Path, output_path: Path, overwrite=False):
 
 
 def extract_frames_transmits(
-    input_path: Path, output_path: Path, frame_indices, transmit_indices, overwrite=False
+    input_path: Path,
+    output_path: Path,
+    frame_indices=slice(None),
+    transmit_indices=slice(None),
+    overwrite=False,
 ):
     """
     extracts frames and transmits in a raw data file.
 
+    Note that the frame indices cannot both be lists. At least one of them must be a slice.
+    Please refer to the documentation of :func:`zea.data.file.load_file_all_data_types` for more
+    information on the supported index types.
+
     Args:
         input_path (Path): Path to the input raw data file.
         output_path (Path): Path to the output file where the extracted data will be saved.
-        frame_indices (list or array-like): Indices of the frames to keep.
-        transmit_indices (list or array-like): Indices of the transmits to keep.
+        frame_indices (list, array-like, or slice): Indices of the frames to keep.
+        transmit_indices (list, array-like, or slice): Indices of the transmits to keep.
         overwrite (bool, optional): Whether to overwrite the output file if it exists. Defaults to
             False.
     """
