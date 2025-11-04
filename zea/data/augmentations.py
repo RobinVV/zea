@@ -67,18 +67,15 @@ class RandomCircleInclusion(layers.Layer):
             .. doctest::
 
                 >>> from zea.data.augmentations import RandomCircleInclusion
-                >>> import numpy as np
-                >>> from keras import ops, random
-                >>> # Single 2D image - one circle
-                >>> from zea.data.augmentations import RandomCircleInclusion
+                >>> from keras import ops
 
                 >>> layer = RandomCircleInclusion(
                 ...     radius=5,
                 ...     circle_axes=(1, 2),
                 ...     with_batch_dim=True,
                 ... )
-                >>> image = np.zeros((1, 28, 28), dtype=np.float32)
-                >>> out = layer(ops.convert_to_tensor(image))  # doctest: +SKIP
+                >>> image = ops.zeros((1, 28, 28), dtype="float32")
+                >>> out = layer(image)  # doctest: +SKIP
 
         """
         super().__init__(**kwargs)
