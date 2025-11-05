@@ -14,7 +14,7 @@ def assert_circle_pixels(image, center, radius, fill_value, tol=1e-5, min_fracti
     h, w = image.shape[-2:]
     cx, cy = int(round(center[0])), int(round(center[1]))
     Y, X = np.ogrid[:h, :w]
-    mask = (X - cx) ** 2 + (Y - cy) ** 2 <= radius
+    mask = (X - cx) ** 2 + (Y - cy) ** 2 <= radius**2
 
     inside = image[mask]
     correct = np.isclose(inside, fill_value, atol=tol)

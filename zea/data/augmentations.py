@@ -472,9 +472,11 @@ class RandomCircleInclusion(layers.Layer):
             fill_value (float, optional): Optionally override fill_value for cases
                 where image range has changed.
 
-        Returns:
-            Tuple[Tensor, Tensor]: (Percentage recovered for each circle [num_circles],
-                                   Mask of detected circle part [batch, h, w] or [h, w])
+         Returns:
+            Tuple[Tensor, Tensor]:
+                - percent_recovered: [batch] - average recovery percentage per batch element
+                - recovered_masks: [batch, flat_batch, h, w] or [batch, h, w] or [flat_batch, h, w]
+                   depending on input shape - binary mask of detected circle regions
         """
         fill_value = fill_value or self.fill_value
 
