@@ -13,6 +13,7 @@ from zea.data.data_format import (
 )
 from zea.data.file import File, validate_file
 from zea.internal.checks import _REQUIRED_SCAN_KEYS
+from . import DEFAULT_TEST_SEED
 
 n_frames = 2
 n_tx = 4
@@ -145,6 +146,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
     dataset."""
 
     elements = []
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     elements.append(
         DatasetElement(
             group_name="scan",
@@ -158,7 +160,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
         DatasetElement(
             group_name="scan",
             dataset_name="sound_speed_map",
-            data=np.random.rand(10, 10),
+            data=rng.standard_normal((10, 10)),
             description="The local speed of sound in the medium.",
             unit="m/s",
         )
