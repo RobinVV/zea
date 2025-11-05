@@ -333,7 +333,7 @@ class Folder:
                 for file_path, num_frames in zip(self.file_paths, num_frames_per_file):
                     f.write(f"{file_path.name}: {num_frames}\n")
                 f.write(f"{'-' * 80}\n")
-    
+
             # Write the hash of the validation file
             validation_file_hash = calculate_file_hash(validation_file_path)
             with open(validation_file_path, "a", encoding="utf-8") as f:
