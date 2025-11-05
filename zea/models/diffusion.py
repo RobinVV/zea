@@ -346,7 +346,6 @@ class DiffusionModel(DeepGenerativeModel):
         # normalize images to have standard deviation of 1, like the noises
         batch_size, image_height, image_width, n_channels = ops.shape(images)
 
-        # images = self.normalizer(images)
         noises = keras.random.normal(shape=(batch_size, image_height, image_width, n_channels))
 
         # sample uniform random diffusion times
