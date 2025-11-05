@@ -321,24 +321,27 @@ class Folder:
         data_types = self.get_data_types(self.file_paths[0])
 
         number_of_frames = sum(num_frames_per_file)
-        with open(validation_file_path, "w", encoding="utf-8") as f:
-            f.write(f"Dataset: {path}\n")
-            f.write(f"Validated on: {get_date_string()}\n")
-            f.write(f"Number of files: {self.n_files}\n")
-            f.write(f"Number of frames: {number_of_frames}\n")
-            f.write(f"Data types: {', '.join(data_types)}\n")
-            f.write(f"{'-' * 80}\n")
-            # write all file names (not entire path) with number of frames on a new line
-            for file_path, num_frames in zip(self.file_paths, num_frames_per_file):
-                f.write(f"{file_path.name}: {num_frames}\n")
-            f.write(f"{'-' * 80}\n")
-
-        # Write the hash of the validation file
-        validation_file_hash = calculate_file_hash(validation_file_path)
-        with open(validation_file_path, "a", encoding="utf-8") as f:
-            # *** validation file hash *** (80 total line length)
-            f.write("*** validation file hash ***\n")
-            f.write(f"hash: {validation_file_hash}")
+        try:
+            with open(validation_file_path, "w", encoding="utf-8") as f:
+                f.write(f"Dataset: {path}\n")
+                f.write(f"Validated on: {get_date_string()}\n")
+                f.write(f"Number of files: {self.n_files}\n")
+                f.write(f"Number of frames: {number_of_frames}\n")
+                f.write(f"Data types: {', '.join(data_types)}\n")
+                f.write(f"{'-' * 80}\n")
+                # write all file names (not entire path) with number of frames on a new line
+                for file_path, num_frames in zip(self.file_paths, num_frames_per_file):
+                    f.write(f"{file_path.name}: {num_frames}\n")
+                f.write(f"{'-' * 80}\n")
+    
+            # Write the hash of the validation file
+            validation_file_hash = calculate_file_hash(validation_file_path)
+            with open(validation_file_path, "a", encoding="utf-8") as f:
+                # *** validation file hash *** (80 total line length)
+                f.write("*** validation file hash ***\n")
+                f.write(f"hash: {validation_file_hash}")
+        except Exception as e:
+            log.warning(f"Unable to write validation flag: {e}")
 
     def __repr__(self):
         return (
