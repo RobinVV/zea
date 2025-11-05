@@ -13,6 +13,7 @@ from zea.data.data_format import (
 )
 from zea.data.file import File, validate_file
 from zea.internal.checks import _REQUIRED_SCAN_KEYS
+from . import DEFAULT_TEST_SEED
 
 n_frames = 2
 n_tx = 4
@@ -40,7 +41,6 @@ DATASET_PARAMETERS = {
     "waveforms_two_way": [np.zeros((512,), dtype=np.float32)],
     "tx_waveform_indices": np.zeros((n_tx,), dtype=np.int32),
 }
-DEFAULT_SEED = 42
 
 
 @pytest.fixture
@@ -146,7 +146,7 @@ def test_additional_dataset_element(tmp_hdf5_path):
     dataset."""
 
     elements = []
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     elements.append(
         DatasetElement(
             group_name="scan",

@@ -14,7 +14,6 @@ import jax
 import numpy as np
 import pytest
 
-DEFAULT_SEED = 42
 
 debugging = sys.gettrace() or debugpy.is_client_connected() is not None
 
@@ -83,7 +82,7 @@ class BackendEqualityCheck:
                 tb = traceback.format_exc()
                 result_queue.put((job_id, (e, tb)))
 
-    def start_workers(self, backends, seed=DEFAULT_SEED):
+    def start_workers(self, backends, seed=42):
         """Start workers for the specified backends."""
         env = os.environ.copy()
         ctx = multiprocessing.get_context("spawn")

@@ -15,7 +15,7 @@ from zea.visualize import (
     visualize_matrix,
 )
 
-DEFAULT_SEED = 42
+from . import DEFAULT_TEST_SEED
 
 
 # Use non-interactive backend for testing
@@ -23,12 +23,12 @@ matplotlib.use("Agg")
 
 
 def random_images(n, shape=(10, 10)):
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     return [rng.standard_normal(shape) for _ in range(n)]
 
 
 def random_volume(shape=(20, 20, 20)):
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     return rng.standard_normal(shape)
 
 
@@ -177,9 +177,9 @@ def test_set_mpl_style_default():
 @pytest.mark.parametrize(
     "matrix,kwargs",
     [
-        (np.random.default_rng(DEFAULT_SEED).random((5, 5)), {}),
+        (np.random.default_rng(DEFAULT_TEST_SEED).random((5, 5)), {}),
         (
-            np.random.default_rng(DEFAULT_SEED).random((3, 3)),
+            np.random.default_rng(DEFAULT_TEST_SEED).random((3, 3)),
             {"font_color": "black", "cmap": "viridis"},
         ),
     ],

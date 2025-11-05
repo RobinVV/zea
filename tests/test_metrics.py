@@ -10,15 +10,13 @@ from zea import metrics
 from zea.backend.tensorflow.losses import SMSLE
 from zea.internal.registry import metrics_registry
 
-from . import backend_equality_check
-
-DEFAULT_SEED = 42
+from . import backend_equality_check, DEFAULT_TEST_SEED
 
 
 def test_smsle():
     """Test SMSLE loss function"""
     # Create random y_true and y_pred data
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     y_true = rng.standard_normal((1, 11, 128, 512, 2)).astype(np.float32)
     y_pred = rng.standard_normal((1, 11, 128, 512, 2)).astype(np.float32)
 
@@ -40,7 +38,7 @@ def test_metrics(metric_name):
         metric = metrics.get_metric(metric_name)
     paired = metrics_registry.get_parameter(metric_name, "paired")
 
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     y_true = rng.standard_normal((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_pred = rng.standard_normal((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_true = ops.convert_to_tensor(y_true)
@@ -77,7 +75,7 @@ def test_metrics(metric_name):
 @backend_equality_check(decimal=2)
 def test_metrics_class():
     """Test Metrics class"""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     y_true = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_pred = rng.random((2, 16, 16, 3)).astype(np.float32) * 255.0
     y_true = ops.convert_to_tensor(y_true)

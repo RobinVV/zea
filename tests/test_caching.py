@@ -8,10 +8,10 @@ import pytest
 
 from zea.internal.cache import cache_output, cache_summary, clear_cache, get_function_source
 from zea.internal.core import Object
+from . import DEFAULT_TEST_SEED
 
 # Global variable for the expected duration of the expensive operation
 EXPECTED_DURATION = 0.05
-DEFAULT_SEED = 42
 
 
 @cache_output("x")
@@ -267,7 +267,7 @@ def test_nested_cache():
 
 def test_caching_seed_generator():
     """Test caching for expensive_operation with keras.seed.SeedGenerator."""
-    seed_gen = keras.random.SeedGenerator(DEFAULT_SEED)
+    seed_gen = keras.random.SeedGenerator(DEFAULT_TEST_SEED)
 
     # First time should not be cached
     start_time = time.time()
@@ -288,7 +288,7 @@ def test_caching_seed_generator():
     assert result1 != result2, "Results should not be equal"
 
     # Reset seed_gen
-    seed_gen = keras.random.SeedGenerator(DEFAULT_SEED)
+    seed_gen = keras.random.SeedGenerator(DEFAULT_TEST_SEED)
     start_time = time.time()
     result3 = _expensive_operation_seed(seed_gen)
     duration = time.time() - start_time
@@ -296,7 +296,7 @@ def test_caching_seed_generator():
     assert result1 == result3, "Results should be equal"
 
     # Different seed_gen should not be cached
-    seed_gen = keras.random.SeedGenerator(DEFAULT_SEED + 1)
+    seed_gen = keras.random.SeedGenerator(DEFAULT_TEST_SEED + 1)
     start_time = time.time()
     _expensive_operation_seed(seed_gen)
     duration = time.time() - start_time

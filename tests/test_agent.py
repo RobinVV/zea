@@ -6,7 +6,7 @@ from keras import ops
 
 from zea.agent import masks, selection
 
-DEFAULT_SEED = 42
+from . import DEFAULT_TEST_SEED
 
 
 def test_equispaced_lines():
@@ -174,7 +174,7 @@ def test_covariance_sampling_lines():
 
 def test_single_action():
     """Test single action."""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     h, w = 8, 8
     particles = rng.standard_normal((1, 2, h, w)).astype(np.float32)
 
@@ -195,7 +195,7 @@ def test_single_action():
 
 def test_maximum_actions():
     """Test maximum actions."""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     h, w = 8, 8
     particles = rng.random((1, 2, h, w)).astype(np.float32)
 

@@ -18,9 +18,7 @@ from zea.ops import Pipeline, Simulate, compute_time_to_peak_stack
 from zea.probes import Probe
 from zea.scan import Scan
 
-from . import backend_equality_check
-
-DEFAULT_SEED = 42
+from . import backend_equality_check, DEFAULT_TEST_SEED
 
 
 @pytest.mark.parametrize(
@@ -47,7 +45,7 @@ def test_companding(comp_type, size, parameter_value_range):
         mu = parameter_value if comp_type == "mu" else 0
 
         companding = ops.Companding(comp_type=comp_type, expand=False)
-        rng = np.random.default_rng(DEFAULT_SEED)
+        rng = np.random.default_rng(DEFAULT_TEST_SEED)
         signal = np.clip((rng.standard_normal(size) - 0.5) * 2, -1, 1)
         signal = signal.astype("float32")
         signal = keras.ops.convert_to_tensor(signal)
@@ -99,7 +97,7 @@ def test_converting_to_image(size, dynamic_range, input_range):
     else:
         _input_range = input_range
 
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.standard_normal(size) * (_input_range[1] - _input_range[0]) + _input_range[0]
     output_range = (0, 1)
     normalize = ops.Normalize(output_range, input_range)
@@ -142,7 +140,7 @@ def test_normalize(size, output_range, input_range):
     normalize_back = ops.Normalize(_output_range, _input_range)
 
     # create random data between input range
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.random(size) * (input_range[1] - input_range[0]) + input_range[0]
 
     data = keras.ops.convert_to_tensor(data)
@@ -169,7 +167,7 @@ def test_normalize(size, output_range, input_range):
 )
 def test_complex_to_channels(size, axis):
     """Test complex to channels and back"""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.random(size) + 1j * rng.random(size)
     _data = ops.complex_to_channels(data, axis=axis)
     __data = ops.channels_to_complex(_data)
@@ -186,7 +184,7 @@ def test_complex_to_channels(size, axis):
 )
 def test_channels_to_complex(size, axis):
     """Test channels to complex and back"""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.random(size)
     _data = ops.channels_to_complex(data)
     __data = ops.complex_to_channels(_data, axis=axis)
@@ -264,7 +262,7 @@ def test_up_and_down_conversion(factor, batch_size):
 
     data = []
     _data = []
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     for _ in range(batch_size):
         # Define scatterers with random variation
         scat_x_base, scat_z_base = np.meshgrid(
@@ -315,7 +313,7 @@ def test_hilbert_transform():
 
     from zea import ops
 
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
     # sinusoids on axis 1
@@ -323,7 +321,7 @@ def test_hilbert_transform():
     data = data[np.newaxis, :, np.newaxis, np.newaxis]
     data = np.tile(data, (2, 1, 128, 1))
 
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = data + rng.random(data.shape) * 0.1
 
     data = keras.ops.convert_to_tensor(data)
@@ -361,7 +359,7 @@ def spiral_image():
     spiral = np.sin(8 * theta + 8 * r)
     spiral = (spiral - spiral.min()) / (spiral.max() - spiral.min())
 
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     noisy = spiral + 0.2 * rng.normal(size=spiral.shape)
     noisy = np.clip(noisy, 0, 1)
     speckle = spiral * (1 + 0.5 * rng.normal(size=spiral.shape))

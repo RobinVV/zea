@@ -8,17 +8,16 @@ import pytest
 
 from zea.backend.autograd import AutoGrad
 
-from . import backend_equality_check
+from . import backend_equality_check, DEFAULT_TEST_SEED
 
 GT_BACKEND = "jax"  # ground truth backend for equality check
 OTHER_BACKENDS = ["torch", "tensorflow"]  # reference backends for equality check
-DEFAULT_SEED = 42
 
 
 @pytest.fixture
 def x_input():
     """Generate random input tensor for testing."""
-    rng = np.random.default_rng(DEFAULT_SEED)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     return rng.standard_normal(5)
 
 
