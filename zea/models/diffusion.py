@@ -366,8 +366,8 @@ class DiffusionModel(DeepGenerativeModel):
         noise_loss = self.loss(noises, pred_noises)
         image_loss = self.loss(data, pred_images)
 
-        self.image_loss_tracker.update_state(image_loss)
         self.noise_loss_tracker.update_state(noise_loss)
+        self.image_loss_tracker.update_state(image_loss)
 
         return {m.name: m.result() for m in self.metrics}
 
