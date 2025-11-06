@@ -1342,9 +1342,8 @@ class PatchedGrid(Pipeline):
         """Process data in patches."""
         # Extract necessary parameters
         # make sure to add those as valid keys above!
-        grid_size_x = inputs["grid_size_x"]
-        grid_size_z = inputs["grid_size_z"]
         flatgrid = inputs.pop("flatgrid")
+        grid_shape = inputs.get("grid").shape
 
         # Define a list of keys to look up for patching
         flat_pfield = inputs.pop("flat_pfield", None)
@@ -1362,7 +1361,7 @@ class PatchedGrid(Pipeline):
             disable_jit=not bool(self.jit_options),
         )(flatgrid, flat_pfield)
 
-        return ops.reshape(out, (grid_size_z, grid_size_x, *ops.shape(out)[1:]))
+        return ops.reshape(out, (*grid_shape[:-1], *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
