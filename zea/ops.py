@@ -1322,7 +1322,7 @@ class PatchedGrid(Pipeline):
 
     @property
     def _extra_keys(self):
-        return set(inspect.signature(self.call_item).parameters.keys())
+        return {"flatgrid", "grid"}
 
     @property
     def valid_keys(self) -> set:
@@ -1338,7 +1338,7 @@ class PatchedGrid(Pipeline):
         inside it)."""
         return super().needs_keys.union(self._extra_keys)
 
-    def call_item(self, grid=None, flatgrid=None, flat_pfield=None, **inputs):
+    def call_item(self, grid, flatgrid, flat_pfield=None, **inputs):
         """Process data in patches."""
 
         def patched_call(flatgrid, flat_pfield):
