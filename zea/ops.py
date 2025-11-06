@@ -1320,7 +1320,25 @@ class PatchedGrid(Pipeline):
         for operation in self.operations:
             operation.with_batch_dim = False
 
-    def call_item(self, grid, flatgrid, flat_pfield, inputs):
+    @property
+    def _extra_keys(self):
+        return set(inspect.signature(self.call_item).parameters.keys())
+
+    @property
+    def valid_keys(self) -> set:
+        """Get a set of valid keys for the pipeline.
+        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
+        inside it)."""
+        return super().valid_keys.union(self._extra_keys)
+
+    @property
+    def needs_keys(self) -> set:
+        """Get a set of all input keys needed by the pipeline.
+        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
+        inside it)."""
+        return super().needs_keys.union(self._extra_keys)
+
+    def call_item(self, grid=None, flatgrid=None, flat_pfield=None, **inputs):
         """Process data in patches."""
 
         def patched_call(flatgrid, flat_pfield):
@@ -1338,22 +1356,22 @@ class PatchedGrid(Pipeline):
 
         return ops.reshape(out, (*grid.shape[:-1], *ops.shape(out)[1:]))
 
-    def jittable_call(self, grid, flatgrid, flat_pfield, **inputs):
+    def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:
             input_data = inputs.pop(self.key)
             output = ops.map(
-                lambda x: self.call_item(grid, flatgrid, flat_pfield, {self.key: x, **inputs}),
+                lambda x: self.call_item(**{self.key: x, **inputs}),
                 input_data,
             )
         else:
-            output = self.call_item(grid, flatgrid, flat_pfield, inputs)
+            output = self.call_item(**inputs)
 
         return {self.output_key: output}
 
-    def call(self, grid, flatgrid, flat_pfield=None, **inputs):
+    def call(self, **inputs):
         """Process input data through the pipeline."""
-        output = self._jittable_call(grid, flatgrid=flatgrid, flat_pfield=flat_pfield, **inputs)
+        output = self._jittable_call(**inputs)
         inputs.update(output)
         return inputs
 
