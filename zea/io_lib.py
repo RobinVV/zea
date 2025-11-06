@@ -4,20 +4,17 @@ Use to quickly read and write files or interact with file system.
 """
 
 import functools
-import multiprocessing
 import os
 import time
 from io import BytesIO
 from pathlib import Path
+from typing import Generator
 
 import imageio
 import numpy as np
-import tqdm
-import yaml
 from PIL import Image, ImageSequence
 
 from zea import log
-from zea.data.file import File
 
 _SUPPORTED_VID_TYPES = [".mp4", ".gif"]
 _SUPPORTED_IMG_TYPES = [".jpg", ".png", ".JPEG", ".PNG", ".jpeg"]
@@ -267,158 +264,32 @@ def save_to_mp4(images, filename, fps=20, shared_color_palette=False):
     return log.success(f"Successfully saved MP4 to -> {filename}")
 
 
-def search_file_tree(
-    directory,
-    filetypes=None,
-    write=True,
-    dataset_info_filename="dataset_info.yaml",
-    hdf5_key_for_length=None,
-    redo=False,
-    parallel=False,
-    verbose=True,
-):
-    """Lists all files in directory and sub-directories.
-
-    If dataset_info.yaml is detected in the directory, that file is read and used
-    to deduce the file paths. If not, the file paths are searched for in the
-    directory and written to a dataset_info.yaml file.
+def search_file_tree(directory, filetypes=None, verbose=True, relative=False) -> Generator:
+    """Traverse a directory tree and yield file paths matching specified file types.
 
     Args:
-        directory (str): Path to base directory to start file search.
-        filetypes (str or list, optional): Filetypes to look for in directory.
-            Defaults to image types (.png etc.). Make sure to include the dot.
-        write (bool, optional): Whether to write to dataset_info.yaml file.
-            Defaults to True. If False, the file paths are not written to file
-            and simply returned.
-        dataset_info_filename (str, optional): Name of dataset info file.
-            Defaults to "dataset_info.yaml", but can be changed to any name.
-        hdf5_key_for_length (str, optional): Key to use for getting length of hdf5 files.
-            Defaults to None. If set, the number of frames in each hdf5 file is
-            calculated and stored in the dataset_info.yaml file. This is extra
-            functionality of ``search_file_tree`` and only works with hdf5 files.
-        redo (bool, optional): Whether to redo the search and overwrite the dataset_info.yaml file.
-        parallel (bool, optional): Whether to use multiprocessing for hdf5 shape reading.
-        verbose (bool, optional): Whether to print progress and info.
+        directory (str or Path): The root directory to start the search.
+        filetypes (list of str, optional): List of file extensions to match.
+            If None, file types supported by `zea` are matched. Defaults to None.
+        verbose (bool, optional): If True, logs the search process. Defaults to True.
+        relative (bool, optional): If True, yields file paths relative to the
+            root directory. Defaults to False.
 
-    Returns:
-        dict: Dictionary containing file paths and total number of files.
-            Has the following structure:
-
-            .. code-block:: python
-
-                {
-                    "file_paths": list of file paths,
-                    "total_num_files": total number of files,
-                    "file_lengths": list of number of frames in each hdf5 file,
-                    "file_shapes": list of shapes of each image file,
-                    "total_num_frames": total number of frames in all hdf5 files
-                }
-
+    Yields:
+        Path: Paths of files matching the specified file types.
     """
-    directory = Path(directory)
-    if not directory.is_dir():
-        raise ValueError(
-            log.error(f"Directory {directory} does not exist. Please provide a valid directory.")
-        )
-    assert Path(dataset_info_filename).suffix == ".yaml", (
-        "Currently only YAML files are supported for dataset info file when "
-        f"using `search_file_tree`, got {dataset_info_filename}"
-    )
-
-    if (directory / dataset_info_filename).is_file() and not redo:
-        with open(directory / dataset_info_filename, "r", encoding="utf-8") as file:
-            dataset_info = yaml.load(file, Loader=yaml.FullLoader)
-
-        # Check if the file_shapes key is present in the dataset_info, otherwise redo the search
-        if "file_shapes" in dataset_info:
-            if verbose:
-                log.info(
-                    "Using pregenerated dataset info file: "
-                    f"{log.yellow(directory / dataset_info_filename)} ..."
-                )
-                log.info(f"...for reading file paths in {log.yellow(directory)}")
-            return dataset_info
-
-    if redo and verbose:
-        log.info(f"Overwriting dataset info file: {log.yellow(directory / dataset_info_filename)}")
-
-    # set default file type
-    if filetypes is None:
-        filetypes = _SUPPORTED_IMG_TYPES + _SUPPORTED_VID_TYPES + _SUPPORTED_ZEA_TYPES
-
-    file_paths = []
-
-    if isinstance(filetypes, str):
-        filetypes = [filetypes]
-
-    if hdf5_key_for_length is not None:
-        assert isinstance(hdf5_key_for_length, str), "hdf5_key_for_length must be a string"
-        assert set(filetypes).issubset({".hdf5", ".h5"}), (
-            "hdf5_key_for_length only works with when filetypes is set to "
-            f"`.hdf5` or `.h5`, got {filetypes}"
-        )
-
     # Traverse file tree to index all files from filetypes
     if verbose:
         log.info(f"Searching {log.yellow(directory)} for {filetypes} files...")
+
     for dirpath, _, filenames in os.walk(directory):
         for file in filenames:
             # Append to file_paths if it is a filetype file
             if Path(file).suffix in filetypes:
                 file_path = Path(dirpath) / file
-                file_path = file_path.relative_to(directory)
-                file_paths.append(str(file_path))
-
-    if hdf5_key_for_length is not None:
-        # using multiprocessing to speed up reading hdf5 files
-        # and getting the number of frames in each file
-        if verbose:
-            log.info("Getting number of frames in each hdf5 file...")
-
-        get_shape_partial = functools.partial(File.get_shape, key=hdf5_key_for_length)
-        # make sure to call search_file_tree from within a function
-        # or use if __name__ == "__main__":
-        # to avoid freezing the main process
-        absolute_file_paths = [directory / file for file in file_paths]
-        if parallel:
-            with multiprocessing.Pool() as pool:
-                file_shapes = list(
-                    tqdm.tqdm(
-                        pool.imap(
-                            get_shape_partial,
-                            absolute_file_paths,
-                        ),
-                        total=len(file_paths),
-                        desc="Getting number of frames in each hdf5 file",
-                        disable=not verbose,
-                    )
-                )
-        else:
-            file_shapes = []
-            for file_path in tqdm.tqdm(
-                absolute_file_paths,
-                desc="Getting number of frames in each hdf5 file",
-                disable=not verbose,
-            ):
-                file_shapes.append(File.get_shape(file_path, hdf5_key_for_length))
-
-    assert len(file_paths) > 0, f"No image files were found in: {directory}"
-    if verbose:
-        log.info(f"Found {len(file_paths)} image files in {log.yellow(directory)}")
-        log.info(f"Writing dataset info to {log.yellow(directory / dataset_info_filename)}")
-
-    dataset_info = {"file_paths": file_paths, "total_num_files": len(file_paths)}
-    if len(file_shapes) > 0:
-        dataset_info["file_shapes"] = file_shapes
-        file_lengths = [shape[0] for shape in file_shapes]
-        dataset_info["file_lengths"] = file_lengths
-        dataset_info["total_num_frames"] = sum(file_lengths)
-
-    if write:
-        with open(directory / dataset_info_filename, "w", encoding="utf-8") as file:
-            yaml.dump(dataset_info, file)
-
-    return dataset_info
+                if relative:
+                    file_path = file_path.relative_to(directory)
+                yield file_path
 
 
 def compute_global_palette_by_histogram(pillow_imgs, bits_per_channel=5, palette_size=256):
