@@ -157,8 +157,8 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
         shared_color_palette (bool, optional): If True, creates a global
             color palette across all frames, ensuring consistent colors
             throughout the GIF. Defaults to False, which is default behavior
-            of PIL.Image.save. Note: True can cause slow saving for longer
-            sequences, and also lead to larger file sizes in some cases.
+            of PIL.Image.save. Note: True increases speed and shrinks file
+            file size for longer sequences.
 
     """
     images = preprocess_for_saving(images)
@@ -217,9 +217,8 @@ def save_to_mp4(images, filename, fps=20, shared_color_palette=False):
         fps (int): Frames per second of rendered format.
         shared_color_palette (bool, optional): If True, creates a global
             color palette across all frames, ensuring consistent colors
-            throughout the GIF. Defaults to False, which is default behavior
-            of PIL.Image.save. Note: True can cause slow saving for longer
-            sequences, and also lead to larger file sizes in some cases.
+            throughout the MP4. Note: True can cause slow saving for longer
+            sequences.
 
     Raises:
         ImportError: If imageio-ffmpeg is not installed.
@@ -434,7 +433,15 @@ def compute_global_palette_by_histogram(pillow_imgs, bits_per_channel=5, palette
 
     Returns:
         PIL.Image: A PIL 'P' mode image containing the computed color palette.
+
+    Raises:
+        ValueError: If bits_per_channel or palette_size is outside of range.
     """
+
+    if not 1 <= bits_per_channel <= 7:
+        raise ValueError(f"bits_per_channel must be between 1 and 7, got {bits_per_channel}")
+    if not 1 <= palette_size <= 256:
+        raise ValueError(f"palette_size must be between 1 and 256, got {palette_size}")
 
     # compute number of bins per channel by bitshift
     bins_per = 1 << bits_per_channel
