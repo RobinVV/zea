@@ -21,3 +21,5 @@ run_in_backend = backend_workers.run_in_backend
 DUMMY_DATASET_N_FRAMES = 4
 DUMMY_DATASET_GRID_SIZE_Z = 256
 DUMMY_DATASET_GRID_SIZE_X = 256
+
+DEFAULT_TEST_SEED = 42
