@@ -133,7 +133,7 @@ def save_video(images, filename, fps=20, **kwargs):
     ext = filename.suffix.lower()
 
     if ext == ".mp4":
-        return save_to_mp4(images, filename, fps=fps)
+        return save_to_mp4(images, filename, fps=fps, **kwargs)
     elif ext == ".gif":
         return save_to_gif(images, filename, fps=fps, **kwargs)
     else:
@@ -173,15 +173,8 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
 
     if shared_color_palette:
         # Apply the same palette to all frames without dithering for consistent color mapping
-        # Convert all images to RGB and combine their colors for palette generation
-        all_colors = np.vstack([np.array(img.convert("RGB")).reshape(-1, 3) for img in pillow_imgs])
-        combined_image = Image.fromarray(all_colors.reshape(-1, 1, 3))
-
-        # Generate palette from all frames
-        global_palette = combined_image.quantize(
-            colors=256,
-            method=Image.MEDIANCUT,
-            kmeans=1,
+        global_palette = compute_global_palette_by_histogram(
+            pillow_imgs, bits_per_channel=5, palette_size=256
         )
 
         # Apply the same palette to all frames without dithering
@@ -208,7 +201,7 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
     log.success(f"Successfully saved GIF to -> {log.yellow(filename)}")
 
 
-def save_to_mp4(images, filename, fps=20):
+def save_to_mp4(images, filename, fps=20, shared_color_palette=False):
     """Saves a sequence of images to an MP4 file.
 
     .. note::
@@ -222,6 +215,11 @@ def save_to_mp4(images, filename, fps=20):
             which is then converted to RGB. Images should be uint8.
         filename (str or Path): Filename to which data should be written.
         fps (int): Frames per second of rendered format.
+        shared_color_palette (bool, optional): If True, creates a global
+            color palette across all frames, ensuring consistent colors
+            throughout the GIF. Defaults to False, which is default behavior
+            of PIL.Image.save. Note: True can cause slow saving for longer
+            sequences, and also lead to larger file sizes in some cases.
 
     Raises:
         ImportError: If imageio-ffmpeg is not installed.
@@ -249,8 +247,22 @@ def save_to_mp4(images, filename, fps=20):
         ) from exc
 
     try:
-        for image in images:
-            writer.append_data(image)
+        if shared_color_palette:
+            # Use pillow and apply the same color_palette to the frames as for GIFs
+            pillow_imgs = [Image.fromarray(img) for img in images]
+            global_palette = compute_global_palette_by_histogram(
+                pillow_imgs, bits_per_channel=5, palette_size=256
+            )
+            for img in pillow_imgs:
+                paletted_img = img.convert("RGB").quantize(
+                    palette=global_palette,
+                    dither=Image.NONE,
+                )
+                writer.append_data(np.array(paletted_img.convert("RGB")))
+        else:
+            # Write from numpy arrays directly
+            for image in images:
+                writer.append_data(image)
     finally:
         writer.close()
 
@@ -409,6 +421,65 @@ def search_file_tree(
             yaml.dump(dataset_info, file)
 
     return dataset_info
+
+
+def compute_global_palette_by_histogram(pillow_imgs, bits_per_channel=5, palette_size=256):
+    """Computes a global color palette for a sequence of images using histogram analysis.
+
+    Args:
+        pillow_imgs (list): List of pillow images. All images should be in RGB mode.
+        bits_per_channel (int, optional): Number of bits to use per color channel for histogram
+            binning. Can take values between 0 and 7. Defaults to 5.
+        palette_size (int, optional): Number of colors in the resulting palette. Defaults to 256.
+
+    Returns:
+        PIL.Image: A PIL 'P' mode image containing the computed color palette.
+    """
+
+    # compute number of bins per channel by bitshift
+    bins_per = 1 << bits_per_channel
+    # compute total number of histogram bins for RGB
+    total_bins = bins_per**3
+    # counts per bin in the final histogram
+    counts = np.zeros(total_bins, dtype=np.int64)
+
+    shift = 8 - bits_per_channel
+    # Iterate images, accumulate bin counts
+    for img in pillow_imgs:
+        arr = np.array(img.convert("RGB"), dtype=np.uint8).reshape(-1, 3)
+        # reduce bits, compute bin index
+        r = (arr[:, 0] >> shift).astype(np.int32)
+        g = (arr[:, 1] >> shift).astype(np.int32)
+        b = (arr[:, 2] >> shift).astype(np.int32)
+        idx = (r * bins_per + g) * bins_per + b
+        # accumulate counts
+        bincount = np.bincount(idx, minlength=total_bins)
+        counts += bincount
+
+    # pick top bins
+    top_idx = np.argpartition(-counts, palette_size - 1)[:palette_size]
+
+    # sort top bins by frequency
+    top_idx = top_idx[np.argsort(-counts[top_idx])]
+
+    # convert bin index back to representative RGB (center of bin)
+    bins = np.array(
+        [((i // (bins_per * bins_per)), (i // bins_per) % bins_per, i % bins_per) for i in top_idx]
+    )
+
+    # expand bin centers back to 8-bit values
+    center = (
+        (bins * (1 << (8 - bits_per_channel)) + (1 << (7 - bits_per_channel))).clip(0, 255)
+    ).astype(np.uint8)
+    palette_colors = center.reshape(-1, 3)  # shape (k,3)
+
+    # build a PIL 'P' palette image from these colors
+    pal = np.zeros(768, dtype=np.uint8)  # 256*3 entries
+    pal[: palette_colors.size] = palette_colors.flatten()
+    palette_img = Image.new("P", (1, 1))
+    palette_img.putpalette(pal.tolist())
+
+    return palette_img
 
 
 def matplotlib_figure_to_numpy(fig, **kwargs):
