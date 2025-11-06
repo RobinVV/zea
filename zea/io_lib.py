@@ -247,7 +247,6 @@ def save_to_mp4(images, filename, fps=20, shared_color_palette=False):
 
     try:
         if shared_color_palette:
-            # Use pillow and apply the same color_palette to the frames as for GIFs
             pillow_imgs = [Image.fromarray(img) for img in images]
             global_palette = compute_global_palette_by_histogram(
                 pillow_imgs, bits_per_channel=5, palette_size=256
@@ -428,7 +427,7 @@ def compute_global_palette_by_histogram(pillow_imgs, bits_per_channel=5, palette
     Args:
         pillow_imgs (list): List of pillow images. All images should be in RGB mode.
         bits_per_channel (int, optional): Number of bits to use per color channel for histogram
-            binning. Can take values between 0 and 7. Defaults to 5.
+            binning. Can take values between 1 and 7. Defaults to 5.
         palette_size (int, optional): Number of colors in the resulting palette. Defaults to 256.
 
     Returns:
