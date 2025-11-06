@@ -1320,33 +1320,8 @@ class PatchedGrid(Pipeline):
         for operation in self.operations:
             operation.with_batch_dim = False
 
-    @property
-    def _extra_keys(self):
-        return {"flatgrid", "grid_size_x", "grid_size_z"}
-
-    @property
-    def valid_keys(self) -> set:
-        """Get a set of valid keys for the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
-        inside it)."""
-        return super().valid_keys.union(self._extra_keys)
-
-    @property
-    def needs_keys(self) -> set:
-        """Get a set of all input keys needed by the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
-        inside it)."""
-        return super().needs_keys.union(self._extra_keys)
-
-    def call_item(self, inputs):
+    def call_item(self, grid, flatgrid, flat_pfield, inputs):
         """Process data in patches."""
-        # Extract necessary parameters
-        # make sure to add those as valid keys above!
-        flatgrid = inputs.pop("flatgrid")
-        grid_shape = inputs.get("grid").shape
-
-        # Define a list of keys to look up for patching
-        flat_pfield = inputs.pop("flat_pfield", None)
 
         def patched_call(flatgrid, flat_pfield):
             out = super(PatchedGrid, self).call(
@@ -1361,24 +1336,24 @@ class PatchedGrid(Pipeline):
             disable_jit=not bool(self.jit_options),
         )(flatgrid, flat_pfield)
 
-        return ops.reshape(out, (*grid_shape[:-1], *ops.shape(out)[1:]))
+        return ops.reshape(out, (*grid.shape[:-1], *ops.shape(out)[1:]))
 
-    def jittable_call(self, **inputs):
+    def jittable_call(self, grid, flatgrid, flat_pfield, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:
             input_data = inputs.pop(self.key)
             output = ops.map(
-                lambda x: self.call_item({self.key: x, **inputs}),
+                lambda x: self.call_item(grid, flatgrid, flat_pfield, {self.key: x, **inputs}),
                 input_data,
             )
         else:
-            output = self.call_item(inputs)
+            output = self.call_item(grid, flatgrid, flat_pfield, inputs)
 
         return {self.output_key: output}
 
-    def call(self, **inputs):
+    def call(self, grid, flatgrid, flat_pfield=None, **inputs):
         """Process input data through the pipeline."""
-        output = self._jittable_call(**inputs)
+        output = self._jittable_call(grid, flatgrid=flatgrid, flat_pfield=flat_pfield, **inputs)
         inputs.update(output)
         return inputs
 
