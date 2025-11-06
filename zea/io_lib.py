@@ -158,7 +158,7 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=False):
             color palette across all frames, ensuring consistent colors
             throughout the GIF. Defaults to False, which is default behavior
             of PIL.Image.save. Note: True increases speed and shrinks file
-            file size for longer sequences.
+            size for longer sequences.
 
     """
     images = preprocess_for_saving(images)
