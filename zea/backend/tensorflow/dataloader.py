@@ -155,10 +155,6 @@ def make_dataloader(
     Mimics the native TF function ``tf.keras.utils.image_dataset_from_directory``
     but for .hdf5 files.
 
-    Saves a dataset_info.yaml file in the directory with information about the dataset.
-    This file is used to load the dataset later on, which speeds up the initial loading
-    of the dataset for very large datasets.
-
     Does the following in order to load a dataset:
 
         - Find all .hdf5 files in the director(ies)
