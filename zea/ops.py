@@ -1322,7 +1322,7 @@ class PatchedGrid(Pipeline):
 
     @property
     def _extra_keys(self):
-        return {"flatgrid", "grid_size_x", "grid_size_z"}
+        return {"flatgrid", "grid"}
 
     @property
     def valid_keys(self) -> set:
@@ -1338,16 +1338,8 @@ class PatchedGrid(Pipeline):
         inside it)."""
         return super().needs_keys.union(self._extra_keys)
 
-    def call_item(self, inputs):
+    def call_item(self, grid, flatgrid, flat_pfield=None, **inputs):
         """Process data in patches."""
-        # Extract necessary parameters
-        # make sure to add those as valid keys above!
-        grid_size_x = inputs["grid_size_x"]
-        grid_size_z = inputs["grid_size_z"]
-        flatgrid = inputs.pop("flatgrid")
-
-        # Define a list of keys to look up for patching
-        flat_pfield = inputs.pop("flat_pfield", None)
 
         def patched_call(flatgrid, flat_pfield):
             out = super(PatchedGrid, self).call(
@@ -1362,18 +1354,18 @@ class PatchedGrid(Pipeline):
             disable_jit=not bool(self.jit_options),
         )(flatgrid, flat_pfield)
 
-        return ops.reshape(out, (grid_size_z, grid_size_x, *ops.shape(out)[1:]))
+        return ops.reshape(out, (*grid.shape[:-1], *ops.shape(out)[1:]))
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:
             input_data = inputs.pop(self.key)
             output = ops.map(
-                lambda x: self.call_item({self.key: x, **inputs}),
+                lambda x: self.call_item(**{self.key: x, **inputs}),
                 input_data,
             )
         else:
-            output = self.call_item(inputs)
+            output = self.call_item(**inputs)
 
         return {self.output_key: output}
 
