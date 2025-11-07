@@ -51,6 +51,7 @@ class DiffusionModel(DeepGenerativeModel):
         name="diffusion_model",
         guidance="dps",
         operator="inpainting",
+        ema_val=0.999,
         **kwargs,
     ):
         """Initialize a diffusion model.
@@ -68,7 +69,7 @@ class DiffusionModel(DeepGenerativeModel):
                 "name" and "params" keys. Additionally, can be a `DiffusionGuidance` object.
             operator: Operator to use. Can be a string, or dict with
                 "name" and "params" keys. Additionally, can be a `Operator` object.
-
+            ema_val (float): Exponential moving average value for the network weights.
             **kwargs: Additional arguments.
         """
         super().__init__(name=name, **kwargs)
@@ -79,6 +80,7 @@ class DiffusionModel(DeepGenerativeModel):
         self.max_signal_rate = max_signal_rate
         self.network_name = network_name
         self.network_kwargs = network_kwargs or {}
+        self.ema_val = ema_val
 
         # reverse diffusion (i.e. sampling) goes from max_t to min_t
         self.min_t = 0.0
@@ -316,8 +318,8 @@ class DiffusionModel(DeepGenerativeModel):
         # Sample uniform random diffusion times in [min_t, max_t]
         diffusion_times = keras.random.uniform(
             shape=[batch_size, *[1] * n_dims],
-            minval=self.min_signal_rate,
-            maxval=self.max_signal_rate,
+            minval=self.min_t,
+            maxval=self.max_t,
         )
         noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
 
@@ -336,6 +338,11 @@ class DiffusionModel(DeepGenerativeModel):
 
         self.noise_loss_tracker.update_state(noise_loss)
         self.image_loss_tracker.update_state(image_loss)
+
+        # track the exponential moving averages of weights.
+        # ema_network is used for inference / sampling
+        for weight, ema_weight in zip(self.network.weights, self.ema_network.weights):
+            ema_weight.assign(self.ema_val * ema_weight + (1 - self.ema_val) * weight)
 
         return {m.name: m.result() for m in self.metrics}
 
