@@ -339,6 +339,38 @@ class DiffusionModel(DeepGenerativeModel):
 
         return {m.name: m.result() for m in self.metrics}
 
+    def test_step(self, data):
+        """
+        Custom test step so we can call model.fit() on the diffusion model.
+        """
+        batch_size, *input_shape = ops.shape(data)
+        n_dims = len(input_shape)
+
+        noises = keras.random.normal(shape=ops.shape(data))
+
+        # sample uniform random diffusion times
+        diffusion_times = keras.random.uniform(
+            shape=[batch_size, *[1] * n_dims],
+            minval=self.min_t,
+            maxval=self.max_t,
+        )
+        noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
+        # mix the images with noises accordingly
+        noisy_images = signal_rates * data + noise_rates * noises
+
+        # use the network to separate noisy images to their components
+        pred_noises, pred_images = self.denoise(
+            noisy_images, noise_rates, signal_rates, training=False
+        )
+
+        noise_loss = self.loss(noises, pred_noises)
+        image_loss = self.loss(data, pred_images)
+
+        self.noise_loss_tracker.update_state(noise_loss)
+        self.image_loss_tracker.update_state(image_loss)
+
+        return {m.name: m.result() for m in self.metrics}
+
     def diffusion_schedule(self, diffusion_times):
         """Cosine diffusion schedule https://arxiv.org/abs/2102.09672
 
