@@ -1,4 +1,10 @@
-"""Lucas-Kanade optical flow tracker."""
+"""Lucas-Kanade optical flow tracker.
+
+.. seealso::
+    A tutorial notebook where this model is used:
+    :doc:`../notebooks/models/speckle_tracking_example`.
+
+"""
 
 from typing import Tuple
 

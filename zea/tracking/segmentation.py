@@ -1,4 +1,10 @@
-"""Segmentation-based tracker using contour matching."""
+"""Segmentation-based tracker using contour matching.
+
+.. seealso::
+    A tutorial notebook where this model is used:
+    :doc:`../notebooks/models/speckle_tracking_example`.
+
+"""
 
 from keras import ops
 
