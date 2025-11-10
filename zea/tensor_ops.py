@@ -1699,7 +1699,7 @@ def find_contour(binary_mask):
 
     boundary_indices = ops.where(is_boundary)
 
-    if len(boundary_indices) > 0:
+    if ops.shape(boundary_indices[0])[0] > 0:
         boundary_points = ops.stack(boundary_indices, axis=1)
         boundary_points = ops.cast(boundary_points, "float32")
     else:

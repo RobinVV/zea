@@ -107,4 +107,4 @@ class SegmentationTracker(BaseTracker):
 
     def __repr__(self):
         """String representation."""
-        return f"SegmentationTracker(label={self.label}, inference_size={self.inference_size})"
+        return f"SegmentationTracker(model={self.model.__class__.__name__})"

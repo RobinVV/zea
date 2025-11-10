@@ -91,4 +91,4 @@ class BaseTracker(ABC):
 
     def __repr__(self):
         """String representation of the tracker."""
-        return f"{self.__class__.__name__}(win_size={self.win_size}, ndim={self.ndim})"
+        return f"{self.__class__.__name__}(ndim={self.ndim})"
