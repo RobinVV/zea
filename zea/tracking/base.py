@@ -63,7 +63,7 @@ class BaseTracker(ABC):
         """
 
         n_frames = len(frames)
-        n_points = len(initial_points)
+        n_points = int(ops.shape(initial_points)[0])
 
         frames_t = [ops.convert_to_tensor(f, dtype="float32") for f in frames]
         current_points = ops.convert_to_tensor(initial_points, dtype="float32")
