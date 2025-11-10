@@ -11,16 +11,16 @@ from scipy.ndimage import gaussian_filter
 
 from zea import tensor_ops
 
-from . import backend_equality_check
+from . import backend_equality_check, DEFAULT_TEST_SEED
 
 
 @pytest.mark.parametrize(
     "array, start_dim, end_dim",
     [
-        [np.random.default_rng(42).normal(size=(5, 10)), 0, 1],
-        [np.random.default_rng(42).normal(size=(5, 10, 15, 20)), 1, -1],
-        [np.random.default_rng(42).normal(size=(5, 10, 15, 20)), 2, 3],
-        [np.random.default_rng(42).normal(size=(5, 10, 15, 20, 25)), 0, 2],
+        [default_rng(DEFAULT_TEST_SEED).normal(size=(5, 10)), 0, 1],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(5, 10, 15, 20)), 1, -1],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(5, 10, 15, 20)), 2, 3],
+        [default_rng(DEFAULT_TEST_SEED + 3).normal(size=(5, 10, 15, 20, 25)), 0, 2],
     ],
 )
 @backend_equality_check()
@@ -58,12 +58,12 @@ _DEFAULT_BATCH_COV_KWARGS = {"rowvar": True, "bias": False, "ddof": None}
     "data, rowvar, bias, ddof",
     [
         [
-            np.random.default_rng(42).normal(size=(5, 30, 10, 20)),
+            default_rng(DEFAULT_TEST_SEED).normal(size=(5, 30, 10, 20)),
             *_DEFAULT_BATCH_COV_KWARGS.values(),
         ],
-        [np.random.default_rng(42).normal(size=(5, 30, 10, 20)), False, False, None],
-        [np.random.default_rng(42).normal(size=(2, 1, 5, 8)), True, True, 0],
-        [np.random.default_rng(42).normal(size=(1, 4, 3, 3)), False, True, 1],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(5, 30, 10, 20)), False, False, None],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(2, 1, 5, 8)), True, True, 0],
+        [default_rng(DEFAULT_TEST_SEED + 3).normal(size=(1, 4, 3, 3)), False, True, 1],
     ],
 )
 @backend_equality_check()
@@ -110,8 +110,8 @@ def test_extend_n_dims():
 @pytest.mark.parametrize(
     "array, n",
     [
-        [np.random.default_rng(42).normal(size=(3, 5, 5)), 3],
-        [np.random.default_rng(42).normal(size=(3, 5, 5)), 5],
+        [default_rng(DEFAULT_TEST_SEED).normal(size=(3, 5, 5)), 3],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(3, 5, 5)), 5],
     ],
 )
 @backend_equality_check()
@@ -135,8 +135,11 @@ def test_matrix_power(array, n):
 @pytest.mark.parametrize(
     "array, mask",
     [
-        [np.zeros((28, 28)), np.random.uniform(size=(28, 28)) > 0.5],
-        [np.random.normal(size=(2, 28, 28)), np.random.uniform(size=(2, 28, 28)) > 0.5],
+        [np.zeros((28, 28)), default_rng(DEFAULT_TEST_SEED).uniform(size=(28, 28)) > 0.5],
+        [
+            default_rng(DEFAULT_TEST_SEED + 1).normal(size=(2, 28, 28)),
+            default_rng(DEFAULT_TEST_SEED + 2).uniform(size=(2, 28, 28)) > 0.5,
+        ],
     ],
 )
 @backend_equality_check()
@@ -233,9 +236,9 @@ def test_stack_and_split_volume_data(shape, batch_axis, stack_axis, n_frames):
 @pytest.mark.parametrize(
     "array, divisor, axis",
     [
-        [np.random.normal(size=(10, 15)), 8, -1],
-        [np.random.normal(size=(7, 9, 11)), 4, 1],
-        [np.random.normal(size=(5, 6, 7, 8)), 2, 0],
+        [default_rng(DEFAULT_TEST_SEED).normal(size=(10, 15)), 8, -1],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(7, 9, 11)), 4, 1],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(5, 6, 7, 8)), 2, 0],
     ],
 )
 @backend_equality_check()
@@ -275,10 +278,10 @@ def test_pad_array_to_divisible(array, divisor, axis):
 @pytest.mark.parametrize(
     "image, patch_size, overlap",
     [
-        [np.random.normal(size=(1, 28, 28, 3)), (7, 7), (0, 0)],
-        [np.random.normal(size=(2, 32, 32, 3)), (8, 8), (4, 4)],
-        [np.random.normal(size=(1, 28, 28, 1)), (4, 4), (2, 2)],
-        [np.random.normal(size=(1, 28, 28, 3)), (6, 6), (2, 2)],
+        [default_rng(DEFAULT_TEST_SEED).normal(size=(1, 28, 28, 3)), (7, 7), (0, 0)],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(2, 32, 32, 3)), (8, 8), (4, 4)],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(1, 28, 28, 1)), (4, 4), (2, 2)],
+        [default_rng(DEFAULT_TEST_SEED + 3).normal(size=(1, 28, 28, 3)), (6, 6), (2, 2)],
     ],
 )
 @backend_equality_check()
@@ -297,9 +300,24 @@ def test_images_to_patches(image, patch_size, overlap):
 @pytest.mark.parametrize(
     "patches, image_shape, overlap, window_type",
     [
-        [np.random.normal(size=(1, 4, 4, 7, 7, 3)), (28, 28, 3), (0, 0), "average"],
-        [np.random.normal(size=(2, 3, 3, 8, 8, 3)), (32, 32, 3), (4, 4), "replace"],
-        [np.random.normal(size=(1, 7, 7, 4, 4, 1)), (28, 28, 1), (2, 2), "average"],
+        [
+            default_rng(DEFAULT_TEST_SEED).normal(size=(1, 4, 4, 7, 7, 3)),
+            (28, 28, 3),
+            (0, 0),
+            "average",
+        ],
+        [
+            default_rng(DEFAULT_TEST_SEED + 1).normal(size=(2, 3, 3, 8, 8, 3)),
+            (32, 32, 3),
+            (4, 4),
+            "replace",
+        ],
+        [
+            default_rng(DEFAULT_TEST_SEED + 2).normal(size=(1, 7, 7, 4, 4, 1)),
+            (28, 28, 1),
+            (2, 2),
+            "average",
+        ],
     ],
 )
 @backend_equality_check()
@@ -315,9 +333,9 @@ def test_patches_to_images(patches, image_shape, overlap, window_type):
 @pytest.mark.parametrize(
     "image, patch_size, overlap, window_type",
     [
-        [np.random.default_rng(42).normal(size=(1, 28, 28, 3)), (7, 7), (0, 0), "average"],
-        [np.random.default_rng(42).normal(size=(2, 32, 32, 3)), (8, 8), (4, 4), "replace"],
-        [np.random.default_rng(42).normal(size=(1, 28, 28, 1)), (4, 4), (2, 2), "average"],
+        [default_rng(DEFAULT_TEST_SEED).normal(size=(1, 28, 28, 3)), (7, 7), (0, 0), "average"],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(2, 32, 32, 3)), (8, 8), (4, 4), "replace"],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(1, 28, 28, 1)), (4, 4), (2, 2), "average"],
     ],
 )
 @backend_equality_check()
@@ -339,10 +357,10 @@ def test_images_to_patches_and_back(image, patch_size, overlap, window_type):
 @pytest.mark.parametrize(
     "array, sigma, order, truncate",
     [
-        [default_rng(seed=1).normal(size=(32, 32)), 0.5, 0, 4.0],
-        [default_rng(seed=2).normal(size=(32, 32)), 1.0, 0, 5.0],
-        [default_rng(seed=3).normal(size=(32, 32)), 1.5, (0, 1), 4.0],
-        [default_rng(seed=4).normal(size=(32, 32)), (1.0, 2.0), (1, 0), 4.0],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(32, 32)), 0.5, 0, 4.0],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(32, 32)), 1.0, 0, 5.0],
+        [default_rng(DEFAULT_TEST_SEED + 3).normal(size=(32, 32)), 1.5, (0, 1), 4.0],
+        [default_rng(DEFAULT_TEST_SEED + 4).normal(size=(32, 32)), (1.0, 2.0), (1, 0), 4.0],
     ],
 )
 @backend_equality_check(backends=["jax", "tensorflow"])
@@ -382,9 +400,9 @@ def test_linear_sum_assignment_greedy():
 @pytest.mark.parametrize(
     "array, axis, fn",
     [
-        [default_rng(seed=1).normal(size=(2, 3)), 0, "sum"],
-        [default_rng(seed=2).normal(size=(2, 3, 4)), 1, "argmax"],
-        [default_rng(seed=3).normal(size=(2, 3, 4, 5)), 2, "var"],
+        [default_rng(DEFAULT_TEST_SEED + 1).normal(size=(2, 3)), 0, "sum"],
+        [default_rng(DEFAULT_TEST_SEED + 2).normal(size=(2, 3, 4)), 1, "argmax"],
+        [default_rng(DEFAULT_TEST_SEED + 3).normal(size=(2, 3, 4, 5)), 2, "var"],
     ],
 )
 def test_apply_along_axis(array, axis, fn):
@@ -419,11 +437,11 @@ def test_correlate(mode):
     from zea import tensor_ops
 
     # Set random seed for reproducibility
-    np.random.seed(42)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     # Test with real vectors
-    a_real = np.random.randn(10).astype(np.float32)
-    v_real = np.random.randn(7).astype(np.float32)
+    a_real = rng.standard_normal(10).astype(np.float32)
+    v_real = rng.standard_normal(7).astype(np.float32)
 
     result_real = tensor_ops.correlate(a_real, v_real, mode=mode)
     expected_real = np.correlate(a_real, v_real, mode=mode)
@@ -431,8 +449,8 @@ def test_correlate(mode):
     np.testing.assert_allclose(result_real, expected_real, rtol=1e-5, atol=1e-5)
 
     # Test with complex vectors
-    a_complex = (np.random.randn(8) + 1j * np.random.randn(8)).astype(np.complex64)
-    v_complex = (np.random.randn(5) + 1j * np.random.randn(5)).astype(np.complex64)
+    a_complex = (rng.standard_normal(8) + 1j * rng.standard_normal(8)).astype(np.complex64)
+    v_complex = (rng.standard_normal(5) + 1j * rng.standard_normal(5)).astype(np.complex64)
 
     result_complex = tensor_ops.correlate(a_complex, v_complex, mode=mode)
     expected_complex = np.correlate(a_complex, v_complex, mode=mode)
@@ -440,8 +458,8 @@ def test_correlate(mode):
     np.testing.assert_allclose(result_complex, expected_complex, rtol=1e-5, atol=1e-5)
 
     # Test edge case: different lengths
-    a_short = np.random.randn(3).astype(np.float32)
-    v_long = np.random.randn(12).astype(np.float32)
+    a_short = rng.standard_normal(3).astype(np.float32)
+    v_long = rng.standard_normal(12).astype(np.float32)
 
     result_edge = tensor_ops.correlate(a_short, v_long, mode=mode)
     expected_edge = np.correlate(a_short, v_long, mode=mode)
@@ -484,7 +502,7 @@ def test_vmap(func, in_axes, out_axes, batch_size, chunks, fn_supports_batch):
     from zea import tensor_ops
 
     shape = (10, 10, 3, 2)
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     if isinstance(in_axes, int):
         _in_axes = (in_axes, in_axes)
@@ -595,7 +613,8 @@ def test_vmap_none_arg():
         return a + 1
 
     # Create batched data
-    x = np.random.default_rng(42).standard_normal(size=shape).astype(np.float32)
+    rng = default_rng(DEFAULT_TEST_SEED)
+    x = rng.standard_normal(shape).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
 
     # Apply map
@@ -617,7 +636,8 @@ def test_simple_map_one_input():
     def func_one_input(x):
         return x * 2
 
-    x = np.random.default_rng(42).standard_normal(size=(10, 5)).astype(np.float32)
+    rng = default_rng(DEFAULT_TEST_SEED)
+    x = rng.standard_normal((10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     expected_one_input = ops.map(func_one_input, x_tensor)
     result_one_input = tensor_ops.simple_map(func_one_input, x_tensor)
@@ -638,9 +658,9 @@ def test_simple_map_multiple_inputs():
         x, y = inputs
         return x + y
 
-    rng = np.random.default_rng(42)
-    x = rng.standard_normal(size=(10, 5)).astype(np.float32)
-    y = rng.standard_normal(size=(10, 5)).astype(np.float32)
+    rng = default_rng(DEFAULT_TEST_SEED)
+    x = rng.standard_normal((10, 5)).astype(np.float32)
+    y = rng.standard_normal((10, 5)).astype(np.float32)
     x_tensor = ops.convert_to_tensor(x)
     y_tensor = ops.convert_to_tensor(y)
     expected_multiple_inputs = ops.map(func_multiple_inputs, [x_tensor, y_tensor])
@@ -659,7 +679,8 @@ def test_simple_map_multiple_inputs():
 def test_translate(range_from, range_to):
     """Tests the translate function by providing a test array with its range_from and
     a range to."""
-    arr = np.random.randint(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
+    rng = default_rng(DEFAULT_TEST_SEED)
+    arr = rng.integers(low=range_from[0] + 1, high=range_from[1] - 2, size=10)
     right_min, right_max = range_to
     result = tensor_ops.translate(arr, range_from, range_to)
     assert right_min <= np.min(result), "Minimum value is too small"
