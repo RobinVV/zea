@@ -1676,7 +1676,7 @@ def find_contour(binary_mask):
             >>> from zea.tensor_ops import find_contour
             >>> import keras
             >>> mask = keras.ops.zeros((10, 10))
-            >>> mask = keras.ops.tensor_scatter_update(
+            >>> mask = keras.ops.scatter_update(
             ...     mask, [[3, 3], [3, 4], [4, 3], [4, 4]], [1, 1, 1, 1]
             ... )
             >>> contour = find_contour(mask)
