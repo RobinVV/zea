@@ -194,13 +194,10 @@ class LucasKanadeTracker(BaseTracker):
             Ix_flat = ops.reshape(Ix, [-1])
             Iy_flat = ops.reshape(Iy, [-1])
 
-            # Structure tensor 2D
+            # Structure tensor 2D components
             IxIx = ops.sum(Ix_flat * Ix_flat)
             IxIy = ops.sum(Ix_flat * Iy_flat)
             IyIy = ops.sum(Iy_flat * Iy_flat)
-
-            # 2x2 structure tensor
-            det = IxIx * IyIy - IxIy * IxIy
 
         else:  # 3D
             Iz, Iy, Ix = gradients
@@ -208,20 +205,13 @@ class LucasKanadeTracker(BaseTracker):
             Iy_flat = ops.reshape(Iy, [-1])
             Iz_flat = ops.reshape(Iz, [-1])
 
-            # Structure tensor 3D (3x3 matrix)
+            # Structure tensor 3D components
             IxIx = ops.sum(Ix_flat * Ix_flat)
             IxIy = ops.sum(Ix_flat * Iy_flat)
             IxIz = ops.sum(Ix_flat * Iz_flat)
             IyIy = ops.sum(Iy_flat * Iy_flat)
             IyIz = ops.sum(Iy_flat * Iz_flat)
             IzIz = ops.sum(Iz_flat * Iz_flat)
-
-            # 3x3 determinant and trace
-            det = (
-                IxIx * (IyIy * IzIz - IyIz * IyIz)
-                - IxIy * (IxIy * IzIz - IxIz * IyIz)
-                + IxIz * (IxIy * IyIz - IxIz * IyIy)
-            )
 
         # Iterative refinement (keep as tensors)
         flow = flow_guess
@@ -240,54 +230,54 @@ class LucasKanadeTracker(BaseTracker):
 
             # Solve for flow update
             if self.ndim == 2:
-                # Gradient dot difference
+                # Build structure tensor matrix (2x2)
+                structure = ops.stack(
+                    [
+                        ops.stack([IxIx, IxIy]),
+                        ops.stack([IxIy, IyIy]),
+                    ],
+                    axis=0,
+                )
+                # Add regularization to diagonal
+                structure = structure + ops.eye(2, dtype=structure.dtype) * 1e-5
+
+                # Right-hand side vector
                 b_x = ops.sum(Ix_flat * diff_flat)
                 b_y = ops.sum(Iy_flat * diff_flat)
+                rhs = ops.reshape(ops.stack([b_x, b_y]), (2, 1))
 
-                # Solve 2x2 system with regularization
-                det_reg = det + 1e-5 * (IxIx + IyIy)
+                # Solve: structure * delta_xy = rhs
+                delta_xy = ops.matmul(ops.linalg.inv(structure), rhs)
+                delta_xy = ops.reshape(delta_xy, (2,))
 
-                # Check for numerical stability
-                if ops.abs(det_reg) < 1e-10:
-                    break
-
-                # Inverse of 2x2 matrix
-                delta_x = (IyIy * b_x - IxIy * b_y) / det_reg
-                delta_y = (IxIx * b_y - IxIy * b_x) / det_reg
-
-                delta = ops.stack([delta_y, delta_x])
+                # Reorder to (y, x)
+                delta = ops.stack([delta_xy[1], delta_xy[0]])
 
             else:  # 3D
-                # Gradient dot difference
+                # Build structure tensor matrix (3x3)
+                structure = ops.stack(
+                    [
+                        ops.stack([IxIx, IxIy, IxIz]),
+                        ops.stack([IxIy, IyIy, IyIz]),
+                        ops.stack([IxIz, IyIz, IzIz]),
+                    ],
+                    axis=0,
+                )
+                # Add regularization to diagonal
+                structure = structure + ops.eye(3, dtype=structure.dtype) * 1e-5
+
+                # Right-hand side vector
                 b_x = ops.sum(Ix_flat * diff_flat)
                 b_y = ops.sum(Iy_flat * diff_flat)
                 b_z = ops.sum(Iz_flat * diff_flat)
+                rhs = ops.reshape(ops.stack([b_x, b_y, b_z]), (3, 1))
 
-                # Solve 3x3 system using Cramer's rule with regularization
-                det_reg = det + 1e-5 * (IxIx + IyIy + IzIz)
+                # Solve: structure * delta_xyz = rhs
+                delta_xyz = ops.matmul(ops.linalg.inv(structure), rhs)
+                delta_xyz = ops.reshape(delta_xyz, (3,))
 
-                if ops.abs(det_reg) < 1e-10:
-                    break
-
-                # Cramer's rule for 3x3 system (simplified)
-                # This is a basic implementation - could be optimized
-                delta_x = (
-                    b_x * (IyIy * IzIz - IyIz * IyIz)
-                    - b_y * (IxIy * IzIz - IxIz * IyIz)
-                    + b_z * (IxIy * IyIz - IxIz * IyIy)
-                ) / det_reg
-                delta_y = (
-                    IxIx * (b_y * IzIz - b_z * IyIz)
-                    - IxIy * (b_x * IzIz - b_z * IxIz)
-                    + IxIz * (b_x * IyIz - b_y * IxIz)
-                ) / det_reg
-                delta_z = (
-                    IxIx * (IyIy * b_z - IyIz * b_y)
-                    - IxIy * (IxIy * b_z - IxIz * b_y)
-                    + IxIz * (IxIy * b_y - IxIz * IyIy)
-                ) / det_reg
-
-                delta = ops.stack([delta_z, delta_y, delta_x])
+                # Reorder to (z, y, x)
+                delta = ops.stack([delta_xyz[2], delta_xyz[1], delta_xyz[0]])
 
             # Update flow
             flow = flow + delta
