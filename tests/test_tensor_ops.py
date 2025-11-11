@@ -11,7 +11,7 @@ from scipy.ndimage import gaussian_filter
 
 from zea import tensor_ops
 
-from . import backend_equality_check, DEFAULT_TEST_SEED
+from . import DEFAULT_TEST_SEED, backend_equality_check
 
 
 @pytest.mark.parametrize(
@@ -670,6 +670,54 @@ def test_simple_map_multiple_inputs():
     )
 
     return result_multiple_inputs
+
+
+@pytest.mark.parametrize(
+    "mask_shape, blob_center, blob_radius",
+    [
+        [(50, 50), (25, 25), 10],
+        [(100, 100), (30, 70), 15],
+        [(64, 64), (32, 32), 8],
+    ],
+)
+@backend_equality_check()
+def test_find_contour(mask_shape, blob_center, blob_radius):
+    """Test the find_contour function."""
+    from zea import tensor_ops
+
+    # Create a binary mask with a circular blob
+    mask = ops.zeros(mask_shape, dtype="float32")
+    y, x = np.ogrid[: mask_shape[0], : mask_shape[1]]
+    circle_mask = (y - blob_center[0]) ** 2 + (x - blob_center[1]) ** 2 <= blob_radius**2
+    mask = ops.convert_to_tensor(circle_mask)
+
+    contour = tensor_ops.find_contour(mask)
+
+    # Check output shape and type
+    assert ops.ndim(contour) == 2
+    assert ops.shape(contour)[1] == 2
+    assert ops.dtype(contour) == "float32"
+
+    # Should find some contour points
+    assert ops.shape(contour)[0] > 0
+
+    # All contour points should be on the boundary
+    contour_np = ops.convert_to_numpy(contour)
+    assert np.all(contour_np[:, 0] >= 0) and np.all(contour_np[:, 0] < mask_shape[0])
+    assert np.all(contour_np[:, 1] >= 0) and np.all(contour_np[:, 1] < mask_shape[1])
+
+    return contour
+
+
+def test_find_contours_empty_mask():
+    """Test find_contours with empty mask."""
+    from zea import tensor_ops
+
+    mask = ops.zeros((50, 50), dtype="float32")
+    contour = tensor_ops.find_contour(mask)
+
+    # Should return empty contours
+    assert ops.shape(contour) == (0, 2)
 
 
 @pytest.mark.parametrize(

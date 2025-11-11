@@ -44,6 +44,8 @@ from zea.models.base import BaseModel
 from zea.models.preset_utils import get_preset_loader, register_presets
 from zea.models.presets import augmented_camus_seg_presets
 
+INFERENCE_SIZE = 256
+
 
 @model_registry(name="augmented_camus_seg")
 class AugmentedCamusSeg(BaseModel):
