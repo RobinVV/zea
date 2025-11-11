@@ -65,6 +65,11 @@ NOTEBOOK_PARAMETERS = {
         "n_frames": 3,
         "n_transmits": 2,
     },
+    "speckle_tracking_example.ipynb": {
+        "num_frames": 5,
+        "num_points": 10,
+        "max_iterations": 2,
+    },
     # Add more notebooks and their parameters here as needed
     # "other_notebook.ipynb": {
     #     "param1": value1,
