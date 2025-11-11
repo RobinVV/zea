@@ -569,13 +569,16 @@ class Pipeline:
 
         # Optionally add patching
         if num_patches > 1:
-            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
+            beamforming = [
+                PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs),
+            ]
 
         # Add beamforming ops
         operations += beamforming
 
         # Add display ops
         operations += [
+            ReshapeGrid(),
             EnvelopeDetect(),
             Normalize(),
             LogCompress(),
@@ -1256,31 +1259,50 @@ def pipeline_to_yaml(pipeline: Pipeline, file_path: str) -> None:
         yaml.dump(pipeline_dict, f, Dumper=yaml.Dumper, indent=4)
 
 
-@ops_registry("patched_grid")
-class PatchedGrid(Pipeline):
-    """
-    With this class you can form a pipeline that will be applied to patches of the grid.
-    This is useful to avoid OOM errors when processing large grids.
+@ops_registry("map")
+class Map(Pipeline):
+    """A pipeline that applies (v)map to its operations."""
 
-    Some things to NOTE about this class:
+    def __init__(
+        self,
+        operations: List[Operation],
+        argnames: list,
+        in_axes=0,
+        out_axes=0,
+        chunks=None,
+        batch_size=None,
+        **kwargs,
+    ):
+        super().__init__(operations, **kwargs)
+        self.argnames = argnames
 
-    - The ops have to use flatgrid and flat_pfield as inputs, these will be patched.
+        def call_item(**inputs):
+            """Process data in patches."""
+            mapped_args = [inputs[name] for name in argnames]
+            for argname in argnames:
+                inputs.pop(argname)
 
-    - Changing anything other than `self.output_data_type` in the dict will not be propagated!
+            def patched_call(*args):
+                mapped_kwargs = [(k, v) for k, v in zip(argnames, args)]
+                out = super(Map, self).call(**dict(mapped_kwargs), **inputs)
 
-    - Will be jitted as a single operation, not the individual operations.
+                # TODO: maybe it is possible to output everything?
+                # e.g. prepend a empty dimension to all inputs and just map over everything?
+                return out[self.output_key]
 
-    - This class handles the batching.
+            out = vmap(
+                patched_call,
+                in_axes=in_axes,
+                out_axes=out_axes,
+                chunks=chunks,
+                batch_size=batch_size,
+                fn_supports_batch=True,
+                disable_jit=not bool(self.jit_options),
+            )(*mapped_args)
 
-    """
+            return out
 
-    def __init__(self, *args, num_patches=10, **kwargs):
-        super().__init__(*args, name="patched_grid", **kwargs)
-        self.num_patches = num_patches
-
-        for operation in self.operations:
-            if isinstance(operation, DelayAndSum):
-                operation.reshape_grid = False
+        self.call_item = call_item
 
         self._jittable_call = self.jittable_call
 
@@ -1321,40 +1343,18 @@ class PatchedGrid(Pipeline):
             operation.with_batch_dim = False
 
     @property
-    def _extra_keys(self):
-        return {"flatgrid", "grid"}
-
-    @property
     def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline.
         Adds the parameters that PatchedGrid itself operates on (even if not used by operations
         inside it)."""
-        return super().valid_keys.union(self._extra_keys)
+        return super().valid_keys.union(self.argnames)
 
     @property
     def needs_keys(self) -> set:
         """Get a set of all input keys needed by the pipeline.
         Adds the parameters that PatchedGrid itself operates on (even if not used by operations
         inside it)."""
-        return super().needs_keys.union(self._extra_keys)
-
-    def call_item(self, grid, flatgrid, flat_pfield=None, **inputs):
-        """Process data in patches."""
-
-        def patched_call(flatgrid, flat_pfield):
-            out = super(PatchedGrid, self).call(
-                flatgrid=flatgrid, flat_pfield=flat_pfield, **inputs
-            )
-            return out[self.output_key]
-
-        out = vmap(
-            patched_call,
-            chunks=self.num_patches,
-            fn_supports_batch=True,
-            disable_jit=not bool(self.jit_options),
-        )(flatgrid, flat_pfield)
-
-        return ops.reshape(out, (*grid.shape[:-1], *ops.shape(out)[1:]))
+        return super().needs_keys.union(self.argnames)
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
@@ -1378,9 +1378,59 @@ class PatchedGrid(Pipeline):
     def get_dict(self):
         """Get the configuration of the pipeline."""
         config = super().get_dict()
-        config.update({"name": "patched_grid"})
-        config["params"].update({"num_patches": self.num_patches})
+        config.update({"name": "map"})
+        # config["params"].update({"num_patches": self.num_patches}) # TODO
         return config
+
+
+@ops_registry("patched_grid")
+class PatchedGrid(Map):
+    """
+    With this class you can form a pipeline that will be applied to patches of the grid.
+    This is useful to avoid OOM errors when processing large grids.
+
+    Some things to NOTE about this class:
+
+    - The ops have to use flatgrid and flat_pfield as inputs, these will be patched.
+
+    - Changing anything other than `self.output_data_type` in the dict will not be propagated!
+
+    - Will be jitted as a single operation, not the individual operations.
+
+    - This class handles the batching.
+
+    """
+
+    def __init__(self, *args, num_patches=10, **kwargs):
+        super().__init__(
+            *args,
+            argnames=["flatgrid", "flat_pfield"],
+            name="patched_grid",
+            chunks=num_patches,
+            **kwargs,
+        )
+        self.num_patches = num_patches
+
+
+@ops_registry("reshape_grid")
+class ReshapeGrid(Operation):
+    """Reshape flat grid data to 2D grid shape."""
+
+    def __init__(self, axis=0, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+
+    def call(self, grid, **kwargs):
+        """
+        Args:
+            - data (Tensor): The flat grid data of shape (..., n_pix, ...).
+        Returns:
+            - reshaped_data (Tensor): The reshaped data
+                of shape (..., *grid.shape, ...).
+        """
+        data = kwargs[self.key]
+        reshaped_data = reshape_axis(data, grid.shape[:-1], self.axis + int(self.with_batch_dim))
+        return {self.output_key: reshaped_data}
 
 
 ## Base Operations
@@ -1669,17 +1719,12 @@ class PfieldWeighting(Operation):
 class DelayAndSum(Operation):
     """Sums time-delayed signals along channels and transmits."""
 
-    def __init__(
-        self,
-        reshape_grid=True,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             input_data_type=DataTypes.ALIGNED_DATA,
             output_data_type=DataTypes.BEAMFORMED_DATA,
             **kwargs,
         )
-        self.reshape_grid = reshape_grid
 
     def process_image(self, data):
         """Performs DAS beamforming on tof-corrected input.
@@ -1707,8 +1752,7 @@ class DelayAndSum(Operation):
 
         Returns:
             dict: Dictionary containing beamformed_data
-                of shape `(grid_size_z*grid_size_x, n_ch)` when reshape_grid is False
-                or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
+                of shape `(grid_size_z*grid_size_x, n_ch)`
                 with optional batch dimension.
         """
         data = kwargs[self.key]
@@ -1718,11 +1762,6 @@ class DelayAndSum(Operation):
         else:
             # Apply process_image to each item in the batch
             beamformed_data = ops.map(self.process_image, data)
-
-        if self.reshape_grid:
-            beamformed_data = reshape_axis(
-                beamformed_data, grid.shape[:2], axis=int(self.with_batch_dim)
-            )
 
         return {self.output_key: beamformed_data}
 
