@@ -488,6 +488,8 @@ class Pipeline:
         self.jit_kwargs = jit_kwargs
         self.jit_options = jit_options  # will handle the jit compilation
 
+        self._logged_difference_keys = False
+
     def needs(self, key) -> bool:
         """Check if the pipeline needs a specific key at the input."""
         return key in self.needs_keys
@@ -684,6 +686,16 @@ class Pipeline:
                 "Pipeline does not support string inputs. "
                 "Please ensure all inputs are convertible to tensors."
             )
+
+        if not self._logged_difference_keys:
+            difference_keys = set(inputs.keys()) - self.valid_keys
+            if difference_keys:
+                log.warning(
+                    f"[zea.Pipeline] The following input keys are not used by the pipeline: "
+                    f"{difference_keys}. Make sure this is intended. "
+                    "This warning will only be shown once."
+                )
+                self._logged_difference_keys = True
 
         ## PROCESSING
         outputs = self._call_pipeline(**inputs)
