@@ -1261,7 +1261,7 @@ def pipeline_to_yaml(pipeline: Pipeline, file_path: str) -> None:
 
 @ops_registry("map")
 class Map(Pipeline):
-    """A pipeline that applies (v)map to its operations."""
+    """A pipeline that applies maps `argnames` over the operations."""
 
     def __init__(
         self,
@@ -1278,9 +1278,9 @@ class Map(Pipeline):
 
         def call_item(**inputs):
             """Process data in patches."""
-            mapped_args = [inputs[name] for name in argnames]
+            mapped_args = []
             for argname in argnames:
-                inputs.pop(argname)
+                mapped_args.append(inputs.pop(argname, None))
 
             def patched_call(*args):
                 mapped_kwargs = [(k, v) for k, v in zip(argnames, args)]
