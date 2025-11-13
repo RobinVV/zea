@@ -9,6 +9,10 @@ To try this model, simply load one of the available presets:
 
     >>> model = DiffusionModel.from_preset("diffusion-echonet-dynamic")  # doctest: +SKIP
 
+.. seealso::
+    A tutorial notebook where this model is used:
+    :doc:`../notebooks/models/diffusion_model_example`.
+
 """
 
 import abc

@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from zea.io_lib import load_image, load_video, retry_on_io_error
+from zea.io_lib import load_image, load_video, retry_on_io_error, save_video
+from . import DEFAULT_TEST_SEED
 
 MAX_RETRIES = 3
 INITIAL_DELAY = 0.01
@@ -14,7 +15,9 @@ INITIAL_DELAY = 0.01
 
 @pytest.fixture
 def temp_image(tmp_path):
-    arr = np.random.randint(0, 255, (32, 32, 3), dtype=np.uint8)
+    """Create a test image file using the save_video function."""
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    arr = rng.integers(0, 255, (32, 32, 3), dtype=np.uint8)
     img_path = tmp_path / "test_img.png"
     Image.fromarray(arr).save(img_path)
     return img_path
@@ -22,7 +25,9 @@ def temp_image(tmp_path):
 
 @pytest.fixture
 def temp_gif(tmp_path):
-    arrs = [np.random.randint(0, 255, (16, 16, 3), dtype=np.uint8) for _ in range(5)]
+    """Create a test GIF file using the save_video function."""
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    arrs = [rng.integers(0, 255, (16, 16, 3), dtype=np.uint8) for _ in range(5)]
     gif_path = tmp_path / "test_anim.gif"
     Image.fromarray(arrs[0]).save(
         gif_path,
@@ -36,9 +41,8 @@ def temp_gif(tmp_path):
 @pytest.fixture
 def temp_mp4(tmp_path):
     """Create a test MP4 file using the save_video function."""
-    from zea.io_lib import save_video
-
-    arrs = np.random.randint(0, 255, (5, 16, 16, 3), dtype=np.uint8)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    arrs = rng.integers(0, 255, (5, 16, 16, 3), dtype=np.uint8)
     mp4_path = tmp_path / "test_vid.mp4"
     save_video(arrs, mp4_path, fps=2)
     return mp4_path
@@ -178,10 +182,11 @@ def test_save_and_load_video_gif(tmp_path):
     """Test that we can save and load GIF videos."""
     from zea.io_lib import save_video
 
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     # Create simple test frames
     n_frames = 3
     height, width = 16, 16
-    frames = np.random.randint(0, 255, (n_frames, height, width, 3), dtype=np.uint8)
+    frames = rng.integers(0, 255, (n_frames, height, width, 3), dtype=np.uint8)
 
     # Save to GIF
     gif_path = tmp_path / "test_roundtrip.gif"
@@ -198,10 +203,11 @@ def test_save_video_grayscale_to_rgb(tmp_path):
     """Test that grayscale videos are properly converted to RGB."""
     from zea.io_lib import save_video
 
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     # Create grayscale frames
     n_frames = 2
     height, width = 16, 16
-    frames = np.random.randint(0, 255, (n_frames, height, width), dtype=np.uint8)
+    frames = rng.integers(0, 255, (n_frames, height, width), dtype=np.uint8)
 
     # Save to MP4
     mp4_path = tmp_path / "test_grayscale.mp4"
@@ -212,3 +218,35 @@ def test_save_video_grayscale_to_rgb(tmp_path):
 
     # Should be RGB format
     assert loaded.shape == (n_frames, height, width, 3)
+
+
+def test_color_palette(tmp_path):
+    """Test saving videos to both MP4 and GIF formats with and without shared color palette."""
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    n_frames = 4
+    height, width = 16, 16
+    frames = rng.integers(0, 255, (n_frames, height, width, 1), dtype=np.uint8)
+
+    # Save to MP4 without shared palette
+    mp4_path_no_palette = tmp_path / "test_no_palette.mp4"
+    save_video(frames, mp4_path_no_palette, fps=10, shared_color_palette=False)
+    loaded_no_palette = load_video(mp4_path_no_palette, mode="L")
+    assert loaded_no_palette.shape == (n_frames, height, width)
+
+    # Save to MP4 with shared palette
+    mp4_path_with_palette = tmp_path / "test_with_palette.mp4"
+    save_video(frames, mp4_path_with_palette, fps=10, shared_color_palette=True)
+    loaded_with_palette = load_video(mp4_path_with_palette, mode="L")
+    assert loaded_with_palette.shape == (n_frames, height, width)
+
+    # Save to GIF without shared palette
+    gif_path_no_palette = tmp_path / "test_no_palette.gif"
+    save_video(frames, gif_path_no_palette, fps=10, shared_color_palette=False)
+    loaded_no_palette_gif = load_video(gif_path_no_palette, mode="L")
+    assert loaded_no_palette_gif.shape == (n_frames, height, width)
+
+    # Save to GIF with shared palette
+    gif_path_with_palette = tmp_path / "test_with_palette.gif"
+    save_video(frames, gif_path_with_palette, fps=10, shared_color_palette=True)
+    loaded_with_palette_gif = load_video(gif_path_with_palette, mode="L")
+    assert loaded_with_palette_gif.shape == (n_frames, height, width)
