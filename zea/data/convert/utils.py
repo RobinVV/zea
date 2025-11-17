@@ -6,6 +6,7 @@ import sys
 
 from zea import log
 
+
 def load_avi(file_path, mode="L"):
     frames = []
     with imageio.get_reader(file_path) as reader:
@@ -18,11 +19,11 @@ def load_avi(file_path, mode="L"):
 
 
 def unzip(src: str | Path, dataset: str) -> Path:
-    """ 
+    """
     Checks if data folder exist in src.
     Otherwise, unzip dataset.zip in src.
     """
-    
+
     if dataset == "picmus":
         zip_name = "picmus.zip"
         folder_name = "archive_to_download"
@@ -32,8 +33,7 @@ def unzip(src: str | Path, dataset: str) -> Path:
     else:
         log.error(f"Dataset {dataset} not recognized for unzip.")
         sys.exit(1)
-    
-    
+
     src = Path(src)
     if (src / folder_name).exists():
         log.info(f"Found existing {folder_name} folder in {src}. Skipping unzip.")
@@ -47,7 +47,7 @@ def unzip(src: str | Path, dataset: str) -> Path:
     import zipfile
 
     log.info(f"Unzipping {zip_path} to {src}...")
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(src)
     log.info("Unzipping completed.")
     # Return new folder as source
