@@ -98,7 +98,6 @@ data from the file and returns a ``DatasetElement``. Then pass the function to t
     )
 """  # noqa: E501
 
-import argparse
 import os
 import sys
 import traceback
@@ -1024,40 +1023,6 @@ def zea_from_matlab_raw(input_path, output_path, additional_functions=None, fram
     log.success(f"Converted {log.yellow(input_path)} to {log.yellow(output_path)}")
 
 
-def parse_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Convert Verasonics matlab raw files to the zea format."
-        "Example usage: python zea/data/convert/matlab.py raw_file.mat output.hdf5 --frames 1-5 7"
-    )
-    parser.add_argument(
-        "input_path",
-        default=None,
-        type=str,
-        nargs="?",
-        help="The path to a file or directory containing raw Verasonics data.",
-    )
-
-    parser.add_argument(
-        "output_path",
-        default=None,
-        type=str,
-        nargs="?",
-        help="The path to the output file or directory.",
-    )
-
-    parser.add_argument(
-        "--frames",
-        default=["all"],
-        type=str,
-        nargs="+",
-        help="The frames to add to the file. This can be a list of integers, a range "
-        "of integers (e.g. 4-8), or 'all'.",
-    )
-
-    return parser.parse_args()
-
-
 def get_answer(prompt, additional_options=None):
     """Get a yes or no answer from the user. There is also the option to provide
     additional options. In case yes or no is selected, the function returns a boolean.
@@ -1083,14 +1048,12 @@ def get_answer(prompt, additional_options=None):
         log.warning("Invalid input.")
 
 
-if __name__ == "__main__":
-    args = parse_args()
-
+def convert_matlab(args):
     # Variable to indicate what to do with existing files.
     # Is set by the user in case these are found.
     existing_file_policy = None
 
-    if args.input_path is None:
+    if args.src is None:
         log.info("Select a directory containing Verasonics matlab raw files.")
         # Create a Tkinter root window
         try:
@@ -1115,7 +1078,7 @@ if __name__ == "__main__":
                 )
             ) from e
     else:
-        selected_path = args.input_path
+        selected_path = args.src
 
     # Exit when no path is selected
     if not selected_path:
@@ -1128,14 +1091,14 @@ if __name__ == "__main__":
 
     # Set the output path to be next to the input directory with _zea appended
     # to the name
-    if args.output_path is None:
+    if args.dst is None:
         if selected_path_is_directory:
             output_path = selected_path.parent / (Path(selected_path).name + "_zea")
         else:
             output_path = str(selected_path.with_suffix("")) + "_zea.hdf5"
             output_path = Path(output_path)
     else:
-        output_path = Path(args.output_path)
+        output_path = Path(args.dst)
         if selected_path.is_file() and output_path.suffix not in (".hdf5", ".h5"):
             log.error(
                 "When converting a single file, the output path should have the .hdf5 "

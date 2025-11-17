@@ -4,12 +4,11 @@ Script to convert the PICMUS database to the zea format.
 Example usage:
 ```bash
 python zea/data/convert/picmus.py \
---src_dir /mnt/data/PICMUS \
---output_dir converted_PICMUS_dir
+--src /mnt/data/PICMUS \
+--dst converted_PICMUS_dir
 ```
 """
 
-import argparse
 import logging
 import os
 from pathlib import Path
@@ -20,9 +19,10 @@ import numpy as np
 from zea import log
 from zea.beamform.delays import compute_t0_delays_planewave
 from zea.data.data_format import generate_zea_dataset
+from zea.data.convert.utils import unzip
 
 
-def convert_picmus(source_path, output_path, overwrite=False):
+def convert(source_path, output_path, overwrite=False):
     """Converts the PICMUS database to the zea format.
 
     Args:
@@ -112,37 +112,24 @@ def convert_picmus(source_path, output_path, overwrite=False):
     )
 
 
-def get_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description=(
-            "Converts the PICMUS database to the zea format. The "
-            "src_dir is scanned for hdf5 files ending in iq or rf. These files are"
-            "converted and stored in output_dir under the same relative path as "
-            "they came from in src_dir."
-        )
-    )
-    parser.add_argument(
-        "--src_dir",
-        type=str,
-        help="Source directory where the original PICMUS data is stored.",
-    )
-
-    parser.add_argument("--output_dir", type=str, help="Output directory of the converted database")
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    # Parse the arguments
-    args = get_args()
+def convert_picmus(args):
+    "Converts the PICMUS database to the zea format. The"
+    "src is scanned for hdf5 files ending in iq or rf. These files are"
+    "converted and stored in dst under the same relative path as "
+    "they came from in src."
 
     # Get the source and output directories
-    base_dir = Path(args.src_dir)
-    output_dir = Path(args.output_dir)
+    base_dir = Path(args.src)
+    dst = Path(args.dst)
+
+    # Unzip the PICMUS dataset if necessary
+    base_dir = unzip(base_dir, "picmus")
 
     # Check if the source directory exists and create the output directory
     assert base_dir.exists(), f"Source directory {base_dir} does not exist."
-    output_dir.mkdir(parents=True, exist_ok=False)
+
+    assert not dst.exists(), f"Destination directory {dst} already exists, Exiting."
+    dst.mkdir(parents=True, exist_ok=False)
 
     # Traverse the source directory and convert all files
     for file in base_dir.rglob("*.hdf5"):
@@ -161,7 +148,7 @@ if __name__ == "__main__":
 
         # Find the folder relative to the base directory to retain the
         # folder structure in the output directory
-        output_file = output_dir / file.relative_to(base_dir)
+        output_file = dst / file.relative_to(base_dir)
 
         # Define the output path
         # NOTE: I added output_file.stem to put each file in its own
@@ -175,7 +162,7 @@ if __name__ == "__main__":
             # Create the output directory if it does not exist already
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            convert_picmus(file, output_file, overwrite=True)
+            convert(file, output_file, overwrite=True)
         except Exception:
             output_file.parent.rmdir()
             log.error("Failed to convert %s", str_file)

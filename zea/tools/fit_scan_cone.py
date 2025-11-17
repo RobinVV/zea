@@ -11,7 +11,6 @@ This module provides functionality to:
 """
 
 import argparse
-import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -114,7 +113,7 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
 
     # Ensure image is in proper range for cv2.threshold
     if image.dtype != np.uint8:
-        image = (image * 255).astype(np.uint8)
+        image = np.uint8(image * 255)
 
     h, w = image.shape
 
@@ -198,8 +197,7 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
 
     circle_radius = float(
         np.sqrt(
-            (min_non_zero_pixel_idx[1] - apex_x) ** 2
-            + (min_non_zero_pixel_idx[0] - apex_y) ** 2
+            (min_non_zero_pixel_idx[1] - apex_x) ** 2 + (min_non_zero_pixel_idx[0] - apex_y) ** 2
         )
     )
     circle_center_x = float(apex_x)

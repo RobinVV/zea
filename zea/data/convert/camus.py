@@ -4,11 +4,8 @@ Requires SimpleITK to be installed: pip install SimpleITK.
 
 from __future__ import annotations
 
-import argparse
-import importlib.util
 import logging
 import os
-import sys
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -17,11 +14,10 @@ import scipy
 from skimage.transform import resize
 from tqdm import tqdm
 
-# from zea.display import transform_sc_image_to_polar
-from zea import log
 from zea.data.data_format import generate_zea_dataset
 from zea.internal.utils import find_first_nonzero_index
 from zea.tensor_ops import translate
+from zea.data.convert.utils import unzip
 
 
 def transform_sc_image_to_polar(image_sc, output_size=None, fit_outline=True):
@@ -128,6 +124,8 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
         - Collection of metadata.
     """
     # Load image and save info
+    import SimpleITK as sitk
+
     image = sitk.ReadImage(str(filepath))
 
     all_metadata = {}
@@ -148,7 +146,7 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
     return im_array, metadata
 
 
-def convert_camus(source_path, output_path, overwrite=False):
+def process_camus(source_path, output_path, overwrite=False):
     """Converts the camus database to the zea format.
 
     Args:
@@ -188,24 +186,6 @@ def convert_camus(source_path, output_path, overwrite=False):
     )
 
 
-def get_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--source",
-        type=str,
-        # path to CAMUS_public/database_nifti
-        required=True,
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=True,
-    )
-    args = parser.parse_args()
-    return args
-
-
 splits = {"train": [1, 401], "val": [401, 451], "test": [451, 501]}
 
 
@@ -221,16 +201,12 @@ def get_split(patient_id: int) -> str:
         raise ValueError(f"Did not find split for patient: {patient_id}")
 
 
-if __name__ == "__main__":
-    if importlib.util.find_spec("SimpleITK") is None:
-        log.error("SimpleITK not installed. Please install SimpleITK: `pip install SimpleITK`")
-        sys.exit()
-    import SimpleITK as sitk
+def convert_camus(args):
+    camus_source_folder = Path(args.src)
+    camus_output_folder = Path(args.dst)
 
-    args = get_args()
-
-    camus_source_folder = Path(args.source)
-    camus_output_folder = Path(args.output)
+    # Look for either CAMUS_public.zip or folders database_nifti, database_split
+    camus_source_folder = unzip(camus_source_folder, "camus")
 
     # check if output folders already exist
     for split in splits:
@@ -239,7 +215,7 @@ if __name__ == "__main__":
         )
 
     # clone folder structure of source to output using pathlib
-    # and run convert_camus() for every hdf5 found in there
+    # and run process_camus() for every hdf5 found in there
     files = list(camus_source_folder.glob("**/*_half_sequence.nii.gz"))
     for source_file in tqdm(files):
         # check if source file in camus database (ignore other files)
@@ -257,4 +233,4 @@ if __name__ == "__main__":
 
         # make sure folder exists
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        convert_camus(source_file, output_file, overwrite=False)
+        process_camus(source_file, output_file, overwrite=False)

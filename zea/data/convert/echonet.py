@@ -4,10 +4,6 @@ Will segment the images and convert them to polar coordinates.
 """
 
 import os
-
-os.environ["KERAS_BACKEND"] = "numpy"
-
-import argparse
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -15,35 +11,10 @@ import numpy as np
 from scipy.interpolate import griddata
 from tqdm import tqdm
 
+from zea.data.convert.utils import load_avi
 from zea.config import Config
 from zea.data import generate_zea_dataset
-from zea.io_lib import load_video
 from zea.tensor_ops import translate
-
-
-def get_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Convert EchoNet to zea format")
-    parser.add_argument(
-        "--source",
-        type=str,
-        # path to EchoNet-Dynamic/Videos
-        required=True,
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--splits",
-        type=str,
-        default=None,
-    )
-    parser.add_argument("--output_numpy", type=str, default=None)
-    parser.add_argument("--no_hyperthreading", action="store_true")
-    args = parser.parse_args()
-    return args
 
 
 def segment(tensor, number_erasing=0, min_clip=0):
@@ -342,7 +313,7 @@ class H5Processor:
         Processes a single h5 file using the class variables and the filename given.
         """
         hdf5_file = avi_file.stem + ".hdf5"
-        sequence = load_video(avi_file)
+        sequence = load_avi(avi_file)
 
         assert sequence.min() >= self.range_from[0], f"{sequence.min()} < {self.range_from[0]}"
         assert sequence.max() <= self.range_from[1], f"{sequence.max()} > {self.range_from[1]}"
@@ -395,12 +366,10 @@ class H5Processor:
         return generate_zea_dataset(**zea_dataset)
 
 
-if __name__ == "__main__":
-    args = get_args()
-
-    if args.splits is not None:
+def convert_echonet(args):
+    if args.split_path is not None:
         # Reproduce a previous split...
-        split_yaml_dir = Path(args.splits)
+        split_yaml_dir = Path(args.split_path)
         splits = {"train": None, "val": None, "test": None}
         for split in splits:
             yaml_file = split_yaml_dir / (split + ".yaml")
@@ -411,18 +380,18 @@ if __name__ == "__main__":
 
     # List the files that have an entry in path_out_h5 already
     files_done = []
-    for _, _, filenames in os.walk(args.output):
+    for _, _, filenames in os.walk(args.dst):
         for filename in filenames:
             files_done.append(filename.replace(".hdf5", ""))
 
     # List all files of echonet and exclude those already processed
-    path_in = Path(args.source)
+    path_in = Path(args.src)
     h5_files = path_in.glob("*.avi")
     h5_files = [file for file in h5_files if file.stem not in files_done]
     print(f"Files left to process: {len(h5_files)}")
 
     # Run the processor
-    processor = H5Processor(path_out_h5=args.output, path_out=args.output_numpy, splits=splits)
+    processor = H5Processor(path_out_h5=args.dst, path_out=args.dst_npz, splits=splits)
 
     print("Starting the conversion process.")
 

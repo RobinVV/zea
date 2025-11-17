@@ -10,18 +10,8 @@ are then passed to this script.
 """
 
 import os
-
-os.environ["KERAS_BACKEND"] = "jax"
-
-
-if __name__ == "__main__":
-    from zea import init_device
-
-    init_device("auto:1")
-
-import argparse
 import csv
-import sys
+
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -33,41 +23,9 @@ from tqdm import tqdm
 from zea.data import generate_zea_dataset
 from zea.data.convert.echonet import H5Processor
 from zea.display import cartesian_to_polar_matrix
-from zea.io_lib import load_video
 from zea.tensor_ops import translate
-
-
-def get_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Convert EchoNet-LVH to zea format")
-    parser.add_argument(
-        "--source",
-        type=str,
-        required=True,
-    )
-    parser.add_argument("--output", type=str, required=True)
-    parser.add_argument("--output_numpy", type=str, default=None)
-    parser.add_argument("--file_list", type=str, help="Optional path to list of files")
-    parser.add_argument("--use_hyperthreading", action="store_true", help="Enable hyperthreading")
-    parser.add_argument(
-        "--batch",
-        type=str,
-        help="Specify which BatchX directory to process, e.g. --batch=Batch2",
-    )
-    parser.add_argument(
-        "--max_files",
-        type=int,
-        default=None,
-        help="Maximum number of files to process (for testing)",
-    )
-    # if neither is specified, both will be converted
-    parser.add_argument(
-        "--convert_measurements",
-        action="store_true",
-        help="Only convert measurements CSV file",
-    )
-    parser.add_argument("--convert_images", action="store_true", help="Only convert image files")
-    return parser.parse_args()
+from zea.data.convert.utils import load_avi
+from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_parameters
 
 
 def load_splits(source_dir):
@@ -206,11 +164,15 @@ class LVHProcessor(H5Processor):
 
     def __init__(self, *args, cone_params=None, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.cart2pol_jit = jit(cartesian_to_polar_matrix_jax)
-        self.cart2pol_jit = jit(cartesian_to_polar_matrix)
-        self.cart2pol_batched = vmap(self.cart2pol_jit)
+        self.cart2pol_jit = None
+        self.cart2pol_batched = None
         # Store the pre-computed cone parameters
         self.cone_parameters = cone_params or {}
+
+    def _init_jits(self):
+        if self.cart2pol_jit is None:
+            self.cart2pol_jit = jit(cartesian_to_polar_matrix)
+            self.cart2pol_batched = vmap(self.cart2pol_jit)
 
     def get_split(self, avi_file: str, sequence):
         """
@@ -232,9 +194,9 @@ class LVHProcessor(H5Processor):
         raise UserWarning("Unknown split for file: " + filename)
 
     def __call__(self, avi_file):
-        print(avi_file)
+        self._init_jits()
         avi_filename = Path(avi_file).stem + ".avi"
-        sequence = jnp.array(load_video(avi_file))
+        sequence = jnp.array(load_avi(avi_file))
 
         sequence = translate(sequence, self.range_from, self._process_range)
 
@@ -404,15 +366,11 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
         raise
 
 
-if __name__ == "__main__":
-    args = get_args()
-
+def convert_echonetlvh(args):
     # Check that cone parameters exist
-    cone_params_csv = Path(args.output) / "cone_parameters.csv"
+    cone_params_csv = Path(args.dst) / "cone_parameters.csv"
     if not cone_params_csv.exists():
-        print(f"Error: Cone parameters not found at {cone_params_csv}")
-        print("Please run precompute_crop.py first to generate the parameters.")
-        sys.exit(1)
+        precompute_cone_parameters(args)
 
     # If no specific conversion is requested, convert both
     if not (args.convert_measurements or args.convert_images):
@@ -421,7 +379,7 @@ if __name__ == "__main__":
 
     # Convert images if requested
     if args.convert_images:
-        source_path = Path(args.source)
+        source_path = Path(args.src)
         splits = load_splits(source_path)
 
         # Load precomputed cone parameters
@@ -433,7 +391,7 @@ if __name__ == "__main__":
             for avi_filename in split_files:
                 # Strip .avi if present
                 base_filename = avi_filename[:-4] if avi_filename.endswith(".avi") else avi_filename
-                avi_file = find_avi_file(args.source, base_filename, batch=args.batch)
+                avi_file = find_avi_file(args.src, base_filename, batch=args.batch)
                 if avi_file:
                     files_to_process.append(avi_file)
                 else:
@@ -444,7 +402,7 @@ if __name__ == "__main__":
 
         # List files that have already been processed
         files_done = []
-        for _, _, filenames in os.walk(args.output):
+        for _, _, filenames in os.walk(args.dst):
             for filename in filenames:
                 if filename.endswith(".hdf5"):
                     files_done.append(filename.replace(".hdf5", ""))
@@ -461,15 +419,15 @@ if __name__ == "__main__":
 
         # Initialize processor with splits and cone parameters
         processor = LVHProcessor(
-            path_out_h5=args.output,
-            path_out=args.output_numpy,
+            path_out_h5=args.dst,
+            path_out=args.dst_npz,
             splits=splits,
             cone_params=cone_parameters,
         )
 
         print("Starting the conversion process.")
 
-        if args.use_hyperthreading:
+        if not args.no_hyperthreading:
             with ProcessPoolExecutor() as executor:
                 futures = {executor.submit(processor, file): file for file in files_to_process}
                 for future in tqdm(as_completed(futures), total=len(files_to_process)):
@@ -488,10 +446,10 @@ if __name__ == "__main__":
 
     # Convert measurements if requested
     if args.convert_measurements:
-        source_path = Path(args.source)
+        source_path = Path(args.src)
         measurements_csv = source_path / "MeasurementsList.csv"
         if measurements_csv.exists():
-            output_csv = Path(args.output) / "MeasurementsList.csv"
+            output_csv = Path(args.dst) / "MeasurementsList.csv"
             convert_measurements_csv(measurements_csv, output_csv, cone_params_csv)
         else:
             print("Warning: MeasurementsList.csv not found in source directory")
