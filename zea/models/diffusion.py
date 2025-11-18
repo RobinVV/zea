@@ -131,6 +131,8 @@ class DiffusionModel(DeepGenerativeModel):
                 "input_range": self.input_range,
                 "min_signal_rate": self.min_signal_rate,
                 "max_signal_rate": self.max_signal_rate,
+                "min_t": self.min_t,
+                "max_t": self.max_t,
                 "network_name": self.network_name,
                 "network_kwargs": self.network_kwargs,
                 "ema_val": self.ema_val,
