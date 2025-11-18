@@ -65,17 +65,18 @@ class DiffusionModel(DeepGenerativeModel):
         Args:
             input_shape: Shape of the input data. Typically of the form
                 `(height, width, channels)` for images.
-            widths: List of filter widths for the UNet.
-            block_depth: Number of residual blocks in each UNet block.
-            timesteps: Number of diffusion timesteps.
-            beta_start: Initial noise schedule value.
-            beta_end: Final noise schedule value.
+            input_range: Range of the input data.
+            min_signal_rate: Minimum signal rate for the diffusion schedule.
+            max_signal_rate: Maximum signal rate for the diffusion schedule.
+            network_name: Name of the network architecture to use. Options are
+                "unet_time_conditional" or "dense_time_conditional".
+            network_kwargs: Additional keyword arguments for the network.
             name: Name of the model.
             guidance: Guidance method to use. Can be a string, or dict with
                 "name" and "params" keys. Additionally, can be a `DiffusionGuidance` object.
             operator: Operator to use. Can be a string, or dict with
                 "name" and "params" keys. Additionally, can be a `Operator` object.
-            ema_val (float): Exponential moving average value for the network weights.
+            ema_val: Exponential moving average value for the network weights.
             **kwargs: Additional arguments.
         """
         super().__init__(name=name, **kwargs)
