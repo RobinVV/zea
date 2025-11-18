@@ -77,6 +77,8 @@ class DiffusionModel(DeepGenerativeModel):
             operator: Operator to use. Can be a string, or dict with
                 "name" and "params" keys. Additionally, can be a `Operator` object.
             ema_val: Exponential moving average value for the network weights.
+            min_t: Minimum diffusion time for sampling during training.
+            max_t: Maximum diffusion time for sampling during training.
             **kwargs: Additional arguments.
         """
         super().__init__(name=name, **kwargs)
