@@ -1,7 +1,6 @@
 import argparse
 import keras
 
-from zea import init_device
 from .camus import convert_camus
 from .matlab import convert_matlab
 from .picmus import convert_picmus
@@ -21,14 +20,13 @@ def get_args():
     parser.add_argument(
         "--dst_npz",
         type=str,
-        default="None",
+        default=None,
         help="Additional destination folder path if also saving to numpy",
     )
-    parser.add_argument("--key", help="Key to access in the hdf5 files if necessary")
     parser.add_argument(
         "--split_path",
         type=str,
-        help="Path to the yaml file containing the dataset split if a split should be copied",
+        help="Path to the split.yaml file containing the dataset split if a split should be copied",
     )
     parser.add_argument(
         "--no_hyperthreading",
@@ -76,7 +74,6 @@ def get_args():
 
 
 def main():
-    init_device()
     args = get_args()
     if args.dataset == "echonet":
         convert_echonet(args)

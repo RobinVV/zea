@@ -26,6 +26,7 @@ from zea.display import cartesian_to_polar_matrix
 from zea.tensor_ops import translate
 from zea.data.convert.utils import load_avi
 from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_parameters
+from zea.data.convert.utils import unzip
 
 
 def load_splits(source_dir):
@@ -217,6 +218,11 @@ class LVHProcessor(H5Processor):
 
         polar_im_set = self.cart2pol_batched(sequence)
 
+        if self._to_numpy:
+            out_npz_dir = self.path_out / split / (Path(avi_file).stem + ".npz")
+            out_npz_dir.mkdir(parents=True, exist_ok=True)
+            np.savez(out_npz_dir, image=np.array(polar_im_set), image_sc=np.array(sequence))
+
         zea_dataset = {
             "path": out_h5,
             # store as uint8 for memory efficiency
@@ -367,6 +373,9 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
 
 
 def convert_echonetlvh(args):
+    # Check if unzip is needed
+    src = unzip(args.src, "echonetlvh")
+
     # Check that cone parameters exist
     cone_params_csv = Path(args.dst) / "cone_parameters.csv"
     if not cone_params_csv.exists():
@@ -379,7 +388,7 @@ def convert_echonetlvh(args):
 
     # Convert images if requested
     if args.convert_images:
-        source_path = Path(args.src)
+        source_path = Path(src)
         splits = load_splits(source_path)
 
         # Load precomputed cone parameters
@@ -391,7 +400,7 @@ def convert_echonetlvh(args):
             for avi_filename in split_files:
                 # Strip .avi if present
                 base_filename = avi_filename[:-4] if avi_filename.endswith(".avi") else avi_filename
-                avi_file = find_avi_file(args.src, base_filename, batch=args.batch)
+                avi_file = find_avi_file(src, base_filename, batch=args.batch)
                 if avi_file:
                     files_to_process.append(avi_file)
                 else:
@@ -446,7 +455,7 @@ def convert_echonetlvh(args):
 
     # Convert measurements if requested
     if args.convert_measurements:
-        source_path = Path(args.src)
+        source_path = Path(src)
         measurements_csv = source_path / "MeasurementsList.csv"
         if measurements_csv.exists():
             output_csv = Path(args.dst) / "MeasurementsList.csv"

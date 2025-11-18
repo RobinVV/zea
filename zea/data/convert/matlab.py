@@ -950,7 +950,9 @@ def get_frame_indices(file, frames):
     return frame_indices
 
 
-def zea_from_matlab_raw(input_path, output_path, additional_functions=None, frames="all"):
+def zea_from_matlab_raw(
+    input_path, output_path, output_path_npz=None, additional_functions=None, frames="all"
+):
     """Converts a Verasonics matlab raw file to the zea format. The MATLAB file
     should be created using the `save_raw` function and be stored in "v7.3" format.
 
@@ -964,11 +966,16 @@ def zea_from_matlab_raw(input_path, output_path, additional_functions=None, fram
             a list of integers, a range of integers (e.g. 4-8), or 'all'. Defaults to
             'all'.
     """
+    to_numpy = output_path_npz is not None
+
     # Create the output directory if it does not exist
     input_path = Path(input_path)
     output_path = Path(output_path)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    if to_numpy:
+        output_path_npz = Path(output_path_npz)
+        output_path_npz.parent.mkdir(parents=True, exist_ok=True)
 
     assert input_path.is_file(), log.error(f"Input file {log.yellow(input_path)} does not exist.")
 
@@ -998,6 +1005,11 @@ def zea_from_matlab_raw(input_path, output_path, additional_functions=None, fram
             # convert dict of events to dict of lists
             data = {key: [data[event][key] for event in data] for key in data[0]}
             description = ["Verasonics data with multiple events"] * num_events
+
+            # save to numpy if requested
+            if to_numpy:
+                np.savez(output_path_npz, **data)
+
             # Generate the zea dataset
             generate_zea_dataset(
                 path=output_path,
@@ -1011,6 +1023,10 @@ def zea_from_matlab_raw(input_path, output_path, additional_functions=None, fram
             data = read_verasonics_file(
                 file, additional_functions=additional_functions, frames=frames
             )
+
+            # save to numpy if requested
+            if to_numpy:
+                np.savez(output_path_npz, **data)
 
             # Generate the zea dataset
             generate_zea_dataset(path=output_path, **data, description="Verasonics data")
@@ -1047,6 +1063,7 @@ def convert_matlab(args):
     # Variable to indicate what to do with existing files.
     # Is set by the user in case these are found.
     existing_file_policy = None
+    to_numpy = args.dst_npz is not None
 
     if args.src is None:
         log.info("Select a directory containing Verasonics matlab raw files.")
@@ -1103,9 +1120,14 @@ def convert_matlab(args):
         elif selected_path.is_dir() and output_path.is_file():
             log.error("When converting a directory, the output path should be a directory.")
             sys.exit()
-        #
+
+        if to_numpy:
+            output_path_npz = Path(args.dst_npz)
+
         if output_path.is_dir() and not selected_path_is_directory:
             output_path = output_path / (selected_path.name + "_zea.hdf5")
+            if to_numpy:
+                output_path_npz = output_path_npz / (selected_path.name + "_zea.npz")
 
     log.info(f"Selected path: {log.yellow(selected_path)}")
 
@@ -1138,7 +1160,9 @@ def convert_matlab(args):
             else:
                 log.info("Aborting...")
                 sys.exit()
-        zea_from_matlab_raw(selected_path, output_path, frames=frames)
+        zea_from_matlab_raw(
+            selected_path, output_path, output_path_npz if to_numpy else None, frames=frames
+        )
     else:
         # Continue with the rest of your code...
         for root, dirs, files in os.walk(selected_path):
@@ -1155,6 +1179,8 @@ def convert_matlab(args):
                 # Construct the output path
                 relative_path = (Path(root) / Path(mat_file)).relative_to(selected_path)
                 file_output_path = output_path / (relative_path.with_suffix(".hdf5"))
+                if to_numpy:
+                    file_output_path_npz = output_path_npz / (relative_path.with_suffix(".npz"))
 
                 full_path = selected_path / relative_path
 
@@ -1185,7 +1211,12 @@ def convert_matlab(args):
                         file_output_path.unlink(missing_ok=False)
 
                 try:
-                    zea_from_matlab_raw(full_path, file_output_path, frames=frames)
+                    zea_from_matlab_raw(
+                        full_path,
+                        file_output_path,
+                        file_output_path_npz if to_numpy else None,
+                        frames=frames,
+                    )
                 except Exception:
                     # Print error message without raising it
                     log.error(f"Failed to convert {mat_file}")

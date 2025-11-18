@@ -30,14 +30,31 @@ def unzip(src: str | Path, dataset: str) -> Path:
     elif dataset == "camus":
         zip_name = "CAMUS_public.zip"
         folder_name = "CAMUS_public"
+    elif dataset == "echonet":
+        zip_name = "EchoNet-Dynamic.zip"
+        folder_name = "EchoNet-Dynamic"
+    elif dataset == "echonetlvh":
+        zip_name = "EchoNet-LVH.zip"
+        folder_name = "Batch1"
     else:
         log.error(f"Dataset {dataset} not recognized for unzip.")
         sys.exit(1)
 
     src = Path(src)
     if (src / folder_name).exists():
-        log.info(f"Found existing {folder_name} folder in {src}. Skipping unzip.")
-        return src / folder_name
+        if dataset == "echonetlvh":
+            # EchoNetLVH dataset unzips into four folders. Check they all exist.
+            assert (src / "Batch2").exists(), f"Missing Batch2 folder in {src}."
+            assert (src / "Batch3").exists(), f"Missing Batch3 folder in {src}."
+            assert (src / "Batch4").exists(), f"Missing Batch4 folder in {src}."
+            assert (src / "MeasurementsList.csv").exists(), (
+                f"Missing MeasurementsList.csv in {src}."
+            )
+            log.info(f"Found Batch1, Batch2, Batch3, Batch4 and MeasurementsList.csv in {src}.")
+            return src
+        else:
+            log.info(f"Found existing {folder_name} folder in {src}. Skipping unzip.")
+            return src / folder_name
 
     zip_path = src / zip_name
     if not zip_path.exists():
@@ -50,7 +67,5 @@ def unzip(src: str | Path, dataset: str) -> Path:
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(src)
     log.info("Unzipping completed.")
-    # Return new folder as source
-    src = src / folder_name
-    log.info(f"Starting conversion from {src}.")
-    return src
+    log.info(f"Starting conversion from {src / folder_name}.")
+    return src / folder_name if dataset != "echonetlvh" else src

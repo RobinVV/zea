@@ -15,6 +15,7 @@ from zea.data.convert.utils import load_avi
 from zea.config import Config
 from zea.data import generate_zea_dataset
 from zea.tensor_ops import translate
+from zea.data.convert.utils import unzip
 
 
 def segment(tensor, number_erasing=0, min_clip=0):
@@ -367,6 +368,9 @@ class H5Processor:
 
 
 def convert_echonet(args):
+    # Check if unzip is needed
+    src = unzip(args.src, "echonet")
+
     if args.split_path is not None:
         # Reproduce a previous split...
         split_yaml_dir = Path(args.split_path)
@@ -385,7 +389,7 @@ def convert_echonet(args):
             files_done.append(filename.replace(".hdf5", ""))
 
     # List all files of echonet and exclude those already processed
-    path_in = Path(args.src)
+    path_in = Path(src)
     h5_files = path_in.glob("*.avi")
     h5_files = [file for file in h5_files if file.stem not in files_done]
     print(f"Files left to process: {len(h5_files)}")

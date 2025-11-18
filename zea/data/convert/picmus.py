@@ -22,12 +22,13 @@ from zea.data.data_format import generate_zea_dataset
 from zea.data.convert.utils import unzip
 
 
-def convert(source_path, output_path, overwrite=False):
+def convert(source_path, output_path, output_path_npz=None, overwrite=False):
     """Converts the PICMUS database to the zea format.
 
     Args:
         source_path (str, pathlike): The path to the original PICMUS file.
         output_path (str, pathlike): The path to the output file.
+        output_path_npz (str, pathlike, optional): If provided, also saves to .npz.
         overwrite (bool, optional): Set to True to overwrite existing file.
             Defaults to False.
     """
@@ -94,6 +95,9 @@ def convert(source_path, output_path, overwrite=False):
         # This line changes the data format to work with the old beamformer,
         # which is not in accordance with the new zea format
 
+    if output_path_npz is not None:
+        np.savez(output_path_npz, raw_data=raw_data)
+
     generate_zea_dataset(
         path=output_path,
         raw_data=raw_data,
@@ -117,18 +121,23 @@ def convert_picmus(args):
     "src is scanned for hdf5 files ending in iq or rf. These files are"
     "converted and stored in dst under the same relative path as "
     "they came from in src."
+    to_numpy = args.dst_npz is not None
 
     # Get the source and output directories
     base_dir = Path(args.src)
     dst = Path(args.dst)
-
-    # Unzip the PICMUS dataset if necessary
-    base_dir = unzip(base_dir, "picmus")
+    if to_numpy:
+        dst_npz = Path(args.dst_npz)
 
     # Check if the source directory exists and create the output directory
     assert base_dir.exists(), f"Source directory {base_dir} does not exist."
 
     assert not dst.exists(), f"Destination directory {dst} already exists, Exiting."
+
+    # Unzip the PICMUS dataset if necessary
+    base_dir = unzip(base_dir, "picmus")
+    if to_numpy:
+        dst_npz.mkdir(parents=True, exist_ok=False)
     dst.mkdir(parents=True, exist_ok=False)
 
     # Traverse the source directory and convert all files
@@ -157,13 +166,25 @@ def convert_picmus(args):
         # the same folder.
         output_file = output_file.parent / output_file.stem / f"{output_file.stem}.hdf5"
 
+        if to_numpy:
+            output_file_npz = dst_npz / file.relative_to(base_dir)
+            output_file_npz = (
+                output_file_npz.parent / output_file_npz.stem / f"{output_file_npz.stem}.npz"
+            )
+
         # Convert the file
         try:
             # Create the output directory if it does not exist already
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
-            convert(file, output_file, overwrite=True)
+            if to_numpy:
+                output_file_npz.parent.mkdir(parents=True, exist_ok=True)
+                convert(file, output_file, output_path_npz=output_file_npz, overwrite=True)
+            else:
+                convert(file, output_file, output_path_npz=None, overwrite=True)
         except Exception:
             output_file.parent.rmdir()
+            if to_numpy:
+                output_file_npz.parent.rmdir()
             log.error("Failed to convert %s", str_file)
             continue

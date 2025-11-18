@@ -146,12 +146,13 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
     return im_array, metadata
 
 
-def process_camus(source_path, output_path, overwrite=False):
+def process_camus(source_path, output_path, output_path_npz=None, overwrite=False):
     """Converts the camus database to the zea format.
 
     Args:
         source_path (str, pathlike): The path to the original camus file.
         output_path (str, pathlike): The path to the output file.
+        output_path_npz (str, pathlike, optional): The path to the numpy output if desired.
         overwrite (bool, optional): Set to True to overwrite existing file.
             Defaults to False.
     """
@@ -176,6 +177,14 @@ def process_camus(source_path, output_path, overwrite=False):
     # Change range to [-60, 0] dB
     image_seq = translate(image_seq, (0, 255), (-60, 0))
     image_seq_polar = translate(image_seq_polar, (0, 255), (-60, 0))
+
+    if output_path_npz is not None:
+        # Save as numpy file
+        np.savez_compressed(
+            output_path_npz,
+            image=image_seq_polar,
+            image_sc=image_seq,
+        )
 
     generate_zea_dataset(
         path=output_path,
@@ -202,8 +211,11 @@ def get_split(patient_id: int) -> str:
 
 
 def convert_camus(args):
+    to_numpy = args.dst_npz is not None
+
     camus_source_folder = Path(args.src)
     camus_output_folder = Path(args.dst)
+    camus_output_folder_npz = Path(args.dst_npz) if to_numpy else None
 
     # Look for either CAMUS_public.zip or folders database_nifti, database_split
     camus_source_folder = unzip(camus_source_folder, "camus")
@@ -227,10 +239,17 @@ def convert_camus(args):
         split = get_split(patient_id)
 
         output_file = camus_output_folder / split / source_file.relative_to(camus_source_folder)
-
         # Replace .nii.gz with .hdf5
         output_file = output_file.with_suffix("").with_suffix(".hdf5")
-
         # make sure folder exists
         output_file.parent.mkdir(parents=True, exist_ok=True)
-        process_camus(source_file, output_file, overwrite=False)
+
+        if to_numpy:
+            output_file_npz = (
+                camus_output_folder_npz / split / source_file.relative_to(camus_source_folder)
+            )
+            output_file_npz = output_file_npz.with_suffix("").with_suffix(".npz")
+            output_file_npz.parent.mkdir(parents=True, exist_ok=True)
+            process_camus(source_file, output_file, output_file_npz, overwrite=False)
+        else:
+            process_camus(source_file, output_file, None, overwrite=False)
