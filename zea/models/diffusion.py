@@ -56,6 +56,8 @@ class DiffusionModel(DeepGenerativeModel):
         guidance="dps",
         operator="inpainting",
         ema_val=0.999,
+        min_t = 0.0,
+        max_t=1.0,
         **kwargs,
     ):
         """Initialize a diffusion model.
@@ -86,9 +88,9 @@ class DiffusionModel(DeepGenerativeModel):
         self.network_kwargs = network_kwargs or {}
         self.ema_val = ema_val
 
-        # reverse diffusion (i.e. sampling) goes from max_t to min_t
-        self.min_t = 0.0
-        self.max_t = 1.0
+        # reverse diffusion (i.e. sampling) goes from t = max_t to t = min_t
+        self.min_t = min_t
+        self.max_t = max_t
 
         if network_name == "unet_time_conditional":
             self.network = get_time_conditional_unetwork(
@@ -130,6 +132,7 @@ class DiffusionModel(DeepGenerativeModel):
                 "max_signal_rate": self.max_signal_rate,
                 "network_name": self.network_name,
                 "network_kwargs": self.network_kwargs,
+                "ema_val": self.ema_val,
             }
         )
         return config
