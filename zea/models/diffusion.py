@@ -56,7 +56,7 @@ class DiffusionModel(DeepGenerativeModel):
         guidance="dps",
         operator="inpainting",
         ema_val=0.999,
-        min_t = 0.0,
+        min_t=0.0,
         max_t=1.0,
         **kwargs,
     ):
