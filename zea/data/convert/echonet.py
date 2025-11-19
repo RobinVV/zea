@@ -334,7 +334,6 @@ class H5Processor:
 
         polar_im_set = []
         for i, im in enumerate(sequence):
-
             if not accepted:
                 continue
 
@@ -350,8 +349,12 @@ class H5Processor:
         assert sequence.max() <= self._process_range[1], sequence.max()
 
         if self._to_numpy:
-            np.savez(out_dir / "data.npz", image_sc=self._translate(sequence), image=self._translate(polar_im_set))
-        
+            np.savez(
+                out_dir / "data.npz",
+                image_sc=self._translate(sequence),
+                image=self._translate(polar_im_set),
+            )
+
         zea_dataset = {
             "path": out_h5,
             "image_sc": self._translate(sequence),

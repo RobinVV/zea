@@ -67,7 +67,5 @@ def unzip(src: str | Path, dataset: str) -> Path:
     with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(src)
     log.info("Unzipping completed.")
-    log.info(f"Starting conversion from {src / folder_name}.")    
+    log.info(f"Starting conversion from {src / folder_name}.")
     return unzip_dir
-    
-   
