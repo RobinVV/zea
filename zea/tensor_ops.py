@@ -649,7 +649,7 @@ def pad_array_to_divisible(arr, N, axis=0, mode="constant", pad_value=None):
     return padded_array
 
 
-def interpolate_data(subsampled_data, mask, order=1, axis=-1):
+def interpolate_data(subsampled_data, mask, order=1, axis=-1, fill_mode="nearest", fill_value=0):
     """Interpolate subsampled data along a specified axis using `map_coordinates`.
 
     Args:
@@ -659,6 +659,12 @@ def interpolate_data(subsampled_data, mask, order=1, axis=-1):
             `True` where data is known.
         order (int, optional): The order of the spline interpolation. Default is `1`.
         axis (int, optional): The axis along which the data is subsampled. Default is `-1`.
+        fill_mode (str, optional): Points outside the boundaries of the input are filled
+            according to the given mode. Default is 'nearest'. For more info see
+            `keras.ops.image.map_coordinates`.
+        fill_value (float, optional): Value to use for points outside the boundaries
+            of the input if `fill_mode` is 'constant'. Default is `0`. For more info see
+            `keras.ops.image.map_coordinates`.
 
     Returns:
         ndarray: The data interpolated back to the original grid.
@@ -723,6 +729,8 @@ def interpolate_data(subsampled_data, mask, order=1, axis=-1):
         subsampled_data,
         interp_coords,
         order=order,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
     )
 
     interpolated_data = ops.reshape(interpolated_data, -1)
