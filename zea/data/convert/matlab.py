@@ -1181,6 +1181,8 @@ def convert_matlab(args):
                 file_output_path = output_path / (relative_path.with_suffix(".hdf5"))
                 if to_numpy:
                     file_output_path_npz = output_path_npz / (relative_path.with_suffix(".npz"))
+                else:
+                    file_output_path_npz = None
 
                 full_path = selected_path / relative_path
 
@@ -1214,7 +1216,7 @@ def convert_matlab(args):
                     zea_from_matlab_raw(
                         full_path,
                         file_output_path,
-                        file_output_path_npz if to_numpy else None,
+                        file_output_path_npz,
                         frames=frames,
                     )
                 except Exception:
