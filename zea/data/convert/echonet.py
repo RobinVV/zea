@@ -334,19 +334,12 @@ class H5Processor:
 
         polar_im_set = []
         for i, im in enumerate(sequence):
-            if self._to_numpy:
-                np.save(out_dir / f"sc{str(i).zfill(3)}.npy", im)
 
             if not accepted:
                 continue
 
             polar_im = cartesian_to_polar_matrix(im, interpolation="cubic")
             polar_im = np.clip(polar_im, *self._process_range)
-            if self._to_numpy:
-                np.save(
-                    out_dir / f"polar{str(i).zfill(3)}.npy",
-                    polar_im,
-                )
             polar_im_set.append(polar_im)
 
         if accepted:
@@ -356,6 +349,9 @@ class H5Processor:
         assert sequence.min() >= self._process_range[0], sequence.min()
         assert sequence.max() <= self._process_range[1], sequence.max()
 
+        if self._to_numpy:
+            np.savez(out_dir / "data.npz", image_sc=self._translate(sequence), image=self._translate(polar_im_set))
+        
         zea_dataset = {
             "path": out_h5,
             "image_sc": self._translate(sequence),
