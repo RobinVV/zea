@@ -8,6 +8,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Tuple
+from concurrent.futures import ProcessPoolExecutor
+from venv import logger
 
 import numpy as np
 import scipy
@@ -210,6 +212,30 @@ def get_split(patient_id: int) -> str:
         raise ValueError(f"Did not find split for patient: {patient_id}")
 
 
+def _process_task(task):
+    """Unpack task tuple and call process_camus from the main module.
+    task: (source_file_str, output_file_str, output_file_npz_str_or_None)
+    """
+    source_file_str, output_file_str, output_file_npz_str = task
+    source_file = Path(source_file_str)
+    output_file = Path(output_file_str)
+
+    # Ensure destination directories exist (safe to call from multiple processes)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file_npz = Path(output_file_npz_str) if output_file_npz_str else None
+    if output_file_npz is not None:
+        output_file_npz.parent.mkdir(parents=True, exist_ok=True)
+
+    # Call the real processing function (must be importable in the worker)
+    # If process_camus lives in another module, import it there instead.
+    try:
+        process_camus(source_file, output_file, output_file_npz, overwrite=False)
+    except Exception:
+        # Log and re-raise so the main process can handle it
+        logger.exception("Error processing %s", source_file)
+        raise
+
+
 def convert_camus(args):
     to_numpy = args.dst_npz is not None
 
@@ -227,9 +253,9 @@ def convert_camus(args):
         )
 
     # clone folder structure of source to output using pathlib
-    # and run process_camus() for every hdf5 found in there
     files = list(camus_source_folder.glob("**/*_half_sequence.nii.gz"))
-    for source_file in tqdm(files):
+    tasks = []
+    for source_file in files:
         # check if source file in camus database (ignore other files)
         if "database_nifti" not in source_file.parts:
             continue
@@ -250,6 +276,25 @@ def convert_camus(args):
             )
             output_file_npz = output_file_npz.with_suffix("").with_suffix(".npz")
             output_file_npz.parent.mkdir(parents=True, exist_ok=True)
-            process_camus(source_file, output_file, output_file_npz, overwrite=False)
+            tasks.append((str(source_file), str(output_file), str(output_file_npz)))
         else:
-            process_camus(source_file, output_file, None, overwrite=False)
+            tasks.append((str(source_file), str(output_file), None))
+    if not tasks:
+        logger.info("No files found to process.")
+        return
+
+    if getattr(args, "no_hyperthreading", False):
+        logger.info("no_hyperthreading is True — running tasks serially (no ProcessPoolExecutor)")
+        for t in tqdm(tasks, desc="Processing files (serial)"):
+            try:
+                _process_task(t)
+            except Exception as e:
+                logger.exception("Task processing failed: %s", e)
+        logger.info("Processing finished for %d files (serial)", len(tasks))
+        return
+
+    # Submit tasks to the process pool and track progress
+    with ProcessPoolExecutor(max_workers=64) as exe:
+        for _ in tqdm(exe.map(_process_task, tasks), total=len(tasks), desc="Processing files"):
+            pass
+    logger.info("Processing finished for %d files", len(tasks))
