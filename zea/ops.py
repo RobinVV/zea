@@ -571,11 +571,7 @@ class Pipeline:
 
         # Optionally add patching
         if num_patches > 1:
-            beamforming = [
-                PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs),
-            ]
-
-        beamforming.append(ReshapeGrid())
+            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
 
         # Add beamforming ops
         operations += beamforming
@@ -1392,7 +1388,7 @@ class Map(Pipeline):
         inside it)."""
         return super().needs_keys.union(self.argnames)
 
-    def jittable_call(self, flatgrid, **inputs):
+    def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:
             input_data = inputs.pop(self.key)
@@ -1405,9 +1401,9 @@ class Map(Pipeline):
 
         return {self.output_key: output}
 
-    def call(self, flatgrid=None, **inputs):
+    def call(self, **inputs):
         """Process input data through the pipeline."""
-        output = self._jittable_call(flatgrid=flatgrid, **inputs)
+        output = self._jittable_call(**inputs)
         inputs.update(output)
         return inputs
 
