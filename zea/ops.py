@@ -238,7 +238,7 @@ class Operation(keras.Operation):
         Analyze and store the input/output signatures of the `call` method.
         """
         self._input_signature = inspect.signature(self.call)
-        self._valid_keys = set(self._input_signature.parameters.keys()) + {self.key}
+        self._valid_keys = set(self._input_signature.parameters.keys()) | {self.key}
 
     @property
     def valid_keys(self) -> set:
