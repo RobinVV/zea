@@ -153,7 +153,6 @@ class Scan(Parameters):
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             delays. Defaults to False.
         lens_thickness (float, optional): Thickness of the lens in meters.
-            Defaults to None.
         f_number (float, optional): F-number of the transducer. Defaults to 1.0.
         theta_range (tuple, optional): Range of theta angles for 3D imaging.
         phi_range (tuple, optional): Range of phi angles for 3D imaging.
