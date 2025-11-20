@@ -9,7 +9,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-
+from zea import log
 from zea.tools.fit_scan_cone import fit_and_crop_around_scan_cone
 
 
@@ -102,7 +102,7 @@ def precompute_cone_parameters(args):
 
     # Check if parameters already exist
     if cone_params_csv.exists() and not args.force:
-        print(f"Parameters already exist at {cone_params_csv}. Use --force to recompute.")
+        log.warning(f"Parameters already exist at {cone_params_csv}. Use --force to recompute.")
         return cone_params_csv
 
     # Get list of files to process
@@ -117,17 +117,17 @@ def precompute_cone_parameters(args):
             if avi_file:
                 files_to_process.append((avi_file, avi_filename))
             else:
-                print(
-                    f"Warning: Could not find AVI file for {base_filename} in batch "
+                log.warning(
+                    f"Could not find AVI file for {base_filename} in batch "
                     f"{args.batch if args.batch else 'any'}"
                 )
 
     # Limit files if max_files is specified
     if args.max_files is not None:
         files_to_process = files_to_process[: args.max_files]
-        print(f"Limited to processing {args.max_files} files due to max_files parameter")
+        log.info(f"Limited to processing {args.max_files} files due to max_files parameter")
 
-    print(f"Computing cone parameters for {len(files_to_process)} files")
+    log.info(f"Computing cone parameters for {len(files_to_process)} files")
 
     # Dictionary to store parameters for each file
     all_cone_params = {}
@@ -179,7 +179,7 @@ def precompute_cone_parameters(args):
                 all_cone_params[avi_filename] = essential_params
 
             except Exception as e:
-                print(f"Error processing {avi_file}: {str(e)}")
+                log.error(f"Error processing {avi_file}: {str(e)}")
 
                 # Write failure record
                 failure_record = {
@@ -198,5 +198,5 @@ def precompute_cone_parameters(args):
     with open(cone_params_json, "w", encoding="utf-8") as jsonfile:
         json.dump(all_cone_params, jsonfile)
 
-    print(f"Cone parameters saved to {cone_params_csv} and {cone_params_json}")
+    log.info(f"Cone parameters saved to {cone_params_csv} and {cone_params_json}")
     return cone_params_csv

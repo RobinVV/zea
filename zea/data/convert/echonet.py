@@ -245,9 +245,11 @@ def find_split_for_file(file_dict, target_file):
     log.warning(f"File {target_file} not found in any split, defaulting to rejected.")
     return "rejected"
 
+
 def count_init(shared_counter):
     global COUNTER
     COUNTER = shared_counter
+
 
 class H5Processor:
     """
@@ -301,7 +303,7 @@ class H5Processor:
         # New split
         if not accepted:
             return "rejected"
-        
+
         # Increment the hyperthreading counter
         # Note that some threads will start on subsequent splits
         # while others are still processing

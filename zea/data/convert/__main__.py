@@ -1,5 +1,4 @@
 import argparse
-import keras
 
 from .camus import convert_camus
 from .matlab import convert_matlab
@@ -84,7 +83,6 @@ def main():
     if args.dataset == "echonet":
         convert_echonet(args)
     elif args.dataset == "echonetlvh":
-        assert keras.backend.backend() == "jax", "EchonetLVH conversion requires the JAX backend."
         convert_echonetlvh(args)
     elif args.dataset == "camus":
         convert_camus(args)

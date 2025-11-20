@@ -15,9 +15,7 @@ import csv
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-import jax.numpy as jnp
 import numpy as np
-from jax import jit, vmap
 from tqdm import tqdm
 
 from zea import log
@@ -158,8 +156,8 @@ def crop_frame_with_params(frame, cone_params):
         cropped = frame[0:crop_bottom, crop_left:crop_right]
         # Add top padding
         top_padding = -crop_top
-        top_pad = jnp.zeros((top_padding, cropped.shape[1]), dtype=cropped.dtype)
-        cropped = jnp.concatenate([top_pad, cropped], axis=0)
+        top_pad = np.zeros((top_padding, cropped.shape[1]), dtype=cropped.dtype)
+        cropped = np.concatenate([top_pad, cropped], axis=0)
     else:
         cropped = frame[crop_top:crop_bottom, crop_left:crop_right]
 
@@ -174,12 +172,12 @@ def crop_frame_with_params(frame, cone_params):
 
     if left_padding > 0 or right_padding > 0:
         if left_padding > 0:
-            left_pad = jnp.zeros((cropped_height, left_padding), dtype=cropped.dtype)
-            cropped = jnp.concatenate([left_pad, cropped], axis=1)
+            left_pad = np.zeros((cropped_height, left_padding), dtype=cropped.dtype)
+            cropped = np.concatenate([left_pad, cropped], axis=1)
 
         if right_padding > 0:
-            right_pad = jnp.zeros((cropped_height, right_padding), dtype=cropped.dtype)
-            cropped = jnp.concatenate([cropped, right_pad], axis=1)
+            right_pad = np.zeros((cropped_height, right_padding), dtype=cropped.dtype)
+            cropped = np.concatenate([cropped, right_pad], axis=1)
 
     return cropped
 
@@ -195,8 +193,8 @@ def crop_sequence_with_params(sequence, cone_params):
     Returns:
         Cropped and padded sequence
     """
-    crop_sequence = vmap(lambda frame: crop_frame_with_params(frame, cone_params))
-    return crop_sequence(sequence)
+    cropped_frames = [crop_frame_with_params(frame, cone_params) for frame in sequence]
+    return np.stack(cropped_frames, axis=0)
 
 
 class LVHProcessor(H5Processor):
@@ -204,8 +202,6 @@ class LVHProcessor(H5Processor):
 
     def __init__(self, *args, cone_params=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cart2pol_jit = jit(cartesian_to_polar_matrix)
-        self.cart2pol_batched = vmap(self.cart2pol_jit)
         # Store the pre-computed cone parameters
         self.cone_parameters = cone_params or {}
 
@@ -230,31 +226,30 @@ class LVHProcessor(H5Processor):
 
     def __call__(self, avi_file):
         avi_filename = Path(avi_file).stem + ".avi"
-        sequence = jnp.array(load_avi(avi_file))
+        sequence = np.array(load_avi(avi_file))
 
         sequence = translate(sequence, self.range_from, self._process_range)
 
         # Get pre-computed cone parameters for this file
         cone_params = self.cone_parameters.get(avi_filename)
-
         if cone_params is not None:
             # Apply pre-computed cropping parameters
             sequence = crop_sequence_with_params(sequence, cone_params)
         else:
             log.warning(f"No cone parameters for {avi_filename}, using original sequence")
-
-        # Convert to JAX array for polar conversion
-        sequence = jnp.array(sequence)
-
+        sequence = np.array(sequence)
         split = self.get_split(avi_file, sequence)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
 
-        polar_im_set = self.cart2pol_batched(sequence)
+        polar_im_set = []
+        for im in sequence.astype(np.float32):
+            polar_im_set.append(cartesian_to_polar_matrix(im))
+        polar_im_set = np.stack(polar_im_set, axis=0)
 
         if self._to_numpy:
-            out_npz_dir = self.path_out / split / (Path(avi_file).stem + ".npz")
-            out_npz_dir.mkdir(parents=True, exist_ok=True)
-            np.savez(out_npz_dir, image=np.array(polar_im_set), image_sc=np.array(sequence))
+            out_npz = self.path_out / split / (Path(avi_file).stem + ".npz")
+            out_npz.mkdir(parents=True, exist_ok=True)
+            np.savez(out_npz, image=np.array(polar_im_set), image_sc=np.array(sequence))
 
         zea_dataset = {
             "path": out_h5,
@@ -390,15 +385,15 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
                 writer.writeheader()
 
         # Print summary
-        log.info("\nConversion Summary:")
+        log.info("Conversion Summary:")
         log.info(f"Total rows processed: {len(rows)}")
         log.info(f"Rows successfully converted: {len(transformed_rows)}")
         log.info(f"Rows skipped: {len(rows) - len(transformed_rows)}")
         if skipped_files:
-            log.info("\nSkipped files:")
+            log.info("Skipped files:")
             for filename in sorted(skipped_files):
                 log.info(f"  - {filename}")
-        log.info(f"\nConverted measurements saved to {output_csv}")
+        log.info(f"Converted measurements saved to {output_csv}")
 
     except Exception as e:
         log.error(f"Error processing CSV file: {str(e)}")
@@ -482,6 +477,7 @@ def convert_echonetlvh(args):
                     except Exception as e:
                         log.error(f"Error processing file: {str(e)}")
         else:
+            log.info("Converting without hyperthreading")
             for file in tqdm(files_to_process):
                 try:
                     processor(file)
