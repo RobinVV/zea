@@ -20,6 +20,7 @@ import numpy as np
 from jax import jit, vmap
 from tqdm import tqdm
 
+from zea import log
 from zea.data import generate_zea_dataset
 from zea.data.convert.echonet import H5Processor
 from zea.display import cartesian_to_polar_matrix
@@ -29,10 +30,48 @@ from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_paramete
 from zea.data.convert.utils import unzip
 
 
+def overwrite_splits(source_dir):
+    """Overwrite MeasurementsList.csv splits based on manual_rejections.txt"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    rejection_path = os.path.join(current_dir, "manual_rejections.txt")
+    try:
+        with open(rejection_path) as f:
+            rejected_hashes = [line.strip() for line in f]
+    except FileNotFoundError:
+        log.warning(f"{rejection_path} not found, skipping rejections.")
+        return
+
+    csv_path = Path(source_dir) / "MeasurementsList.csv"
+    temp_path = Path(source_dir) / "MeasurementsList_temp.csv"
+    try:
+        rejection_counter = 0
+        with (
+            csv_path.open("r", newline="", encoding="utf-8") as infile,
+            temp_path.open("w", encoding="utf-8", newline="") as outfile,
+        ):
+            reader = csv.DictReader(infile)
+            writer = csv.DictWriter(outfile, fieldnames=reader.fieldnames)
+            writer.writeheader()
+            for row in reader:
+                if row["HashedFileName"] in rejected_hashes:
+                    row["split"] = "rejected"
+                    rejection_counter += 1
+                writer.writerow(row)
+            assert rejection_counter == 278, (
+                f"Expected 278 rejections, but applied only {rejection_counter}."
+            )
+    except FileNotFoundError:
+        log.warning(f"{csv_path} not found, skipping rejections.")
+        return
+    temp_path.replace(csv_path)
+    log.info(f"Overwritten {rejection_counter}/278 rejections to MeasurementsList.csv")
+    return
+
+
 def load_splits(source_dir):
     """Load splits from MeasurementsList.csv and return avi filenames"""
     csv_path = Path(source_dir) / "MeasurementsList.csv"
-    splits = {"train": [], "val": [], "test": []}
+    splits = {"train": [], "val": [], "test": [], "rejected": []}
     with open(csv_path, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
         file_split_map = {}
@@ -165,15 +204,10 @@ class LVHProcessor(H5Processor):
 
     def __init__(self, *args, cone_params=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cart2pol_jit = None
-        self.cart2pol_batched = None
+        self.cart2pol_jit = jit(cartesian_to_polar_matrix)
+        self.cart2pol_batched = vmap(self.cart2pol_jit)
         # Store the pre-computed cone parameters
         self.cone_parameters = cone_params or {}
-
-    def _init_jits(self):
-        if self.cart2pol_jit is None:
-            self.cart2pol_jit = jit(cartesian_to_polar_matrix)
-            self.cart2pol_batched = vmap(self.cart2pol_jit)
 
     def get_split(self, avi_file: str, sequence):
         """
@@ -195,7 +229,6 @@ class LVHProcessor(H5Processor):
         raise UserWarning("Unknown split for file: " + filename)
 
     def __call__(self, avi_file):
-        self._init_jits()
         avi_filename = Path(avi_file).stem + ".avi"
         sequence = jnp.array(load_avi(avi_file))
 
@@ -208,7 +241,7 @@ class LVHProcessor(H5Processor):
             # Apply pre-computed cropping parameters
             sequence = crop_sequence_with_params(sequence, cone_params)
         else:
-            print(f"Warning: No cone parameters for {avi_filename}, using original sequence")
+            log.warning(f"No cone parameters for {avi_filename}, using original sequence")
 
         # Convert to JAX array for polar conversion
         sequence = jnp.array(sequence)
@@ -250,7 +283,7 @@ def transform_measurement_coordinates_with_cone_params(row, cone_params):
         A new row with transformed coordinates, or None if cone_params is None
     """
     if cone_params is None:
-        print(f"Warning: No cone parameters for file {row['HashedFileName']}")
+        log.warning(f"No cone parameters for file {row['HashedFileName']}")
         return None
 
     new_row = dict(row)
@@ -292,7 +325,7 @@ def transform_measurement_coordinates_with_cone_params(row, cone_params):
     )
 
     if is_out_of_bounds:
-        print(f"Warning: Transformed coordinates out of bounds for file {row['HashedFileName']}")
+        log.warning(f"Transformed coordinates out of bounds for file {row['HashedFileName']}")
 
     # Convert back to string if original was string
     for k in ["X1", "X2", "Y1", "Y2"]:
@@ -321,7 +354,7 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
         if cone_params_csv and Path(cone_params_csv).exists():
             cone_parameters = load_cone_parameters(cone_params_csv)
         else:
-            print("Warning: No cone parameters file found. Measurements will not be transformed.")
+            log.warning("No cone parameters file found. Measurements will not be transformed.")
 
         # Apply coordinate transformation and track skipped rows
         transformed_rows = []
@@ -339,7 +372,7 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
                 else:
                     skipped_files.add(row["HashedFileName"])
             except Exception as e:
-                print(f"Error processing row for file {row['HashedFileName']}: {str(e)}")
+                log.error(f"Error processing row for file {row['HashedFileName']}: {str(e)}")
                 skipped_files.add(row["HashedFileName"])
 
         # Save to new CSV file
@@ -357,24 +390,28 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
                 writer.writeheader()
 
         # Print summary
-        print("\nConversion Summary:")
-        print(f"Total rows processed: {len(rows)}")
-        print(f"Rows successfully converted: {len(transformed_rows)}")
-        print(f"Rows skipped: {len(rows) - len(transformed_rows)}")
+        log.info("\nConversion Summary:")
+        log.info(f"Total rows processed: {len(rows)}")
+        log.info(f"Rows successfully converted: {len(transformed_rows)}")
+        log.info(f"Rows skipped: {len(rows) - len(transformed_rows)}")
         if skipped_files:
-            print("\nSkipped files:")
+            log.info("\nSkipped files:")
             for filename in sorted(skipped_files):
-                print(f"  - {filename}")
-        print(f"\nConverted measurements saved to {output_csv}")
+                log.info(f"  - {filename}")
+        log.info(f"\nConverted measurements saved to {output_csv}")
 
     except Exception as e:
-        print(f"Error processing CSV file: {str(e)}")
+        log.error(f"Error processing CSV file: {str(e)}")
         raise
 
 
 def convert_echonetlvh(args):
     # Check if unzip is needed
     src = unzip(args.src, "echonetlvh")
+
+    # Overwrite the splits if manual rejections are provided
+    if not args.no_rejection:
+        overwrite_splits(args.src)
 
     # Check that cone parameters exist
     cone_params_csv = Path(args.dst) / "cone_parameters.csv"
@@ -393,7 +430,7 @@ def convert_echonetlvh(args):
 
         # Load precomputed cone parameters
         cone_parameters = load_cone_parameters(cone_params_csv)
-        print(f"Loaded cone parameters for {len(cone_parameters)} files")
+        log.info(f"Loaded cone parameters for {len(cone_parameters)} files")
 
         files_to_process = []
         for split_files in splits.values():
@@ -404,7 +441,7 @@ def convert_echonetlvh(args):
                 if avi_file:
                     files_to_process.append(avi_file)
                 else:
-                    print(
+                    log.warning(
                         f"Warning: Could not find AVI file for {base_filename} in batch "
                         f"{args.batch if args.batch else 'any'}"
                     )
@@ -422,9 +459,9 @@ def convert_echonetlvh(args):
         # Limit files if max_files is specified
         if args.max_files is not None:
             files_to_process = files_to_process[: args.max_files]
-            print(f"Limited to processing {args.max_files} files due to max_files parameter")
+            log.info(f"Limited to processing {args.max_files} files due to max_files parameter")
 
-        print(f"Files left to process: {len(files_to_process)}")
+        log.info(f"Files left to process: {len(files_to_process)}")
 
         # Initialize processor with splits and cone parameters
         processor = LVHProcessor(
@@ -434,7 +471,7 @@ def convert_echonetlvh(args):
             cone_params=cone_parameters,
         )
 
-        print("Starting the conversion process.")
+        log.info("Starting the conversion process.")
 
         if not args.no_hyperthreading:
             with ProcessPoolExecutor() as executor:
@@ -443,15 +480,15 @@ def convert_echonetlvh(args):
                     try:
                         future.result()
                     except Exception as e:
-                        print(f"Error processing file: {str(e)}")
+                        log.error(f"Error processing file: {str(e)}")
         else:
             for file in tqdm(files_to_process):
                 try:
                     processor(file)
                 except Exception as e:
-                    print(f"Error processing {file}: {str(e)}")
+                    log.error(f"Error processing {file}: {str(e)}")
 
-        print("All image conversion tasks are completed.")
+        log.info("All image conversion tasks are completed.")
 
     # Convert measurements if requested
     if args.convert_measurements:
@@ -461,6 +498,6 @@ def convert_echonetlvh(args):
             output_csv = Path(args.dst) / "MeasurementsList.csv"
             convert_measurements_csv(measurements_csv, output_csv, cone_params_csv)
         else:
-            print("Warning: MeasurementsList.csv not found in source directory")
+            log.warning("MeasurementsList.csv not found in source directory")
 
-    print("All tasks are completed.")
+    log.info("All tasks are completed.")

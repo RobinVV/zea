@@ -46,6 +46,12 @@ def get_args():
     )
     # ECHONET_LVH
     parser.add_argument(
+        "--no_rejection",
+        action="store_true",
+        help="EchonetLVH: Do not reject sequences in manual_rejections.txt",
+    )
+
+    parser.add_argument(
         "--batch",
         type=str,
         help="EchonetLVH: Specify which BatchX directory to process, e.g. --batch=Batch2",

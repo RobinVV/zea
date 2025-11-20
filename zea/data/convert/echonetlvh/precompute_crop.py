@@ -16,7 +16,7 @@ from zea.tools.fit_scan_cone import fit_and_crop_around_scan_cone
 def load_splits(source_dir):
     """Load splits from MeasurementsList.csv and return avi filenames"""
     csv_path = Path(source_dir) / "MeasurementsList.csv"
-    splits = {"train": [], "val": [], "test": []}
+    splits = {"train": [], "val": [], "test": [], "rejected": []}
     # Read CSV using built-in csv module
     with open(csv_path, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile)
