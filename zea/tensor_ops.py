@@ -1591,78 +1591,82 @@ def apply_along_axis(func1d, axis, arr, *args, **kwargs):
     return func(arr)
 
 
-def correlate(x, y, mode="full"):
-    """
-    Complex correlation via splitting real and imaginary parts.
-    Equivalent to np.correlate(x, y, mode).
+if keras.backend.backend() != "jax":
 
-    NOTE: this function exists because tensorflow does not support complex correlation.
-    NOTE: tensorflow also handles padding differently than numpy, so we manually pad the input.
+    def correlate(x, y, mode="full"):
+        """
+        Complex correlation via splitting real and imaginary parts.
+        Equivalent to np.correlate(x, y, mode).
 
-    Args:
-        x: np.ndarray (complex or real)
-        y: np.ndarray (complex or real)
-        mode: "full", "valid", or "same"
-    """
-    x = ops.convert_to_tensor(x)
-    y = ops.convert_to_tensor(y)
+        NOTE: this function exists because tensorflow does not support complex correlation.
+        NOTE: tensorflow also handles padding differently than numpy, so we manually pad the input.
 
-    is_complex = "complex" in ops.dtype(x) or "complex" in ops.dtype(y)
+        Args:
+            x: np.ndarray (complex or real)
+            y: np.ndarray (complex or real)
+            mode: "full", "valid", or "same"
+        """
+        x = ops.convert_to_tensor(x)
+        y = ops.convert_to_tensor(y)
 
-    # Cast to complex64 if real
-    if not is_complex:
-        x = ops.cast(x, "complex64")
-        y = ops.cast(y, "complex64")
+        is_complex = "complex" in ops.dtype(x) or "complex" in ops.dtype(y)
 
-    # Split into real and imaginary
-    xr, xi = ops.real(x), ops.imag(x)
-    yr, yi = ops.real(y), ops.imag(y)
+        # Cast to complex64 if real
+        if not is_complex:
+            x = ops.cast(x, "complex64")
+            y = ops.cast(y, "complex64")
 
-    # Pad to do full correlation
-    pad_left = ops.shape(y)[0] - 1
-    pad_right = ops.shape(y)[0] - 1
-    xr = ops.pad(xr, [[pad_left, pad_right]])
-    xi = ops.pad(xi, [[pad_left, pad_right]])
+        # Split into real and imaginary
+        xr, xi = ops.real(x), ops.imag(x)
+        yr, yi = ops.real(y), ops.imag(y)
 
-    # Correlation: sum over x[n] * conj(y[n+k])
-    rr = ops.correlate(xr, yr, mode="valid")
-    ii = ops.correlate(xi, yi, mode="valid")
-    ri = ops.correlate(xr, yi, mode="valid")
-    ir = ops.correlate(xi, yr, mode="valid")
+        # Pad to do full correlation
+        pad_left = ops.shape(y)[0] - 1
+        pad_right = ops.shape(y)[0] - 1
+        xr = ops.pad(xr, [[pad_left, pad_right]])
+        xi = ops.pad(xi, [[pad_left, pad_right]])
 
-    real_part = rr + ii
-    imag_part = ir - ri
+        # Correlation: sum over x[n] * conj(y[n+k])
+        rr = ops.correlate(xr, yr, mode="valid")
+        ii = ops.correlate(xi, yi, mode="valid")
+        ri = ops.correlate(xr, yi, mode="valid")
+        ir = ops.correlate(xi, yr, mode="valid")
 
-    real_part = ops.cast(real_part, "complex64")
-    imag_part = ops.cast(imag_part, "complex64")
+        real_part = rr + ii
+        imag_part = ir - ri
 
-    complex_tensor = real_part + 1j * imag_part
+        real_part = ops.cast(real_part, "complex64")
+        imag_part = ops.cast(imag_part, "complex64")
 
-    # Extract relevant part based on mode
-    full_length = ops.shape(real_part)[0]
-    x_len = ops.shape(x)[0]
-    y_len = ops.shape(y)[0]
+        complex_tensor = real_part + 1j * imag_part
 
-    if mode == "same":
-        # Return output of length max(M, N)
-        target_len = ops.maximum(x_len, y_len)
-        start = ops.floor((full_length - target_len) / 2)
-        start = ops.cast(start, "int32")
-        end = start + target_len
-        complex_tensor = complex_tensor[start:end]
-    elif mode == "valid":
-        # Return output of length max(M, N) - min(M, N) + 1
-        target_len = ops.maximum(x_len, y_len) - ops.minimum(x_len, y_len) + 1
-        start = ops.ceil((full_length - target_len) / 2)
-        start = ops.cast(start, "int32")
-        end = start + target_len
-        complex_tensor = complex_tensor[start:end]
-    # For "full" mode, use the entire result (no slicing needed)
+        # Extract relevant part based on mode
+        full_length = ops.shape(real_part)[0]
+        x_len = ops.shape(x)[0]
+        y_len = ops.shape(y)[0]
 
-    if is_complex:
-        return complex_tensor
-    else:
-        return ops.real(complex_tensor)
+        if mode == "same":
+            # Return output of length max(M, N)
+            target_len = ops.maximum(x_len, y_len)
+            start = ops.floor((full_length - target_len) / 2)
+            start = ops.cast(start, "int32")
+            end = start + target_len
+            complex_tensor = complex_tensor[start:end]
+        elif mode == "valid":
+            # Return output of length max(M, N) - min(M, N) + 1
+            target_len = ops.maximum(x_len, y_len) - ops.minimum(x_len, y_len) + 1
+            start = ops.ceil((full_length - target_len) / 2)
+            start = ops.cast(start, "int32")
+            end = start + target_len
+            complex_tensor = complex_tensor[start:end]
+        # For "full" mode, use the entire result (no slicing needed)
+
+        if is_complex:
+            return complex_tensor
+        else:
+            return ops.real(complex_tensor)
+else:
+    correlate = ops.correlate  # jax supports complex correlation natively
 
 
 def find_contour(binary_mask):
