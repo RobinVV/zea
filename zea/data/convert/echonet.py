@@ -7,6 +7,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 import yaml
+from multiprocessing import Value
 
 import numpy as np
 from scipy.interpolate import griddata
@@ -241,8 +242,12 @@ def find_split_for_file(file_dict, target_file):
     for split, files in file_dict.items():
         if target_file in files:
             return split
+    log.warning(f"File {target_file} not found in any split, defaulting to rejected.")
     return "rejected"
 
+def count_init(shared_counter):
+    global COUNTER
+    COUNTER = shared_counter
 
 class H5Processor:
     """
@@ -263,7 +268,6 @@ class H5Processor:
         self.path_out = Path(path_out) if path_out else None
         self.num_val = num_val
         self.num_test = num_test
-        self.num_accepted = 0
         self.range_from = range_from
         self.range_to = range_to
         self.splits = splits
@@ -297,14 +301,18 @@ class H5Processor:
         # New split
         if not accepted:
             return "rejected"
-
-        # Increment accepted counter rather than looking at val and test dir sizes
-        self.num_accepted += 1
+        
+        # Increment the hyperthreading counter
+        # Note that some threads will start on subsequent splits
+        # while others are still processing
+        with COUNTER.get_lock():
+            COUNTER.value += 1
+            n = COUNTER.value
 
         # Determine the split
-        if self.num_accepted < self.num_val:
+        if n <= self.num_val:
             return "val"
-        elif self.num_accepted < self.num_val + self.num_test:
+        elif n <= self.num_val + self.num_test:
             return "test"
         else:
             return "train"
@@ -395,7 +403,7 @@ def convert_echonet(args):
         # Reproduce a previous split...
         yaml_file = Path(args.split_path) / "split.yaml"
         assert yaml_file.exists(), f"File {yaml_file} does not exist."
-        splits = {"train": None, "val": None, "test": None}
+        splits = {"train": None, "val": None, "test": None, "rejected": None}
         with open(yaml_file, "r") as f:
             splits = yaml.safe_load(f)
     else:
@@ -419,11 +427,14 @@ def convert_echonet(args):
     log.info("Starting the conversion process.")
 
     if not args.no_hyperthreading:
-        with ProcessPoolExecutor() as executor:
+        shared_counter = Value("i", 0)
+        with ProcessPoolExecutor(initializer=count_init, initargs=(shared_counter,)) as executor:
             futures = {executor.submit(processor, file): file for file in h5_files}
             for future in tqdm(as_completed(futures), total=len(h5_files)):
                 future.result()
     else:
+        # Initialize global variable for counting
+        count_init(Value("i", 0))
         for file in tqdm(h5_files):
             processor(file)
 
@@ -431,7 +442,7 @@ def convert_echonet(args):
 
     # Write to yaml split files
     full_list = {}
-    for split in ["train", "val", "test"]:
+    for split in ["train", "val", "test", "rejected"]:
         split_dir = Path(args.dst) / split
 
         # Get only files (skip directories)
