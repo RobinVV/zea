@@ -238,7 +238,7 @@ class Operation(keras.Operation):
         Analyze and store the input/output signatures of the `call` method.
         """
         self._input_signature = inspect.signature(self.call)
-        self._valid_keys = set(self._input_signature.parameters.keys())
+        self._valid_keys = set(self._input_signature.parameters.keys()) + {self.key}
 
     @property
     def valid_keys(self) -> set:
@@ -690,7 +690,7 @@ class Pipeline:
         if not self._logged_difference_keys:
             difference_keys = set(inputs.keys()) - self.valid_keys
             if difference_keys:
-                log.warning(
+                log.debug(
                     f"[zea.Pipeline] The following input keys are not used by the pipeline: "
                     f"{difference_keys}. Make sure this is intended. "
                     "This warning will only be shown once."
@@ -1273,7 +1273,18 @@ def pipeline_to_yaml(pipeline: Pipeline, file_path: str) -> None:
 
 @ops_registry("map")
 class Map(Pipeline):
-    """A pipeline that applies maps `argnames` over the operations."""
+    """
+    A pipeline that maps its operations over specified input arguments.
+
+    This can be used to reduce memory usage by processing data in chunks.
+
+    Notes
+    -----
+    - When `chunks` and `batch_size` are both None (default), this behaves like a normal Pipeline.
+    - Changing anything other than ``self.output_key`` in the dict will not be propagated.
+    - Will be jitted as a single operation, not the individual operations.
+    - This class handles the batching.
+    """
 
     def __init__(
         self,
@@ -1287,6 +1298,17 @@ class Map(Pipeline):
     ):
         super().__init__(operations, **kwargs)
         self.argnames = argnames
+        self.in_axes = in_axes
+        self.out_axes = out_axes
+        self.chunks = chunks
+        self.batch_size = batch_size
+
+        if chunks is None and batch_size is None:
+            log.warning(
+                "[zea.ops.Map] Both `chunks` and `batch_size` are None. "
+                "This will behave like a normal Pipeline. "
+                "Consider setting one of them to process data in chunks or batches."
+            )
 
         def call_item(**inputs):
             """Process data in patches."""
@@ -1390,38 +1412,39 @@ class Map(Pipeline):
     def get_dict(self):
         """Get the configuration of the pipeline."""
         config = super().get_dict()
-        config.update({"name": "map"})
-        # config["params"].update({"num_patches": self.num_patches}) # TODO
+        config["params"].update(
+            {
+                "argnames": self.argnames,
+                "in_axes": self.in_axes,
+                "out_axes": self.out_axes,
+                "chunks": self.chunks,
+                "batch_size": self.batch_size,
+            }
+        )
         return config
 
 
 @ops_registry("patched_grid")
 class PatchedGrid(Map):
     """
-    With this class you can form a pipeline that will be applied to patches of the grid.
-    This is useful to avoid OOM errors when processing large grids.
+    A pipeline that maps its operations over `flatgrid` and `flat_pfield` keys.
 
-    Some things to NOTE about this class:
+    This can be used to reduce memory usage by processing data in chunks.
 
-    - The ops have to use flatgrid and flat_pfield as inputs, these will be patched.
-
-    - Changing anything other than `self.output_data_type` in the dict will not be propagated!
-
-    - Will be jitted as a single operation, not the individual operations.
-
-    - This class handles the batching.
-
+    For more information and flexibility, see :class:`zea.ops.Map`.
     """
 
     def __init__(self, *args, num_patches=10, **kwargs):
-        super().__init__(
-            *args,
-            argnames=["flatgrid", "flat_pfield"],
-            name="patched_grid",
-            chunks=num_patches,
-            **kwargs,
-        )
+        super().__init__(*args, argnames=["flatgrid", "flat_pfield"], chunks=num_patches, **kwargs)
         self.num_patches = num_patches
+
+    def get_dict(self):
+        """Get the configuration of the pipeline."""
+        config = super().get_dict()
+        config["params"].pop("argnames")
+        config["params"].pop("chunks")
+        config["params"].update({"num_patches": self.num_patches})
+        return config
 
 
 @ops_registry("reshape_grid")
