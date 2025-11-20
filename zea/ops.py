@@ -88,7 +88,6 @@ Example of a yaml file:
 
 """
 
-import copy
 import hashlib
 import inspect
 import json
@@ -499,9 +498,17 @@ class Pipeline:
 
         self._logged_difference_keys = False
 
+        # Do not log again for nested pipelines
+        for nested_pipeline in self._nested_pipelines:
+            nested_pipeline._logged_difference_keys = True
+
     def needs(self, key) -> bool:
         """Check if the pipeline needs a specific key at the input."""
         return key in self.needs_keys
+
+    @property
+    def _nested_pipelines(self):
+        return [operation for operation in self.operations if isinstance(operation, Pipeline)]
 
     @property
     def output_keys(self) -> set:
@@ -1207,7 +1214,7 @@ def pipeline_from_config(config: Config, **kwargs) -> Pipeline:
     operations = make_operation_chain(config.operations)
 
     # merge pipeline config without operations with kwargs
-    pipeline_config = copy.deepcopy(config)
+    pipeline_config = config.copy()
     pipeline_config.pop("operations")
 
     kwargs = {**pipeline_config, **kwargs}
@@ -1467,8 +1474,7 @@ class ReshapeGrid(Operation):
         Args:
             - data (Tensor): The flat grid data of shape (..., n_pix, ...).
         Returns:
-            - reshaped_data (Tensor): The reshaped data
-                of shape (..., *grid.shape, ...).
+            - reshaped_data (Tensor): The reshaped data of shape (..., grid.shape, ...).
         """
         data = kwargs[self.key]
         reshaped_data = reshape_axis(data, grid.shape[:-1], self.axis + int(self.with_batch_dim))
