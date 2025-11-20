@@ -555,7 +555,7 @@ class Scan(Parameters):
 
     @property
     def t_peak(self):
-        """The time of the peak of the pulse in seconds of shape (n_waveforms,)."""
+        """The time of the peak of the pulse in seconds of shape in seconds (n_waveforms,)."""
         t_peak = self._params.get("t_peak")
         if t_peak is None:
             t_peak = np.array([1 / self.center_frequency])
@@ -673,6 +673,20 @@ class Scan(Parameters):
         """Get the coordinates for scan conversion, will be 3D if phi_range is set,
         otherwise 2D."""
         return self.coordinates_3d if getattr(self, "phi_range", None) else self.coordinates_2d
+
+    @property
+    def pulse_repetition_frequency(self):
+        """The pulse repetition frequency (PRF) [Hz] of shape (n_frames,)."""
+        if self.time_to_next_transmit is None:
+            log.warning("Time to next transmit is not set, cannot compute PRF")
+            return None
+
+        if len(np.unique(self.time_to_next_transmit)) != 1:
+            log.warning("Time to next transmit is not constant, cannot compute PRF")
+            return None
+
+        pulse_repetition_interval = self.time_to_next_transmit[0][0]  # seconds
+        return 1 / pulse_repetition_interval
 
     @cache_with_dependencies("time_to_next_transmit")
     def frames_per_second(self):
