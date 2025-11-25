@@ -1352,8 +1352,6 @@ class Map(Pipeline):
 
         self.call_item = call_item
 
-        self._jittable_call = self.jittable_call
-
     @property
     def jit_options(self):
         """Get the jit_options property of the pipeline."""

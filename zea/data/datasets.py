@@ -107,7 +107,7 @@ class H5FileHandleCache:
 
     def close(self):
         """Close all cached file handles."""
-        cache = getattr(self, "_file_handle_cache", None)
+        cache: OrderedDict = getattr(self, "_file_handle_cache", None)
         if not cache:
             return
 
@@ -123,6 +123,8 @@ class H5FileHandleCache:
                 # torn down, close() can raise weird errors (e.g. TypeError).
                 # Swallow them here to avoid exceptions from __del__.
                 pass
+
+        cache.clear()  # clear the cache dict
 
     def __del__(self):
         self.close()
