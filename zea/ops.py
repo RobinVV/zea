@@ -1742,7 +1742,7 @@ class PfieldWeighting(Operation):
         Returns:
             dict: Dictionary containing weighted data
         """
-        data = kwargs[self.key]  # must start with (n_tx, n_pix, ...)
+        data = kwargs[self.key]  # must start with ((batch_size,) n_tx, n_pix, ...)
 
         if flat_pfield is None:
             return {self.output_key: data}
@@ -1750,14 +1750,16 @@ class PfieldWeighting(Operation):
         # Swap (n_pix, n_tx) to (n_tx, n_pix)
         flat_pfield = ops.swapaxes(flat_pfield, 0, 1)
 
-        # Perform element-wise multiplication with the pressure weight mask
-        # Also add the required dimensions for broadcasting
+        # Add batch dimension if needed
         if self.with_batch_dim:
             pfield_expanded = ops.expand_dims(flat_pfield, axis=0)
         else:
             pfield_expanded = flat_pfield
 
-        pfield_expanded = extend_n_dims(pfield_expanded, axis=-1, n_dims=ops.ndim(data) - 2)
+        append_n_dims = ops.ndim(data) - ops.ndim(pfield_expanded)
+        pfield_expanded = extend_n_dims(pfield_expanded, axis=-1, n_dims=append_n_dims)
+
+        # Perform element-wise multiplication with the pressure weight mask
         weighted_data = data * pfield_expanded
 
         return {self.output_key: weighted_data}
