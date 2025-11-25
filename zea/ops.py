@@ -2334,6 +2334,7 @@ class Demodulate(Operation):
         }
 
 
+@ops_registry("fir_filter")
 class FirFilter(Operation):
     """Apply a FIR filter to the input signal using convolution.
 
@@ -2364,7 +2365,7 @@ class FirFilter(Operation):
 
     def call(self, **kwargs):
         signal = kwargs[self.key]
-        fir_filter_taps = kwargs.get(self.filter_key)
+        fir_filter_taps = kwargs[self.filter_key]
 
         if self.complex_channels:
             signal = channels_to_complex(signal)
@@ -2381,6 +2382,7 @@ class FirFilter(Operation):
         return {self.output_key: filtered_signal}
 
 
+@ops_registry("low_pass_filter")
 class LowPassFilter(FirFilter):
     """Apply a low-pass FIR filter to the input signal using convolution.
 
@@ -2420,8 +2422,8 @@ class LowPassFilter(FirFilter):
         lpf = get_low_pass_iq_filter(
             self.num_taps,
             ops.convert_to_numpy(sampling_frequency).item(),
-            center_frequency,
-            bandwidth,
+            ops.convert_to_numpy(center_frequency).item(),
+            ops.convert_to_numpy(bandwidth).item(),
         )
         kwargs[self.filter_key] = lpf
         return super().call(**kwargs)
@@ -3227,7 +3229,7 @@ def get_low_pass_iq_filter(num_taps, sampling_frequency, center_frequency, bandw
     Args:
         num_taps (int): number of taps in filter.
         sampling_frequency (float): sample frequency.
-        center_frequencyf (float): center frequency.
+        center_frequency (float): center frequency.
         bandwidth (float): bandwidth in Hz.
 
     Raises:
