@@ -675,16 +675,13 @@ class Scan(Parameters):
 
     @property
     def pulse_repetition_frequency(self):
-        """The pulse repetition frequency (PRF) [Hz] of shape (n_frames,)."""
+        """The pulse repetition frequency (PRF) [Hz]. Assumes a constant PRF."""
         if self.time_to_next_transmit is None:
             log.warning("Time to next transmit is not set, cannot compute PRF")
             return None
 
-        if len(np.unique(self.time_to_next_transmit)) != 1:
-            log.warning("Time to next transmit is not constant, cannot compute PRF")
-            return None
+        pulse_repetition_interval = np.mean(self.time_to_next_transmit)
 
-        pulse_repetition_interval = self.time_to_next_transmit[0][0]  # seconds
         return 1 / pulse_repetition_interval
 
     @cache_with_dependencies("time_to_next_transmit")
