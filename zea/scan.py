@@ -554,7 +554,7 @@ class Scan(Parameters):
 
     @property
     def t_peak(self):
-        """The time of the peak of the pulse in seconds of shape in seconds (n_waveforms,)."""
+        """The time of the peak of the pulse in seconds of shape (n_waveforms,)."""
         t_peak = self._params.get("t_peak")
         if t_peak is None:
             t_peak = np.array([1 / self.center_frequency])
