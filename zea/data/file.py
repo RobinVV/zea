@@ -115,13 +115,6 @@ class File(h5py.File):
         """Alias for get_scan_parameters."""
         return self.get_scan_parameters(event)
 
-    @staticmethod
-    def check_data(data, key):
-        """Check the data for a given key. For example, will check if the shape matches
-        the data type (such as raw_data, ...)"""
-        if key in _DATA_TYPES:
-            get_check(key)(data, with_batch_dim=None)
-
     def format_key(self, key):
         """Format the key to match the data type."""
         # TODO: support events
@@ -216,7 +209,6 @@ class File(h5py.File):
                 raise ValueError(
                     f"Invalid indices {indices} for key {key}. {key} has shape {data.shape}."
                 ) from exc
-            self.check_data(data, key)  # TODO: I don't think this is working
         elif self.events_have_same_shape(key):
             raise NotImplementedError
         else:
