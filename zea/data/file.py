@@ -129,35 +129,32 @@ class File(h5py.File):
             "Indices can be a 'all', int or a List[int, tuple, list, slice, range]."
         )
 
-        # Check all options that only index the first axis
-        if isinstance(indices, str):
-            if indices == "all":
-                return slice(None)
-            else:
-                raise ValueError(_value_error_msg)
-
-        if isinstance(indices, range):
-            return list(indices)
-
+        # These are returned as is
         if isinstance(indices, (int, slice, np.integer)):
             return indices
 
-        # At this point, indices should be a list or tuple
-        assert isinstance(indices, (list, tuple, np.ndarray)), _value_error_msg
+        # Support numpy arrays of integers
+        if isinstance(indices, np.ndarray):
+            if not np.issubdtype(indices.dtype, np.integer):
+                raise ValueError(_value_error_msg)
+            return indices
 
-        assert all(
-            isinstance(idx, (list, tuple, int, slice, range, np.ndarray, np.integer))
-            for idx in indices
-        ), _value_error_msg
+        # Support "all" string
+        if isinstance(indices, str) and indices == "all":
+            return slice(None)
 
-        # Convert ranges to lists
-        processed_indices = [list(idx) if isinstance(idx, range) else idx for idx in indices]
+        # Convert range to list
+        if isinstance(indices, range):
+            return list(indices)
 
-        # Check if items are list-like and cast to tuple (needed for hdf5)
-        if any(isinstance(idx, (list, tuple, slice)) for idx in processed_indices):
-            processed_indices = tuple(processed_indices)
+        # If index is list-like, process each item
+        if isinstance(indices, (list, tuple)):
+            try:
+                return tuple([File._prepare_indices(i) for i in indices])
+            except ValueError:
+                raise ValueError(_value_error_msg)
 
-        return processed_indices
+        raise ValueError(_value_error_msg)
 
     def load_scan(self, event=None):
         """Alias for get_scan_parameters."""
