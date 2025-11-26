@@ -205,7 +205,7 @@ class File(h5py.File):
                 which case all data is loaded.
         """
         key = self.format_key(data_type)
-        if indices is None or indices == "all":
+        if indices is None or (isinstance(indices, str) and indices == "all"):
             indices = slice(None)
 
         if self._simple_index(key):
