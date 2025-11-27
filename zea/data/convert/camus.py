@@ -11,13 +11,13 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, Tuple
-from venv import logger
 
 import numpy as np
 import scipy
 from skimage.transform import resize
 from tqdm import tqdm
 
+from zea import log
 from zea.data.convert.utils import unzip
 from zea.data.data_format import generate_zea_dataset
 from zea.internal.utils import find_first_nonzero_index
@@ -234,7 +234,7 @@ def _process_task(task):
         process_camus(source_file, output_file, output_file_npz, overwrite=False)
     except Exception:
         # Log and re-raise so the main process can handle it
-        logger.exception("Error processing %s", source_file)
+        log.error("Error processing %s", source_file)
         raise
 
 
@@ -282,21 +282,21 @@ def convert_camus(args):
         else:
             tasks.append((str(source_file), str(output_file), None))
     if not tasks:
-        logger.info("No files found to process.")
+        log.info("No files found to process.")
         return
 
     if getattr(args, "no_hyperthreading", False):
-        logger.info("no_hyperthreading is True — running tasks serially (no ProcessPoolExecutor)")
+        log.info("no_hyperthreading is True — running tasks serially (no ProcessPoolExecutor)")
         for t in tqdm(tasks, desc="Processing files (serial)"):
             try:
                 _process_task(t)
             except Exception as e:
-                logger.exception("Task processing failed: %s", e)
-        logger.info("Processing finished for %d files (serial)", len(tasks))
+                log.error("Task processing failed: %s", e)
+        log.info("Processing finished for %d files (serial)", len(tasks))
         return
 
     # Submit tasks to the process pool and track progress
     with ProcessPoolExecutor() as exe:
         for _ in tqdm(exe.map(_process_task, tasks), total=len(tasks), desc="Processing files"):
             pass
-    logger.info("Processing finished for %d files", len(tasks))
+    log.info("Processing finished for %d files", len(tasks))
