@@ -6,7 +6,7 @@ import keras.backend as K
 from zea import log
 
 
-def get_args():
+def get_parser():
     parser = argparse.ArgumentParser(description="Convert raw data to a USBMD dataset.")
     parser.add_argument(
         "dataset",
@@ -74,12 +74,12 @@ def get_args():
         action="store_true",
         help="EchonetLVH: Force recomputation even if parameters already exist",
     )
-    args = parser.parse_args()
-    return args
+    return parser
 
 
 def main():
-    args = get_args()
+    parser = get_parser()
+    args = parser.parse_args()
     if args.dataset == "echonet":
         from .echonet import convert_echonet
 
