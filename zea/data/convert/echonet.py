@@ -1,23 +1,24 @@
 """
 Script to convert the EchoNet database to .npy and zea formats.
 Will segment the images and convert them to polar coordinates.
+
+Data source: https://stanfordaimi.azurewebsites.net/datasets/834e1cd1-92f7-4268-9daa-d359198b310a
 """
 
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from pathlib import Path
-import yaml
 from multiprocessing import Value
+from pathlib import Path
 
 import numpy as np
+import yaml
 from scipy.interpolate import griddata
 from tqdm import tqdm
 
 from zea import log
-from zea.data.convert.utils import load_avi
 from zea.data import generate_zea_dataset
+from zea.data.convert.utils import load_avi, unzip
 from zea.tensor_ops import translate
-from zea.data.convert.utils import unzip
 
 
 def segment(tensor, number_erasing=0, min_clip=0):

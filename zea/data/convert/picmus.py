@@ -1,11 +1,7 @@
 """
 Script to convert the PICMUS database to the zea format.
 
-Example usage:
-```bash
-python zea/data/convert/picmus.py \
---src /mnt/data/PICMUS \
---dst converted_PICMUS_dir
+Data source: https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/download
 ```
 """
 
@@ -18,8 +14,8 @@ import numpy as np
 
 from zea import log
 from zea.beamform.delays import compute_t0_delays_planewave
-from zea.data.data_format import generate_zea_dataset
 from zea.data.convert.utils import unzip
+from zea.data.data_format import generate_zea_dataset
 
 
 def convert(source_path, output_path, output_path_npz=None, overwrite=False):

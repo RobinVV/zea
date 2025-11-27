@@ -1,5 +1,7 @@
 """Functionality to convert the camus dataset to the zea format.
 Requires SimpleITK to be installed: pip install SimpleITK.
+
+Data source: https://humanheart-project.creatis.insa-lyon.fr/database/#collection/6373703d73e9f0047faa1bc8
 """
 
 from __future__ import annotations
