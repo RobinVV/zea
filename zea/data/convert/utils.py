@@ -15,8 +15,7 @@ def load_avi(file_path, mode="L"):
             img = img.convert(mode)
             img = np.array(img)
             frames.append(img)
-    frames = np.stack(frames)
-    return frames
+    return np.stack(frames)
 
 
 def unzip(src: str | Path, dataset: str) -> Path:

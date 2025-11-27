@@ -62,7 +62,7 @@ def overwrite_splits(source_dir):
         log.warning(f"{csv_path} not found, skipping rejections.")
         return
     temp_path.replace(csv_path)
-    log.info(f"Overwritten {rejection_counter}/278 rejections to MeasurementsList.csv")
+    log.info(f"Overwritten {rejection_counter}/278 rejections to {csv_path}")
     return
 
 
@@ -229,7 +229,6 @@ class LVHProcessor(H5Processor):
         sequence = np.array(load_avi(avi_file))
 
         sequence = translate(sequence, self.range_from, self._process_range)
-
         # Get pre-computed cone parameters for this file
         cone_params = self.cone_parameters.get(avi_filename)
         if cone_params is not None:
@@ -469,7 +468,7 @@ def convert_echonetlvh(args):
         log.info("Starting the conversion process.")
 
         if not args.no_hyperthreading:
-            with ProcessPoolExecutor() as executor:
+            with ProcessPoolExecutor(max_workers=min(64, os.cpu_count())) as executor:
                 futures = {executor.submit(processor, file): file for file in files_to_process}
                 for future in tqdm(as_completed(futures), total=len(files_to_process)):
                     try:
