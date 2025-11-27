@@ -1,9 +1,4 @@
 import argparse
-import os
-
-import keras.backend as K
-
-from zea import log
 
 
 def get_parser():
@@ -81,30 +76,24 @@ def main():
     parser = get_parser()
     args = parser.parse_args()
     if args.dataset == "echonet":
-        from .echonet import convert_echonet
+        from zea.data.convert.echonet import convert_echonet
 
         convert_echonet(args)
     elif args.dataset == "echonetlvh":
-        from .echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
+        from zea.data.convert.echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
 
         convert_echonetlvh(args)
     elif args.dataset == "camus":
-        from .camus import convert_camus
+        from zea.data.convert.camus import convert_camus
 
         convert_camus(args)
     elif args.dataset == "picmus":
-        from .picmus import convert_picmus
+        from zea.data.convert.picmus import convert_picmus
 
         convert_picmus(args)
     elif args.dataset == "matlab":
-        from .matlab import convert_matlab
+        from zea.data.convert.matlab import convert_matlab
 
-        keras_backend = K.backend()
-        cpu = os.environ.get("CUDA_VISIBLE_DEVICES") in ["", "-1"]
-        if keras_backend == "jax" and cpu:
-            log.error(
-                "For MATLAB conversion with JAX, GPU is required. Consider a different backend."
-            )
         convert_matlab(args)
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")
