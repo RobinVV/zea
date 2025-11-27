@@ -6,7 +6,7 @@ The indices parameter can be used to load a subset of the data. This can be
 
 - a ``List[int]`` to load specific frames
 
-- a ``tuple`` of lists or slices to index multiple axes (i.e. frames and transmits). Note that
+- a ``Tuple[Union[list, slice, int], ...]`` to index multiple axes (i.e. frames and transmits). Note that
     indexing with lists of indices for multiple axes is not supported. In that case,
     try to define one of the axes with a slice for optimal performance. Alternatively,
     slice the data after loading.

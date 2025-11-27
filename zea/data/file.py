@@ -2,6 +2,7 @@
 
 import enum
 from pathlib import Path
+from typing import List, Tuple, Union
 
 import h5py
 import numpy as np
@@ -164,7 +165,11 @@ class File(h5py.File):
         indices = (slice(None), np.array(selected_transmits))
         return self.load_data(key, indices)
 
-    def load_data(self, data_type, indices=None):
+    def load_data(
+        self,
+        data_type,
+        indices: Tuple[Union[list, slice, int], ...] | List[int] | int | None = None,
+    ):
         """Load data from the file.
 
         .. include:: ../common/file_indexing.rst
@@ -442,7 +447,7 @@ class File(h5py.File):
 
 def load_file_all_data_types(
     path,
-    indices=None,
+    indices: Tuple[Union[list, slice, int], ...] | List[int] | int | None = None,
     scan_kwargs: dict = None,
 ):
     """Loads a zea data files (h5py file).
@@ -500,7 +505,7 @@ def load_file_all_data_types(
 def load_file(
     path,
     data_type="raw_data",
-    indices=None,
+    indices: Tuple[Union[list, slice, int], ...] | List[int] | int | None = None,
     scan_kwargs: dict = None,
 ):
     """Loads a zea data files (h5py file).
