@@ -1,13 +1,9 @@
-import os
 import argparse
+import os
 
 import keras.backend as K
+
 from zea import log
-from .camus import convert_camus
-from .matlab import convert_matlab
-from .picmus import convert_picmus
-from .echonet import convert_echonet
-from .echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
 
 
 def get_args():
@@ -101,6 +97,8 @@ def main():
 
         convert_picmus(args)
     elif args.dataset == "matlab":
+        from .matlab import convert_matlab
+
         keras_backend = K.backend()
         cpu = os.environ.get("CUDA_VISIBLE_DEVICES") in ["", "-1"]
         if keras_backend == "jax" and cpu:
