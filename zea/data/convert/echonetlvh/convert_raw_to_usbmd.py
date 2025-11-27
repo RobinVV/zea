@@ -245,11 +245,6 @@ class LVHProcessor(H5Processor):
             polar_im_set.append(cartesian_to_polar_matrix(im))
         polar_im_set = np.stack(polar_im_set, axis=0)
 
-        if self._to_numpy:
-            out_npz = self.path_out / split / (Path(avi_file).stem + ".npz")
-            out_npz.mkdir(parents=True, exist_ok=True)
-            np.savez(out_npz, image=np.array(polar_im_set), image_sc=np.array(sequence))
-
         zea_dataset = {
             "path": out_h5,
             # store as uint8 for memory efficiency
@@ -458,12 +453,7 @@ def convert_echonetlvh(args):
         log.info(f"Files left to process: {len(files_to_process)}")
 
         # Initialize processor with splits and cone parameters
-        processor = LVHProcessor(
-            path_out_h5=args.dst,
-            path_out=args.dst_npz,
-            splits=splits,
-            cone_params=cone_parameters,
-        )
+        processor = LVHProcessor(path_out_h5=args.dst, splits=splits, cone_params=cone_parameters)
 
         log.info("Starting the conversion process.")
 

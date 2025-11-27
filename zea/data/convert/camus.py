@@ -150,13 +150,12 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
     return im_array, metadata
 
 
-def process_camus(source_path, output_path, output_path_npz=None, overwrite=False):
+def process_camus(source_path, output_path, overwrite=False):
     """Converts the camus database to the zea format.
 
     Args:
         source_path (str, pathlike): The path to the original camus file.
         output_path (str, pathlike): The path to the output file.
-        output_path_npz (str, pathlike, optional): The path to the numpy output if desired.
         overwrite (bool, optional): Set to True to overwrite existing file.
             Defaults to False.
     """
@@ -181,14 +180,6 @@ def process_camus(source_path, output_path, output_path_npz=None, overwrite=Fals
     # Change range to [-60, 0] dB
     image_seq = translate(image_seq, (0, 255), (-60, 0))
     image_seq_polar = translate(image_seq_polar, (0, 255), (-60, 0))
-
-    if output_path_npz is not None:
-        # Save as numpy file
-        np.savez_compressed(
-            output_path_npz,
-            image=image_seq_polar,
-            image_sc=image_seq,
-        )
 
     generate_zea_dataset(
         path=output_path,
@@ -215,23 +206,18 @@ def get_split(patient_id: int) -> str:
 
 
 def _process_task(task):
-    """Unpack task tuple and call process_camus from the main module.
-    task: (source_file_str, output_file_str, output_file_npz_str_or_None)
-    """
-    source_file_str, output_file_str, output_file_npz_str = task
+    """Unpack task tuple and call process_camus from the main module."""
+    source_file_str, output_file_str = task
     source_file = Path(source_file_str)
     output_file = Path(output_file_str)
 
     # Ensure destination directories exist (safe to call from multiple processes)
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    output_file_npz = Path(output_file_npz_str) if output_file_npz_str else None
-    if output_file_npz is not None:
-        output_file_npz.parent.mkdir(parents=True, exist_ok=True)
 
     # Call the real processing function (must be importable in the worker)
     # If process_camus lives in another module, import it there instead.
     try:
-        process_camus(source_file, output_file, output_file_npz, overwrite=False)
+        process_camus(source_file, output_file, overwrite=False)
     except Exception:
         # Log and re-raise so the main process can handle it
         log.error("Error processing %s", source_file)
@@ -239,11 +225,8 @@ def _process_task(task):
 
 
 def convert_camus(args):
-    to_numpy = args.dst_npz is not None
-
     camus_source_folder = Path(args.src)
     camus_output_folder = Path(args.dst)
-    camus_output_folder_npz = Path(args.dst_npz) if to_numpy else None
 
     # Look for either CAMUS_public.zip or folders database_nifti, database_split
     camus_source_folder = unzip(camus_source_folder, "camus")
@@ -272,15 +255,7 @@ def convert_camus(args):
         # make sure folder exists
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
-        if to_numpy:
-            output_file_npz = (
-                camus_output_folder_npz / split / source_file.relative_to(camus_source_folder)
-            )
-            output_file_npz = output_file_npz.with_suffix("").with_suffix(".npz")
-            output_file_npz.parent.mkdir(parents=True, exist_ok=True)
-            tasks.append((str(source_file), str(output_file), str(output_file_npz)))
-        else:
-            tasks.append((str(source_file), str(output_file), None))
+        tasks.append((str(source_file), str(output_file)))
     if not tasks:
         log.info("No files found to process.")
         return

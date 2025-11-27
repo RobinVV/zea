@@ -260,7 +260,6 @@ class H5Processor:
     def __init__(
         self,
         path_out_h5,
-        path_out=None,
         num_val=500,
         num_test=500,
         range_from=(0, 255),
@@ -268,7 +267,6 @@ class H5Processor:
         splits=None,
     ):
         self.path_out_h5 = Path(path_out_h5)
-        self.path_out = Path(path_out) if path_out else None
         self.num_val = num_val
         self.num_test = num_test
         self.range_from = range_from
@@ -278,13 +276,7 @@ class H5Processor:
 
         # Ensure train, val, test, rejected paths exist
         for folder in ["train", "val", "test", "rejected"]:
-            if self._to_numpy:
-                (self.path_out / folder).mkdir(parents=True, exist_ok=True)
             (self.path_out_h5 / folder).mkdir(parents=True, exist_ok=True)
-
-    @property
-    def _to_numpy(self):
-        return self.path_out is not None
 
     def _translate(self, data):
         """Translate the data from the processing range to final range."""
@@ -360,9 +352,6 @@ class H5Processor:
         accepted = split != "rejected"
 
         out_h5 = self.path_out_h5 / split / hdf5_file
-        if self._to_numpy:
-            out_dir = self.path_out / split / avi_file.stem
-            out_dir.mkdir(parents=True, exist_ok=True)
 
         polar_im_set = []
         for _, im in enumerate(sequence):
@@ -379,13 +368,6 @@ class H5Processor:
         # Check the ranges
         assert sequence.min() >= self._process_range[0], sequence.min()
         assert sequence.max() <= self._process_range[1], sequence.max()
-
-        if self._to_numpy:
-            np.savez(
-                out_dir / "data.npz",
-                image_sc=self._translate(sequence),
-                image=self._translate(polar_im_set),
-            )
 
         zea_dataset = {
             "path": out_h5,
@@ -426,7 +408,7 @@ def convert_echonet(args):
     log.info(f"Files left to process: {len(h5_files)}")
 
     # Run the processor
-    processor = H5Processor(path_out_h5=args.dst, path_out=args.dst_npz, splits=splits)
+    processor = H5Processor(path_out_h5=args.dst, splits=splits)
 
     log.info("Starting the conversion process.")
 

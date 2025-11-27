@@ -11,12 +11,6 @@ def get_parser():
     parser.add_argument("src", type=str, help="Source folder path")
     parser.add_argument("dst", type=str, help="Destination folder path")
     parser.add_argument(
-        "--dst_npz",
-        type=str,
-        default=None,
-        help="Additional destination folder path if also saving to numpy",
-    )
-    parser.add_argument(
         "--split_path",
         type=str,
         help="Path to the split.yaml file containing the dataset split if a split should be copied",
