@@ -143,9 +143,8 @@ def convert_picmus(args):
         # Select only the data files that actually contain rf or iq data
         # (There are also files containing the geometry of the phantoms or
         # images)
-        if (
-            not str_file.endswith("iq.hdf5") or not str_file.endswith("rf.hdf5")
-        ) and "img" in str_file:
+        is_data_file = str_file.endswith("iq.hdf5") or str_file.endswith("rf.hdf5")
+        if not is_data_file or "img" in str_file:
             log.info("Skipping %s", file.name)
             continue
 
