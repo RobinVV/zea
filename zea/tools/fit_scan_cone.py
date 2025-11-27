@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from zea import log
+from zea.tensor_ops import translate
 
 
 def filter_edge_points_by_boundary(edge_points, is_left=True, min_cone_half_angle_deg=20):
@@ -82,7 +83,7 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
     5. Calculates cone parameters including apex position, opening angle, and crop boundaries
 
     Args:
-        image: 2D numpy array of type np.uint8 (grayscale image)
+        image: 2D numpy array (grayscale image)
         min_cone_half_angle_deg: Minimum expected half-angle of the cone in degrees
         threshold: Threshold for binary image (pixels above this are considered data)
 
@@ -99,24 +100,14 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
     Raises:
         ValueError: If input image is not 2D or cone detection fails
     """
-    try:
-        import cv2
-    except ImportError as exc:
-        raise ImportError(
-            "OpenCV is required for cone detection and visualization. "
-            "Please install it with 'pip install opencv-python' or "
-            "'pip install opencv-python-headless'."
-        ) from exc
 
     if len(image.shape) != 2:
         raise ValueError("Input image must be 2D (grayscale)")
 
-    assert image.dtype == np.uint8, "Image must be of type uint8"
-
     h, w = image.shape
 
     # Apply threshold
-    _, thresh = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY)
+    thresh = np.where(image > threshold, 255, 0)
 
     # Find non-zero pixel bounds
     non_zero_indices = np.argwhere(thresh > 0)
@@ -375,15 +366,17 @@ def crop_and_center_cone(image, cone_params):
 
 
 def fit_and_crop_around_scan_cone(
-    image, min_cone_half_angle_deg=20, threshold=15, return_params=False
+    image, image_range, min_cone_half_angle_deg=20, threshold=15, return_params=False
 ):
     """
     Detect scan cone in ultrasound image and return cropped/padded image with centered apex.
 
     Args:
         image: numpy array (2D grayscale image)
+        image_range: tuple (vmin, vmax) for display scaling
         min_cone_half_angle_deg: Minimum expected half-angle of the cone in degrees (default: 20)
-        threshold: Threshold for binary image - pixels above this are considered data (default: 15)
+        threshold: Threshold for binary image - pixels above this are considered data.
+            This is always on a scale of 0-255 (default: 15).
         return_params: If True, also return cone parameters (default: False)
 
     Returns:
@@ -398,6 +391,7 @@ def fit_and_crop_around_scan_cone(
         raise ValueError(f"Input must be 2D grayscale image, got shape {image.shape}")
 
     # Detect cone parameters
+    threshold = translate(threshold, range_from=(0, 255), range_to=image_range)
     cone_params = detect_cone_parameters(
         image,
         min_cone_half_angle_deg=min_cone_half_angle_deg,
@@ -610,7 +604,11 @@ def main(avi_path):
     try:
         # Fit scan cone
         _, cone_params = fit_and_crop_around_scan_cone(
-            frame, min_cone_half_angle_deg=20, threshold=15, return_params=True
+            frame,
+            image_range=(0, 255),
+            min_cone_half_angle_deg=20,
+            threshold=15,
+            return_params=True,
         )
 
         # Create visualization

@@ -122,7 +122,6 @@ def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error):
     cartesian_data, _ = display.scan_convert_2d(polar_data, rho_range, theta_range)
 
     # Inverse scan convert
-    cartesian_data = display.to_8bit(cartesian_data, dynamic_range=(0, 1), pillow=False)
     cartesian_data_inv = display.inverse_scan_convert_2d(
         cartesian_data, output_size=polar_data.shape, find_scan_cone=False
     )
@@ -174,7 +173,7 @@ def test_scan_conversion_and_inverse_padded(size, pattern_creator, allowed_error
     top_padding = ops.zeros((20, ops.shape(cartesian_data_padded)[1]))
     cartesian_data_padded = ops.concatenate([top_padding, cartesian_data_padded], axis=0)
     cartesian_data_inv = display.inverse_scan_convert_2d(
-        cartesian_data_padded, output_size=polar_data.shape, find_scan_cone=True
+        cartesian_data_padded, output_size=polar_data.shape, find_scan_cone=True, image_range=(0, 1)
     )
     cartesian_data_inv = ops.convert_to_numpy(cartesian_data_inv)
     mean_squared_error = ((polar_data - cartesian_data_inv) ** 2).mean()
