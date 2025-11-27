@@ -82,7 +82,7 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
     5. Calculates cone parameters including apex position, opening angle, and crop boundaries
 
     Args:
-        image: 2D numpy array (grayscale image)
+        image: 2D numpy array of type np.uint8 (grayscale image)
         min_cone_half_angle_deg: Minimum expected half-angle of the cone in degrees
         threshold: Threshold for binary image (pixels above this are considered data)
 
@@ -111,9 +111,7 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
     if len(image.shape) != 2:
         raise ValueError("Input image must be 2D (grayscale)")
 
-    # Ensure image is in proper range for cv2.threshold
-    if image.dtype != np.uint8:
-        image = np.uint8(image * 255)
+    assert image.dtype == np.uint8, "Image must be of type uint8"
 
     h, w = image.shape
 

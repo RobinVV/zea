@@ -7,11 +7,12 @@ without padding, such that it can be converted to polar domain.
 This cropping requires first computing scan cone parameters
 using `data/convert/echonetlvh/precompute_crop.py`, which
 are then passed to this script.
+
+Data source: https://stanfordaimi.azurewebsites.net/datasets/5b7fcc28-579c-4285-8b72-e4238eac7bd1
 """
 
-import os
 import csv
-
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
@@ -21,11 +22,10 @@ from tqdm import tqdm
 from zea import log
 from zea.data import generate_zea_dataset
 from zea.data.convert.echonet import H5Processor
+from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_parameters
+from zea.data.convert.utils import load_avi, unzip
 from zea.display import cartesian_to_polar_matrix
 from zea.tensor_ops import translate
-from zea.data.convert.utils import load_avi
-from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_parameters
-from zea.data.convert.utils import unzip
 
 
 def overwrite_splits(source_dir):

@@ -1,14 +1,16 @@
 """Functionality to convert the camus dataset to the zea format.
 Requires SimpleITK to be installed: pip install SimpleITK.
+
+Data source: https://humanheart-project.creatis.insa-lyon.fr/database/#collection/6373703d73e9f0047faa1bc8
 """
 
 from __future__ import annotations
 
 import logging
 import os
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, Tuple
-from concurrent.futures import ProcessPoolExecutor
 from venv import logger
 
 import numpy as np
@@ -16,10 +18,10 @@ import scipy
 from skimage.transform import resize
 from tqdm import tqdm
 
+from zea.data.convert.utils import unzip
 from zea.data.data_format import generate_zea_dataset
 from zea.internal.utils import find_first_nonzero_index
 from zea.tensor_ops import translate
-from zea.data.convert.utils import unzip
 
 
 def transform_sc_image_to_polar(image_sc, output_size=None, fit_outline=True):
@@ -294,7 +296,7 @@ def convert_camus(args):
         return
 
     # Submit tasks to the process pool and track progress
-    with ProcessPoolExecutor(max_workers=64) as exe:
+    with ProcessPoolExecutor() as exe:
         for _ in tqdm(exe.map(_process_task, tasks), total=len(tasks), desc="Processing files"):
             pass
     logger.info("Processing finished for %d files", len(tasks))

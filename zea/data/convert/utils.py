@@ -1,13 +1,24 @@
-import imageio
-from PIL import Image
-import numpy as np
+import zipfile
 from pathlib import Path
-import sys
+
+import imageio
+import numpy as np
+from PIL import Image
 
 from zea import log
 
 
 def load_avi(file_path, mode="L"):
+    """Load a .avi file and return a numpy array of frames.
+
+    Args:
+        filename (str): The path to the video file.
+        mode (str, optional): Color mode: "L" (grayscale) or "RGB".
+            Defaults to "L".
+
+    Returns:
+        numpy.ndarray: Array of frames (num_frames, H, W) or (num_frames, H, W, C)
+    """
     frames = []
     with imageio.get_reader(file_path) as reader:
         for frame in reader:
@@ -41,8 +52,7 @@ def unzip(src: str | Path, dataset: str) -> Path:
         folder_name = "Batch1"
         unzip_dir = src
     else:
-        log.error(f"Dataset {dataset} not recognized for unzip.")
-        sys.exit(1)
+        raise ValueError(f"Dataset {dataset} not recognized for unzip.")
 
     if (src / folder_name).exists():
         if dataset == "echonetlvh":
@@ -58,10 +68,7 @@ def unzip(src: str | Path, dataset: str) -> Path:
 
     zip_path = src / zip_name
     if not zip_path.exists():
-        log.error(f"Could not find {zip_name} or {folder_name} folder in {src}.")
-        sys.exit()
-
-    import zipfile
+        raise FileNotFoundError(f"Could not find {zip_name} or {folder_name} folder in {src}.")
 
     log.info(f"Unzipping {zip_path} to {src}...")
     with zipfile.ZipFile(zip_path, "r") as zip_ref:

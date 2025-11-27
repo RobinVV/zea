@@ -85,12 +85,20 @@ def get_args():
 def main():
     args = get_args()
     if args.dataset == "echonet":
+        from .echonet import convert_echonet
+
         convert_echonet(args)
     elif args.dataset == "echonetlvh":
+        from .echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
+
         convert_echonetlvh(args)
     elif args.dataset == "camus":
+        from .camus import convert_camus
+
         convert_camus(args)
     elif args.dataset == "picmus":
+        from .picmus import convert_picmus
+
         convert_picmus(args)
     elif args.dataset == "matlab":
         keras_backend = K.backend()

@@ -1,12 +1,7 @@
 """
 Script to convert the PICMUS database to the zea format.
 
-Example usage:
-```bash
-python zea/data/convert/picmus.py \
---src /mnt/data/PICMUS \
---dst converted_PICMUS_dir
-```
+Data source: https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/download
 """
 
 import logging
@@ -18,8 +13,8 @@ import numpy as np
 
 from zea import log
 from zea.beamform.delays import compute_t0_delays_planewave
-from zea.data.data_format import generate_zea_dataset
 from zea.data.convert.utils import unzip
+from zea.data.data_format import generate_zea_dataset
 
 
 def convert(source_path, output_path, output_path_npz=None, overwrite=False):
@@ -147,9 +142,8 @@ def convert_picmus(args):
         # Select only the data files that actually contain rf or iq data
         # (There are also files containing the geometry of the phantoms or
         # images)
-        if (
-            not str_file.endswith("iq.hdf5") or not str_file.endswith("rf.hdf5")
-        ) and "img" in str_file:
+        is_data_file = str_file.endswith("iq.hdf5") or str_file.endswith("rf.hdf5")
+        if not is_data_file or "img" in str_file:
             log.info("Skipping %s", file.name)
             continue
 
