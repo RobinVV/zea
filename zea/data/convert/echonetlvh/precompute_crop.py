@@ -60,7 +60,7 @@ def load_first_frame(avi_file):
         avi_file: Path to the video file
 
     Returns:
-        First frame as numpy array
+        First frame as numpy array of shape (H, W) and dtype np.uint8 (grayscale)
     """
     try:
         import cv2
