@@ -152,7 +152,7 @@ class File(h5py.File):
     def load_transmits(self, key, selected_transmits):
         """Load raw_data or aligned_data for a given list of transmits.
         Args:
-            data_type (str): The type of data to load. Options are 'raw_data' and 'aligned_data'.
+            key (str): The type of data to load. Options are 'raw_data' and 'aligned_data'.
             selected_transmits (list, np.ndarray): The transmits to load.
         """
         key = self.format_key(key)
@@ -160,7 +160,8 @@ class File(h5py.File):
         assert data_type in ["raw_data", "aligned_data"], (
             f"Cannot load transmits for {data_type}. Only raw_data and aligned_data are supported."
         )
-        indices = [slice(None), np.array(selected_transmits)]
+        # First axis: all frames, second axis: selected transmits
+        indices = (slice(None), np.array(selected_transmits))
         return self.load_data(key, indices)
 
     def load_data(self, data_type, indices=None):
@@ -455,7 +456,7 @@ def load_file_all_data_types(
 
     Args:
         path (str, pathlike): The path to the hdf5 file.
-        indices (str, int, list, optional): The indices to load. Defaults to None in
+        indices (optional): The indices to load. Defaults to None in
             which case all frames are loaded.
         scan_kwargs (Config, dict, optional): Additional keyword arguments
             to pass to the Scan object. These will override the parameters from the file
