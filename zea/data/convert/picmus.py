@@ -2,7 +2,6 @@
 Script to convert the PICMUS database to the zea format.
 
 Data source: https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/download
-```
 """
 
 import logging
