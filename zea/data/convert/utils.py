@@ -26,10 +26,6 @@ def load_avi(file_path, mode="L"):
             img = img.convert(mode)
             img = np.array(img)
             frames.append(img)
-
-    if not frames:
-        raise ValueError(f"No frames found in video file: {file_path}")
-
     return np.stack(frames)
 
 

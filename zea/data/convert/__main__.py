@@ -1,4 +1,13 @@
+import os
 import argparse
+
+import keras.backend as K
+from zea import log
+from .camus import convert_camus
+from .matlab import convert_matlab
+from .picmus import convert_picmus
+from .echonet import convert_echonet
+from .echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
 
 
 def get_args():
@@ -47,6 +56,7 @@ def get_args():
     parser.add_argument(
         "--batch",
         type=str,
+        default=None,
         help="EchonetLVH: Specify which BatchX directory to process, e.g. --batch=Batch2",
     )
     parser.add_argument(
@@ -91,8 +101,12 @@ def main():
 
         convert_picmus(args)
     elif args.dataset == "matlab":
-        from .matlab import convert_matlab
-
+        keras_backend = K.backend()
+        cpu = os.environ.get("CUDA_VISIBLE_DEVICES") in ["", "-1"]
+        if keras_backend == "jax" and cpu:
+            log.error(
+                "For MATLAB conversion with JAX, GPU is required. Consider a different backend."
+            )
         convert_matlab(args)
     else:
         raise ValueError(f"Unknown dataset: {args.dataset}")

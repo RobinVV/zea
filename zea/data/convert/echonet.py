@@ -409,6 +409,7 @@ def convert_echonet(args):
         splits = {"train": None, "val": None, "test": None, "rejected": None}
         with open(yaml_file, "r") as f:
             splits = yaml.safe_load(f)
+        log.info(f"Processor initialized with train-val-test split from {yaml_file}.")
     else:
         splits = None
 
@@ -432,9 +433,12 @@ def convert_echonet(args):
     if not args.no_hyperthreading:
         shared_counter = Value("i", 0)
         with ProcessPoolExecutor(initializer=count_init, initargs=(shared_counter,)) as executor:
-            futures = {executor.submit(processor, file): file for file in h5_files}
-            for future in tqdm(as_completed(futures), total=len(h5_files)):
-                future.result()
+            futures = [executor.submit(processor, file) for file in h5_files]
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                try:
+                    future.result()
+                except Exception:
+                    log.warning("Task raised an exception")
     else:
         # Initialize global variable for counting
         count_init(Value("i", 0))
