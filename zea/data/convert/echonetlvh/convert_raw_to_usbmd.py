@@ -16,6 +16,8 @@ import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+import jax.numpy as jnp
+from jax import jit, vmap
 import numpy as np
 from tqdm import tqdm
 
@@ -156,8 +158,8 @@ def crop_frame_with_params(frame, cone_params):
         cropped = frame[0:crop_bottom, crop_left:crop_right]
         # Add top padding
         top_padding = -crop_top
-        top_pad = np.zeros((top_padding, cropped.shape[1]), dtype=cropped.dtype)
-        cropped = np.concatenate([top_pad, cropped], axis=0)
+        top_pad = jnp.zeros((top_padding, cropped.shape[1]), dtype=cropped.dtype)
+        cropped = jnp.concatenate([top_pad, cropped], axis=0)
     else:
         cropped = frame[crop_top:crop_bottom, crop_left:crop_right]
 
@@ -172,12 +174,12 @@ def crop_frame_with_params(frame, cone_params):
 
     if left_padding > 0 or right_padding > 0:
         if left_padding > 0:
-            left_pad = np.zeros((cropped_height, left_padding), dtype=cropped.dtype)
-            cropped = np.concatenate([left_pad, cropped], axis=1)
+            left_pad = jnp.zeros((cropped_height, left_padding), dtype=cropped.dtype)
+            cropped = jnp.concatenate([left_pad, cropped], axis=1)
 
         if right_padding > 0:
-            right_pad = np.zeros((cropped_height, right_padding), dtype=cropped.dtype)
-            cropped = np.concatenate([cropped, right_pad], axis=1)
+            right_pad = jnp.zeros((cropped_height, right_padding), dtype=cropped.dtype)
+            cropped = jnp.concatenate([cropped, right_pad], axis=1)
 
     return cropped
 
@@ -193,8 +195,8 @@ def crop_sequence_with_params(sequence, cone_params):
     Returns:
         Cropped and padded sequence
     """
-    cropped_frames = [crop_frame_with_params(frame, cone_params) for frame in sequence]
-    return np.stack(cropped_frames, axis=0)
+    crop_sequence = vmap(lambda frame: crop_frame_with_params(frame, cone_params))
+    return crop_sequence(sequence)
 
 
 class LVHProcessor(H5Processor):
@@ -203,6 +205,8 @@ class LVHProcessor(H5Processor):
     def __init__(self, *args, cone_params=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Store the pre-computed cone parameters
+        self.cart2pol_jit = jit(cartesian_to_polar_matrix)
+        self.cart2pol_batched = vmap(self.cart2pol_jit)
         self.cone_parameters = cone_params or {}
 
     def get_split(self, avi_file: str, sequence):
@@ -236,14 +240,12 @@ class LVHProcessor(H5Processor):
             sequence = crop_sequence_with_params(sequence, cone_params)
         else:
             log.warning(f"No cone parameters for {avi_filename}, using original sequence")
-        sequence = np.array(sequence)
+        sequence = jnp.array(sequence)
+        
         split = self.get_split(avi_file, sequence)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
 
-        polar_im_set = []
-        for im in sequence.astype(np.float32):
-            polar_im_set.append(cartesian_to_polar_matrix(im))
-        polar_im_set = np.stack(polar_im_set, axis=0)
+        polar_im_set = self.cart2pol_batched(sequence)
 
         zea_dataset = {
             "path": out_h5,
@@ -393,6 +395,14 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
         log.error(f"Error processing CSV file: {str(e)}")
         raise
 
+def _process_file_worker(avi_file, dst, splits, cone_parameters, range_from, process_range):
+    # create a fresh processor inside the worker process
+    proc = LVHProcessor(path_out_h5=dst, splits=splits, cone_params=cone_parameters)
+    # if LVHProcessor needs range_from/_process_range set, set them here
+    proc.range_from = range_from
+    proc._process_range = process_range
+    return proc(avi_file)
+
 
 def convert_echonetlvh(args):
     # Check if unzip is needed
@@ -458,8 +468,20 @@ def convert_echonetlvh(args):
         log.info("Starting the conversion process.")
 
         if not args.no_hyperthreading:
+            # DO NOT create a processor here for submission
             with ProcessPoolExecutor(max_workers=min(64, os.cpu_count())) as executor:
-                futures = {executor.submit(processor, file): file for file in files_to_process}
+                futures = {
+                    executor.submit(
+                        _process_file_worker,
+                        str(file),            # avi_file
+                        args.dst,             # dst (Path or str)
+                        splits,               # splits (picklable dict of lists)
+                        cone_parameters,      # cone params dict (picklable)
+                        processor.range_from, # only if needed; better pass primitives
+                        processor._process_range
+                    ): file
+                    for file in files_to_process
+                }
                 for future in tqdm(as_completed(futures), total=len(files_to_process)):
                     try:
                         future.result()
