@@ -241,7 +241,7 @@ class LVHProcessor(H5Processor):
         else:
             log.warning(f"No cone parameters for {avi_filename}, using original sequence")
         sequence = jnp.array(sequence)
-        
+
         split = self.get_split(avi_file, sequence)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
 
@@ -395,6 +395,7 @@ def convert_measurements_csv(source_csv, output_csv, cone_params_csv=None):
         log.error(f"Error processing CSV file: {str(e)}")
         raise
 
+
 def _process_file_worker(avi_file, dst, splits, cone_parameters, range_from, process_range):
     # create a fresh processor inside the worker process
     proc = LVHProcessor(path_out_h5=dst, splits=splits, cone_params=cone_parameters)
@@ -473,12 +474,12 @@ def convert_echonetlvh(args):
                 futures = {
                     executor.submit(
                         _process_file_worker,
-                        str(file),            # avi_file
-                        args.dst,             # dst (Path or str)
-                        splits,               # splits (picklable dict of lists)
-                        cone_parameters,      # cone params dict (picklable)
-                        processor.range_from, # only if needed; better pass primitives
-                        processor._process_range
+                        str(file),  # avi_file
+                        args.dst,  # dst (Path or str)
+                        splits,  # splits (picklable dict of lists)
+                        cone_parameters,  # cone params dict (picklable)
+                        processor.range_from,  # only if needed; better pass primitives
+                        processor._process_range,
                     ): file
                     for file in files_to_process
                 }
