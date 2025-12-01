@@ -55,7 +55,7 @@ class RandomCircleInclusion(layers.Layer):
             recovery_threshold (float): Threshold for considering a pixel as recovered.
             randomize_location_across_batch (bool): If True (and with_batch_dim=True),
                 each batch element gets a different random center. If False, all batch
-                elements share the same center. **Ignored when with_batch_dim=False**.
+                elements share the same center.
             seed (Any): Optional random seed for reproducibility.
             width_range (tuple[int, int], optional): Range (min, max) for circle
                 center x (width axis).
@@ -89,11 +89,19 @@ class RandomCircleInclusion(layers.Layer):
             )
         # Convert radius to tuple if int, else validate tuple
         if isinstance(radius, int):
+            if radius <= 0:
+                raise ValueError(f"radius must be a positive integer, got {radius}.")
             self.radius = (radius, radius)
         elif isinstance(radius, tuple) and len(radius) == 2:
-            self.radius = tuple(radius)
+            rx, ry = radius
+            if not all(isinstance(r, int) for r in (rx, ry)):
+                raise TypeError(f"radius tuple must contain two integers, got {radius!r}.")
+            if rx <= 0 or ry <= 0:
+                raise ValueError(f"radius components must be positive, got {radius!r}.")
+            self.radius = (rx, ry)
         else:
-            raise ValueError("radius must be an int or a tuple of two ints")
+            raise TypeError("radius must be an int or a tuple of two ints")
+
         self.fill_value = fill_value
         self.circle_axes = circle_axes
         self.with_batch_dim = with_batch_dim
