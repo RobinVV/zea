@@ -474,7 +474,8 @@ class RandomCircleInclusion(layers.Layer):
 
          Returns:
             Tuple[Tensor, Tensor]:
-                - percent_recovered: [batch] - average recovery percentage per batch element
+                - percent_recovered: [batch] - average recovery percentage per batch element,
+                  averaged across all non-batch dimensions (e.g., frames, slices)
                 - recovered_masks: [batch, flat_batch, h, w] or [batch, h, w] or [flat_batch, h, w]
                    depending on input shape - binary mask of detected circle regions
         """
@@ -501,10 +502,12 @@ class RandomCircleInclusion(layers.Layer):
                 (images, centers),
             )
             percent_recovered, recovered_masks = results
-            # If there are multiple circles per batch element
-            # take the mean across all circles
+            # If there are multiple circles per batch element (e.g., multiple frames/slices),
+            # take the mean across all non-batch dimensions to get one value per batch element
             if len(percent_recovered.shape) > 1:
-                percent_recovered = ops.mean(percent_recovered, axis=-1)
+                # Average over all axes except the batch dimension (axis 0)
+                axes_to_reduce = tuple(range(1, len(percent_recovered.shape)))
+                percent_recovered = ops.mean(percent_recovered, axis=axes_to_reduce)
             return percent_recovered, recovered_masks
         else:
             percent_recovered, recovered_mask = _evaluate_recovered_circle_accuracy(images, centers)
