@@ -2387,7 +2387,7 @@ class LowPassFilter(FirFilter):
     """Apply a low-pass FIR filter to the input signal using convolution.
 
     It is recommended to use :class:`FirFilter` with pre-computed filter taps for jittable
-    operations. This operation is provided for convenience and is not jittable.
+    operations. The :class:`LowPassFilter` operation itself is not jittable and is provided for convenience only.
 
     Uses :func:`get_low_pass_iq_filter` to compute the filter taps.
     """
