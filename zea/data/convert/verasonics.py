@@ -1045,7 +1045,7 @@ def get_answer(prompt, additional_options=None):
         log.warning("Invalid input.")
 
 
-def convert_matlab(args):
+def convert_verasonics(args):
     # Variable to indicate what to do with existing files.
     # Is set by the user in case these are found.
     existing_file_policy = None
