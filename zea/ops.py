@@ -804,59 +804,9 @@ class Pipeline:
             return params
 
     def __str__(self):
-        """String representation of the pipeline.
-
-        Will print on two parallel pipeline lines if it detects a splitting operations
-        (such as multi_bandpass_filter)
-        Will merge the pipeline lines if it detects a stacking operation (such as stack)
-        """
-        split_operations = []
-        merge_operations = ["Stack"]
-
+        """String representation of the pipeline."""
         operations = [operation.__class__.__name__ for operation in self.operations]
         string = " -> ".join(operations)
-
-        if any(operation in split_operations for operation in operations):
-            # a second line is needed with same length as the first line
-            split_line = " " * len(string)
-            # find the splitting operation and index and print \-> instead of -> after
-            split_detected = False
-            merge_detected = False
-            split_operation = None
-            for operation in operations:
-                if operation in split_operations:
-                    index = string.index(operation)
-                    index = index + len(operation)
-                    split_line = split_line[:index] + "\\->" + split_line[index + len("\\->") :]
-                    split_detected = True
-                    merge_detected = False
-                    split_operation = operation
-                    continue
-
-                if operation in merge_operations:
-                    index = string.index(operation)
-                    index = index - 4
-                    split_line = split_line[:index] + "/" + split_line[index + 1 :]
-                    split_detected = False
-                    merge_detected = True
-                    continue
-
-                if split_detected:
-                    # print all operations in the second line
-                    index = string.index(operation)
-                    split_line = (
-                        split_line[:index]
-                        + operation
-                        + " -> "
-                        + split_line[index + len(operation) + len(" -> ") :]
-                    )
-            assert merge_detected is True, log.error(
-                "Pipeline was never merged back together (with Stack operation), even "
-                f"though it was split with {split_operation}. "
-                "Please properly define your operation chain."
-            )
-            return f"\n{string}\n{split_line}\n"
-
         return string
 
     def __repr__(self):
@@ -1413,21 +1363,6 @@ class Merge(Operation):
                 raise TypeError("All inputs must be dictionaries.")
             merged.update(arg)
         return merged
-
-
-@ops_registry("split")
-class Split(Operation):
-    """Operation that splits an input dictionary  n copies."""
-
-    def __init__(self, n: int, **kwargs):
-        super().__init__(**kwargs)
-        self.n = n
-
-    def call(self, **kwargs) -> List[Dict]:
-        """
-        Splits the input dictionary into n copies.
-        """
-        return [kwargs.copy() for _ in range(self.n)]
 
 
 @ops_registry("stack")
