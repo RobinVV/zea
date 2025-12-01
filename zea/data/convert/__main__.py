@@ -2,7 +2,7 @@ import argparse
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="Convert raw data to a USBMD dataset.")
+    parser = argparse.ArgumentParser(description="Convert raw data to a zea dataset.")
     parser.add_argument(
         "dataset",
         choices=["echonet", "echonetlvh", "camus", "picmus", "verasonics"],
