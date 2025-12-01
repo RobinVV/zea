@@ -1291,19 +1291,81 @@ class Map(Pipeline):
     - Changing anything other than ``self.output_key`` in the dict will not be propagated.
     - Will be jitted as a single operation, not the individual operations.
     - This class handles the batching.
+
+    For more information on how to use ``in_axes``, ``out_axes``, `see the documentation for
+    jax.vmap <https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html>`_.
+
+    Example
+    -------
+        .. doctest::
+
+            >>> from zea.ops import Map, Pipeline, Demodulate, TOFCorrection
+
+            >>> # apply operations in batches of 8
+            >>> # in this case, over the first axis of "data"
+            >>> # or more specifically, process 8 transmits at a time
+
+            >>> pipeline_mapped = Map(
+            ...     [
+            ...         Demodulate(),
+            ...         TOFCorrection(),
+            ...     ],
+            ...     argnames="data",
+            ...     batch_size=8,
+            ... )
+
+            >>> # you can also map a subset of the operations
+            >>> # for example, demodulate in 4 chunks
+            >>> # or more specifically, split the transmit axis into 4 parts
+
+            >>> pipeline_mapped = Pipeline(
+            ...     [
+            ...         Map([Demodulate()], argnames="data", chunks=4),
+            ...         TOFCorrection(),
+            ...     ],
+            ... )
     """
 
     def __init__(
         self,
         operations: List[Operation],
-        argnames: list,
-        in_axes=0,
-        out_axes=0,
-        chunks=None,
-        batch_size=None,
+        argnames: List[str] | str,
+        in_axes: List[Union[int, None]] | int = 0,
+        out_axes: List[Union[int, None]] | int = 0,
+        chunks: int | None = None,
+        batch_size: int | None = None,
         **kwargs,
     ):
+        """
+        Args:
+            operations (list): List of operations to be performed.
+            argnames (str or list): List of argument names (or keys) to map over.
+                Can also be a single string if only one argument is mapped over.
+            in_axes (int or list): Axes to map over for each argument.
+                If a single int is provided, it is used for all arguments.
+            out_axes (int or list): Axes to map over for each output.
+                If a single int is provided, it is used for all outputs.
+            chunks (int, optional): Number of chunks to split the input data into.
+                If None, no chunking is performed. Mutually exclusive with ``batch_size``.
+            batch_size (int, optional): Size of batches to process at once.
+                If None, no batching is performed. Mutually exclusive with ``chunks``.
+        """
         super().__init__(operations, **kwargs)
+
+        if batch_size is not None and chunks is not None:
+            raise ValueError(
+                "batch_size and chunks are mutually exclusive. Please specify only one."
+            )
+
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer.")
+
+        if chunks is not None and chunks <= 0:
+            raise ValueError("chunks must be a positive integer.")
+
+        if isinstance(argnames, str):
+            argnames = [argnames]
+
         self.argnames = argnames
         self.in_axes = in_axes
         self.out_axes = out_axes
