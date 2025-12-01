@@ -2156,7 +2156,11 @@ class Demodulate(Operation):
             input_data_type=DataTypes.RAW_DATA,
             output_data_type=DataTypes.RAW_DATA,
             jittable=True,
-            additional_output_keys=["demodulation_frequency", "center_frequency", "n_ch"],
+            additional_output_keys=[
+                "demodulation_frequency",
+                "center_frequency",
+                "n_ch",
+            ],
             **kwargs,
         )
         self.axis = axis
