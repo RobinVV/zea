@@ -841,7 +841,7 @@ class Pipeline:
         if any(operation in split_operations for operation in operations):
             # a second line is needed with same length as the first line
             split_line = " " * len(string)
-            # find the splitting operation and index and print \-> instead of -> after
+            # find the splitting operation and index and print \\-> instead of -> after
             split_detected = False
             merge_detected = False
             split_operation = None
@@ -2363,7 +2363,11 @@ class Demodulate(Operation):
             input_data_type=DataTypes.RAW_DATA,
             output_data_type=DataTypes.RAW_DATA,
             jittable=True,
-            additional_output_keys=["demodulation_frequency", "center_frequency", "n_ch"],
+            additional_output_keys=[
+                "demodulation_frequency",
+                "center_frequency",
+                "n_ch",
+            ],
             **kwargs,
         )
         self.axis = axis
