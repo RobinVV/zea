@@ -649,7 +649,7 @@ def pad_array_to_divisible(arr, N, axis=0, mode="constant", pad_value=None):
     return padded_array
 
 
-def interpolate_data(subsampled_data, mask, order=1, axis=-1):
+def interpolate_data(subsampled_data, mask, order=1, axis=-1, fill_mode="nearest", fill_value=0):
     """Interpolate subsampled data along a specified axis using `map_coordinates`.
 
     Args:
@@ -659,6 +659,12 @@ def interpolate_data(subsampled_data, mask, order=1, axis=-1):
             `True` where data is known.
         order (int, optional): The order of the spline interpolation. Default is `1`.
         axis (int, optional): The axis along which the data is subsampled. Default is `-1`.
+        fill_mode (str, optional): Points outside the boundaries of the input are filled
+            according to the given mode. Default is 'nearest'. For more info see
+            `keras.ops.image.map_coordinates`.
+        fill_value (float, optional): Value to use for points outside the boundaries
+            of the input if `fill_mode` is 'constant'. Default is `0`. For more info see
+            `keras.ops.image.map_coordinates`.
 
     Returns:
         ndarray: The data interpolated back to the original grid.
@@ -723,6 +729,8 @@ def interpolate_data(subsampled_data, mask, order=1, axis=-1):
         subsampled_data,
         interp_coords,
         order=order,
+        fill_mode=fill_mode,
+        fill_value=fill_value,
     )
 
     interpolated_data = ops.reshape(interpolated_data, -1)
@@ -1655,6 +1663,57 @@ def correlate(x, y, mode="full"):
         return complex_tensor
     else:
         return ops.real(complex_tensor)
+
+
+def find_contour(binary_mask):
+    """Extract contour/boundary points from a binary mask using edge detection.
+
+    This function finds the boundary pixels of objects in a binary mask by detecting
+    pixels that have at least one neighbor with a different value (using 4-connectivity).
+
+    Args:
+        binary_mask: Binary mask tensor of shape (H, W) with values 0 or 1.
+
+    Returns:
+        Boundary points as tensor of shape (N, 2) in (row, col) format.
+        Returns empty tensor of shape (0, 2) if no boundaries are found.
+
+    Example:
+        .. doctest::
+
+            >>> from zea.tensor_ops import find_contour
+            >>> import keras
+            >>> mask = keras.ops.zeros((10, 10))
+            >>> mask = keras.ops.scatter_update(
+            ...     mask, [[3, 3], [3, 4], [4, 3], [4, 4]], [1, 1, 1, 1]
+            ... )
+            >>> contour = find_contour(mask)
+            >>> contour.shape
+            (4, 2)
+    """
+    # Pad the mask to handle edges
+    padded = ops.pad(binary_mask, [[1, 1], [1, 1]], mode="constant", constant_values=0.0)
+
+    # Check 4-connectivity (up, down, left, right)
+    is_edge = (
+        (binary_mask != padded[:-2, 1:-1])  # top neighbor different
+        | (binary_mask != padded[2:, 1:-1])  # bottom neighbor different
+        | (binary_mask != padded[1:-1, :-2])  # left neighbor different
+        | (binary_mask != padded[1:-1, 2:])  # right neighbor different
+    )
+
+    # Only keep edges that are part of the foreground (binary_mask == 1)
+    is_boundary = is_edge & ops.cast(binary_mask, "bool")
+
+    boundary_indices = ops.where(is_boundary)
+
+    if ops.shape(boundary_indices[0])[0] > 0:
+        boundary_points = ops.stack(boundary_indices, axis=1)
+        boundary_points = ops.cast(boundary_points, "float32")
+    else:
+        boundary_points = ops.zeros((0, 2), dtype="float32")
+
+    return boundary_points
 
 
 def translate(array, range_from=None, range_to=(0, 255)):
