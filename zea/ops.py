@@ -88,7 +88,6 @@ Example of a yaml file:
 
 """
 
-import copy
 import hashlib
 import inspect
 import json
@@ -238,7 +237,7 @@ class Operation(keras.Operation):
         Analyze and store the input/output signatures of the `call` method.
         """
         self._input_signature = inspect.signature(self.call)
-        self._valid_keys = set(self._input_signature.parameters.keys())
+        self._valid_keys = set(self._input_signature.parameters.keys()) | {self.key}
 
     @property
     def valid_keys(self) -> set:
@@ -488,9 +487,19 @@ class Pipeline:
         self.jit_kwargs = jit_kwargs
         self.jit_options = jit_options  # will handle the jit compilation
 
+        self._logged_difference_keys = False
+
+        # Do not log again for nested pipelines
+        for nested_pipeline in self._nested_pipelines:
+            nested_pipeline._logged_difference_keys = True
+
     def needs(self, key) -> bool:
         """Check if the pipeline needs a specific key at the input."""
         return key in self.needs_keys
+
+    @property
+    def _nested_pipelines(self):
+        return [operation for operation in self.operations if isinstance(operation, Pipeline)]
 
     @property
     def output_keys(self) -> set:
@@ -569,13 +578,16 @@ class Pipeline:
 
         # Optionally add patching
         if num_patches > 1:
-            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
+            beamforming = [
+                PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs),
+            ]
 
         # Add beamforming ops
         operations += beamforming
 
         # Add display ops
         operations += [
+            ReshapeGrid(),
             EnvelopeDetect(),
             Normalize(),
             LogCompress(),
@@ -681,6 +693,16 @@ class Pipeline:
                 "Pipeline does not support string inputs. "
                 "Please ensure all inputs are convertible to tensors."
             )
+
+        if not self._logged_difference_keys:
+            difference_keys = set(inputs.keys()) - self.valid_keys
+            if difference_keys:
+                log.debug(
+                    f"[zea.Pipeline] The following input keys are not used by the pipeline: "
+                    f"{difference_keys}. Make sure this is intended. "
+                    "This warning will only be shown once."
+                )
+                self._logged_difference_keys = True
 
         ## PROCESSING
         outputs = self._call_pipeline(**inputs)
@@ -1185,7 +1207,7 @@ def pipeline_from_config(config: Config, **kwargs) -> Pipeline:
     operations = make_operation_chain(config.operations)
 
     # merge pipeline config without operations with kwargs
-    pipeline_config = copy.deepcopy(config)
+    pipeline_config = config.copy()
     pipeline_config.pop("operations")
 
     kwargs = {**pipeline_config, **kwargs}
@@ -1256,31 +1278,134 @@ def pipeline_to_yaml(pipeline: Pipeline, file_path: str) -> None:
         yaml.dump(pipeline_dict, f, Dumper=yaml.Dumper, indent=4)
 
 
-@ops_registry("patched_grid")
-class PatchedGrid(Pipeline):
+@ops_registry("map")
+class Map(Pipeline):
     """
-    With this class you can form a pipeline that will be applied to patches of the grid.
-    This is useful to avoid OOM errors when processing large grids.
+    A pipeline that maps its operations over specified input arguments.
 
-    Some things to NOTE about this class:
+    This can be used to reduce memory usage by processing data in chunks.
 
-    - The ops have to use flatgrid and flat_pfield as inputs, these will be patched.
-
-    - Changing anything other than `self.output_data_type` in the dict will not be propagated!
-
+    Notes
+    -----
+    - When `chunks` and `batch_size` are both None (default), this behaves like a normal Pipeline.
+    - Changing anything other than ``self.output_key`` in the dict will not be propagated.
     - Will be jitted as a single operation, not the individual operations.
-
     - This class handles the batching.
 
+    For more information on how to use ``in_axes``, ``out_axes``, `see the documentation for
+    jax.vmap <https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html>`_.
+
+    Example
+    -------
+        .. doctest::
+
+            >>> from zea.ops import Map, Pipeline, Demodulate, TOFCorrection
+
+            >>> # apply operations in batches of 8
+            >>> # in this case, over the first axis of "data"
+            >>> # or more specifically, process 8 transmits at a time
+
+            >>> pipeline_mapped = Map(
+            ...     [
+            ...         Demodulate(),
+            ...         TOFCorrection(),
+            ...     ],
+            ...     argnames="data",
+            ...     batch_size=8,
+            ... )
+
+            >>> # you can also map a subset of the operations
+            >>> # for example, demodulate in 4 chunks
+            >>> # or more specifically, split the transmit axis into 4 parts
+
+            >>> pipeline_mapped = Pipeline(
+            ...     [
+            ...         Map([Demodulate()], argnames="data", chunks=4),
+            ...         TOFCorrection(),
+            ...     ],
+            ... )
     """
 
-    def __init__(self, *args, num_patches=10, **kwargs):
-        super().__init__(*args, name="patched_grid", **kwargs)
-        self.num_patches = num_patches
+    def __init__(
+        self,
+        operations: List[Operation],
+        argnames: List[str] | str,
+        in_axes: List[Union[int, None]] | int = 0,
+        out_axes: List[Union[int, None]] | int = 0,
+        chunks: int | None = None,
+        batch_size: int | None = None,
+        **kwargs,
+    ):
+        """
+        Args:
+            operations (list): List of operations to be performed.
+            argnames (str or list): List of argument names (or keys) to map over.
+                Can also be a single string if only one argument is mapped over.
+            in_axes (int or list): Axes to map over for each argument.
+                If a single int is provided, it is used for all arguments.
+            out_axes (int or list): Axes to map over for each output.
+                If a single int is provided, it is used for all outputs.
+            chunks (int, optional): Number of chunks to split the input data into.
+                If None, no chunking is performed. Mutually exclusive with ``batch_size``.
+            batch_size (int, optional): Size of batches to process at once.
+                If None, no batching is performed. Mutually exclusive with ``chunks``.
+        """
+        super().__init__(operations, **kwargs)
 
-        for operation in self.operations:
-            if isinstance(operation, DelayAndSum):
-                operation.reshape_grid = False
+        if batch_size is not None and chunks is not None:
+            raise ValueError(
+                "batch_size and chunks are mutually exclusive. Please specify only one."
+            )
+
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError("batch_size must be a positive integer.")
+
+        if chunks is not None and chunks <= 0:
+            raise ValueError("chunks must be a positive integer.")
+
+        if isinstance(argnames, str):
+            argnames = [argnames]
+
+        self.argnames = argnames
+        self.in_axes = in_axes
+        self.out_axes = out_axes
+        self.chunks = chunks
+        self.batch_size = batch_size
+
+        if chunks is None and batch_size is None:
+            log.warning(
+                "[zea.ops.Map] Both `chunks` and `batch_size` are None. "
+                "This will behave like a normal Pipeline. "
+                "Consider setting one of them to process data in chunks or batches."
+            )
+
+        def call_item(**inputs):
+            """Process data in patches."""
+            mapped_args = []
+            for argname in argnames:
+                mapped_args.append(inputs.pop(argname, None))
+
+            def patched_call(*args):
+                mapped_kwargs = [(k, v) for k, v in zip(argnames, args)]
+                out = super(Map, self).call(**dict(mapped_kwargs), **inputs)
+
+                # TODO: maybe it is possible to output everything?
+                # e.g. prepend a empty dimension to all inputs and just map over everything?
+                return out[self.output_key]
+
+            out = vmap(
+                patched_call,
+                in_axes=in_axes,
+                out_axes=out_axes,
+                chunks=chunks,
+                batch_size=batch_size,
+                fn_supports_batch=True,
+                disable_jit=not bool(self.jit_options),
+            )(*mapped_args)
+
+            return out
+
+        self.call_item = call_item
 
         self._jittable_call = self.jittable_call
 
@@ -1321,40 +1446,18 @@ class PatchedGrid(Pipeline):
             operation.with_batch_dim = False
 
     @property
-    def _extra_keys(self):
-        return {"flatgrid", "grid"}
-
-    @property
     def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline.
         Adds the parameters that PatchedGrid itself operates on (even if not used by operations
         inside it)."""
-        return super().valid_keys.union(self._extra_keys)
+        return super().valid_keys.union(self.argnames)
 
     @property
     def needs_keys(self) -> set:
         """Get a set of all input keys needed by the pipeline.
         Adds the parameters that PatchedGrid itself operates on (even if not used by operations
         inside it)."""
-        return super().needs_keys.union(self._extra_keys)
-
-    def call_item(self, grid, flatgrid, flat_pfield=None, **inputs):
-        """Process data in patches."""
-
-        def patched_call(flatgrid, flat_pfield):
-            out = super(PatchedGrid, self).call(
-                flatgrid=flatgrid, flat_pfield=flat_pfield, **inputs
-            )
-            return out[self.output_key]
-
-        out = vmap(
-            patched_call,
-            chunks=self.num_patches,
-            fn_supports_batch=True,
-            disable_jit=not bool(self.jit_options),
-        )(flatgrid, flat_pfield)
-
-        return ops.reshape(out, (*grid.shape[:-1], *ops.shape(out)[1:]))
+        return super().needs_keys.union(self.argnames)
 
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
@@ -1378,9 +1481,59 @@ class PatchedGrid(Pipeline):
     def get_dict(self):
         """Get the configuration of the pipeline."""
         config = super().get_dict()
-        config.update({"name": "patched_grid"})
+        config["params"].update(
+            {
+                "argnames": self.argnames,
+                "in_axes": self.in_axes,
+                "out_axes": self.out_axes,
+                "chunks": self.chunks,
+                "batch_size": self.batch_size,
+            }
+        )
+        return config
+
+
+@ops_registry("patched_grid")
+class PatchedGrid(Map):
+    """
+    A pipeline that maps its operations over `flatgrid` and `flat_pfield` keys.
+
+    This can be used to reduce memory usage by processing data in chunks.
+
+    For more information and flexibility, see :class:`zea.ops.Map`.
+    """
+
+    def __init__(self, *args, num_patches=10, **kwargs):
+        super().__init__(*args, argnames=["flatgrid", "flat_pfield"], chunks=num_patches, **kwargs)
+        self.num_patches = num_patches
+
+    def get_dict(self):
+        """Get the configuration of the pipeline."""
+        config = super().get_dict()
+        config["params"].pop("argnames")
+        config["params"].pop("chunks")
         config["params"].update({"num_patches": self.num_patches})
         return config
+
+
+@ops_registry("reshape_grid")
+class ReshapeGrid(Operation):
+    """Reshape flat grid data to 2D grid shape."""
+
+    def __init__(self, axis=0, **kwargs):
+        super().__init__(**kwargs)
+        self.axis = axis
+
+    def call(self, grid, **kwargs):
+        """
+        Args:
+            - data (Tensor): The flat grid data of shape (..., n_pix, ...).
+        Returns:
+            - reshaped_data (Tensor): The reshaped data of shape (..., grid.shape, ...).
+        """
+        data = kwargs[self.key]
+        reshaped_data = reshape_axis(data, grid.shape[:-1], self.axis + int(self.with_batch_dim))
+        return {self.output_key: reshaped_data}
 
 
 ## Base Operations
@@ -1669,17 +1822,12 @@ class PfieldWeighting(Operation):
 class DelayAndSum(Operation):
     """Sums time-delayed signals along channels and transmits."""
 
-    def __init__(
-        self,
-        reshape_grid=True,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         super().__init__(
             input_data_type=DataTypes.ALIGNED_DATA,
             output_data_type=DataTypes.BEAMFORMED_DATA,
             **kwargs,
         )
-        self.reshape_grid = reshape_grid
 
     def process_image(self, data):
         """Performs DAS beamforming on tof-corrected input.
@@ -1707,8 +1855,7 @@ class DelayAndSum(Operation):
 
         Returns:
             dict: Dictionary containing beamformed_data
-                of shape `(grid_size_z*grid_size_x, n_ch)` when reshape_grid is False
-                or `(grid_size_z, grid_size_x, n_ch)` when reshape_grid is True,
+                of shape `(grid_size_z*grid_size_x, n_ch)`
                 with optional batch dimension.
         """
         data = kwargs[self.key]
@@ -1718,11 +1865,6 @@ class DelayAndSum(Operation):
         else:
             # Apply process_image to each item in the batch
             beamformed_data = ops.map(self.process_image, data)
-
-        if self.reshape_grid:
-            beamformed_data = reshape_axis(
-                beamformed_data, grid.shape[:2], axis=int(self.with_batch_dim)
-            )
 
         return {self.output_key: beamformed_data}
 
