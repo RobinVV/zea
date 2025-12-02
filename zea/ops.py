@@ -2479,12 +2479,7 @@ class LowPassFilter(FirFilter):
     Uses :func:`get_low_pass_iq_filter` to compute the filter taps.
     """
 
-    def __init__(
-        self,
-        axis: int,
-        complex_channels: bool = False,
-        num_taps: int = 128,
-    ):
+    def __init__(self, axis: int, complex_channels: bool = False, num_taps: int = 128, **kwargs):
         """Initialize the LowPassFilter operation.
 
         Args:
@@ -2498,11 +2493,14 @@ class LowPassFilter(FirFilter):
             num_taps (int): Number of taps in the FIR filter. Default is 128.
         """
         self._random_suffix = str(uuid.uuid4())
+        kwargs.pop("filter_key", None)
+        kwargs.pop("jittable", None)
         super().__init__(
             axis=axis,
             complex_channels=complex_channels,
             filter_key=f"low_pass_{self._random_suffix}",
             jittable=False,
+            **kwargs,
         )
         self.num_taps = num_taps
 
