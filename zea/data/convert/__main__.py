@@ -74,7 +74,7 @@ def main():
 
         convert_echonet(args)
     elif args.dataset == "echonetlvh":
-        from zea.data.convert.echonetlvh.convert_raw_to_usbmd import convert_echonetlvh
+        from zea.data.convert.echonetlvh import convert_echonetlvh
 
         convert_echonetlvh(args)
     elif args.dataset == "camus":
