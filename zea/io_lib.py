@@ -198,7 +198,7 @@ def save_to_gif(images, filename, fps=20, shared_color_palette=True):
     log.success(f"Successfully saved GIF to -> {log.yellow(filename)}")
 
 
-def save_to_mp4(images, filename, fps=20, shared_color_palette=True):
+def save_to_mp4(images, filename, fps=20, shared_color_palette=False):
     """Saves a sequence of images to an MP4 file.
 
     .. note::
