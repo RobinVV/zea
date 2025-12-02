@@ -1,6 +1,6 @@
 """Basic tensor operations implemented with the multi-backend ``keras.ops``."""
 
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 
 import keras
 import numpy as np
@@ -431,14 +431,14 @@ def _map(fun, in_axes=0, out_axes=0, map_fn=None, _use_torch_vmap=False):
 
 
 def vmap(
-    fun,
-    in_axes=0,
-    out_axes=0,
-    batch_size=None,
-    chunks=None,
-    fn_supports_batch=False,
-    disable_jit=False,
-    _use_torch_vmap=False,
+    fun: callable,
+    in_axes: List[Union[int, None]] | int = 0,
+    out_axes: List[Union[int, None]] | int = 0,
+    chunks: int | None = None,
+    batch_size: int | None = None,
+    fn_supports_batch: bool = False,
+    disable_jit: bool = False,
+    _use_torch_vmap: bool = False,
 ):
     """`vmap` with batching or chunking support to avoid memory issues.
 
