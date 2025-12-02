@@ -2404,25 +2404,43 @@ class Demodulate(Operation):
 class FirFilter(Operation):
     """Apply a FIR filter to the input signal using convolution.
 
-    Looks for the filter taps in the input dictionary using the specified `filter_key`.
+    Looks for the filter taps in the input dictionary using the specified ``filter_key``.
     """
 
-    def __init__(self, axis=-3, complex_channels=True, filter_key="fir_filter_taps", **kwargs):
+    def __init__(
+        self,
+        axis: int,
+        complex_channels: bool = False,
+        filter_key: str = "fir_filter_taps",
+        **kwargs,
+    ):
         """
         Args:
-            axis (int): Axis along which to apply the filter. Recommended to set with respect
-                to the last dimension to avoid issues with batch dimensions.
-                Default is -3 (time axis).
-            complex_channels (bool): Whether the input signal has complex channels.
-                If True, the last dimension is treated as real and imaginary parts.
-                Default is True.
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
+                When using ``complex_channels=True``, the complex channels are removed to convert
+                to complex numbers before filtering, so adjust the ``axis`` accordingly!
+            complex_channels (bool): Whether the last dimension of the input signal represents
+                complex channels (real and imaginary parts). When True, it will convert the signal
+                to ``complex`` dtype before filtering and convert it back to two channels
+                after filtering.
             filter_key (str): Key in the input dictionary where the FIR filter taps are stored.
                 Default is "fir_filter_taps".
         """
         super().__init__(**kwargs)
+        self._check_axis(axis)
+
         self.axis = axis
         self.complex_channels = complex_channels
         self.filter_key = filter_key
+
+    def _check_axis(self, axis, ndim=None):
+        """Check if the axis is valid."""
+        if ndim is not None:
+            if axis < -ndim or axis >= ndim:
+                raise ValueError(f"Axis {axis} is out of bounds for array of dimension {ndim}.")
+
+        if self.with_batch_dim and (axis == 0 or (ndim is not None and axis == -ndim)):
+            raise ValueError("Cannot apply FIR filter along batch dimension.")
 
     @property
     def valid_keys(self):
@@ -2435,6 +2453,8 @@ class FirFilter(Operation):
 
         if self.complex_channels:
             signal = channels_to_complex(signal)
+
+        self._check_axis(self.axis, ndim=ops.ndim(signal))
 
         def _convolve(signal):
             """Apply the filter to the signal using correlation."""
@@ -2461,19 +2481,20 @@ class LowPassFilter(FirFilter):
 
     def __init__(
         self,
-        axis=-3,
-        complex_channels=True,
-        num_taps=128,
+        axis: int,
+        complex_channels: bool = False,
+        num_taps: int = 128,
     ):
         """Initialize the LowPassFilter operation.
 
         Args:
-            axis (int): Axis along which to apply the filter. Recommended to set with respect
-                to the last dimension to avoid issues with batch dimensions.
-                Default is -3 (time axis).
-            complex_channels (bool): Whether the input signal has complex channels.
-                If True, the last dimension is treated as real and imaginary parts.
-                Default is True.
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
+                When using ``complex_channels=True``, the complex channels are removed to convert
+                to complex numbers before filtering, so adjust the ``axis`` accordingly.
+            complex_channels (bool): Whether the last dimension of the input signal represents
+                complex channels (real and imaginary parts). When True, it will convert the signal
+                to ``complex`` dtype before filtering and convert it back to two channels
+                after filtering.
             num_taps (int): Number of taps in the FIR filter. Default is 128.
         """
         self._random_suffix = str(uuid.uuid4())
