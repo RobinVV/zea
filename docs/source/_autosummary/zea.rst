@@ -25,6 +25,7 @@ zea
    beamform
    config
    data
+   data.convert
    datapaths
    display
    doppler
