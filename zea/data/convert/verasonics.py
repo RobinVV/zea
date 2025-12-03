@@ -12,7 +12,7 @@ Then convert the saved `raw_data.mat` file to zea format using the following cod
 
     .. code-block:: python
 
-        from zea.data_format.zea_from_verasonics_workspace import zea_from_verasonics_workspace
+        from zea.data.convert.verasonics import zea_from_verasonics_workspace
 
         zea_from_verasonics_workspace("C:/path/to/raw_data.mat", "C:/path/to/output.hdf5")
 
