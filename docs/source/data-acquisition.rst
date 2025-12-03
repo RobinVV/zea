@@ -228,7 +228,7 @@ One can also acquire data using various ultrasound platforms and convert it to t
 
 - Record data using your preferred Verasonics script.
 - Save entire workspace to a `.mat` file.
-- Use the ``--dataset "verasonics"`` flag to convert the MATLAB workspace files to ``zea`` format.
+- Use the ``--dataset "verasonics"`` flag to convert the MATLAB workspace files to ``zea`` format. This calls the `verasonics.py <https://github.com/tue-bmd/zea/tree/main/zea/data/convert/verasonics.py>`__ file.
 - Example:
 
   .. code-block:: shell
