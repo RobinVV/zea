@@ -91,6 +91,7 @@ Example of a yaml file:
 import hashlib
 import inspect
 import json
+import uuid
 from functools import partial
 from typing import Any, Dict, List, Union
 
@@ -119,7 +120,15 @@ from zea.internal.registry import ops_registry
 from zea.probes import Probe
 from zea.scan import Scan
 from zea.simulator import simulate_rf
-from zea.tensor_ops import resample, reshape_axis, translate, vmap
+from zea.tensor_ops import (
+    apply_along_axis,
+    correlate,
+    extend_n_dims,
+    resample,
+    reshape_axis,
+    translate,
+    vmap,
+)
 from zea.utils import (
     FunctionTimer,
     deep_compare,
@@ -578,9 +587,7 @@ class Pipeline:
 
         # Optionally add patching
         if num_patches > 1:
-            beamforming = [
-                PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs),
-            ]
+            beamforming = [PatchedGrid(operations=beamforming, num_patches=num_patches, **kwargs)]
 
         # Add beamforming ops
         operations += beamforming
@@ -1407,8 +1414,6 @@ class Map(Pipeline):
 
         self.call_item = call_item
 
-        self._jittable_call = self.jittable_call
-
     @property
     def jit_options(self):
         """Get the jit_options property of the pipeline."""
@@ -1518,7 +1523,7 @@ class PatchedGrid(Map):
 
 @ops_registry("reshape_grid")
 class ReshapeGrid(Operation):
-    """Reshape flat grid data to 2D grid shape."""
+    """Reshape flat grid data to grid shape."""
 
     def __init__(self, axis=0, **kwargs):
         super().__init__(**kwargs)
@@ -1797,7 +1802,7 @@ class PfieldWeighting(Operation):
         Returns:
             dict: Dictionary containing weighted data
         """
-        data = kwargs[self.key]
+        data = kwargs[self.key]  # must start with ((batch_size,) n_tx, n_pix, ...)
 
         if flat_pfield is None:
             return {self.output_key: data}
@@ -1805,14 +1810,16 @@ class PfieldWeighting(Operation):
         # Swap (n_pix, n_tx) to (n_tx, n_pix)
         flat_pfield = ops.swapaxes(flat_pfield, 0, 1)
 
-        # Perform element-wise multiplication with the pressure weight mask
-        # Also add the required dimensions for broadcasting
+        # Add batch dimension if needed
         if self.with_batch_dim:
             pfield_expanded = ops.expand_dims(flat_pfield, axis=0)
         else:
             pfield_expanded = flat_pfield
 
-        pfield_expanded = pfield_expanded[..., None, None]
+        append_n_dims = ops.ndim(data) - ops.ndim(pfield_expanded)
+        pfield_expanded = extend_n_dims(pfield_expanded, axis=-1, n_dims=append_n_dims)
+
+        # Perform element-wise multiplication with the pressure weight mask
         weighted_data = data * pfield_expanded
 
         return {self.output_key: weighted_data}
@@ -2393,6 +2400,121 @@ class Demodulate(Operation):
         }
 
 
+@ops_registry("fir_filter")
+class FirFilter(Operation):
+    """Apply a FIR filter to the input signal using convolution.
+
+    Looks for the filter taps in the input dictionary using the specified ``filter_key``.
+    """
+
+    def __init__(
+        self,
+        axis: int,
+        complex_channels: bool = False,
+        filter_key: str = "fir_filter_taps",
+        **kwargs,
+    ):
+        """
+        Args:
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
+                When using ``complex_channels=True``, the complex channels are removed to convert
+                to complex numbers before filtering, so adjust the ``axis`` accordingly!
+            complex_channels (bool): Whether the last dimension of the input signal represents
+                complex channels (real and imaginary parts). When True, it will convert the signal
+                to ``complex`` dtype before filtering and convert it back to two channels
+                after filtering.
+            filter_key (str): Key in the input dictionary where the FIR filter taps are stored.
+                Default is "fir_filter_taps".
+        """
+        super().__init__(**kwargs)
+        self._check_axis(axis)
+
+        self.axis = axis
+        self.complex_channels = complex_channels
+        self.filter_key = filter_key
+
+    def _check_axis(self, axis, ndim=None):
+        """Check if the axis is valid."""
+        if ndim is not None:
+            if axis < -ndim or axis >= ndim:
+                raise ValueError(f"Axis {axis} is out of bounds for array of dimension {ndim}.")
+
+        if self.with_batch_dim and (axis == 0 or (ndim is not None and axis == -ndim)):
+            raise ValueError("Cannot apply FIR filter along batch dimension.")
+
+    @property
+    def valid_keys(self):
+        """Get the valid keys for the `call` method."""
+        return self._valid_keys.union({self.filter_key})
+
+    def call(self, **kwargs):
+        signal = kwargs[self.key]
+        fir_filter_taps = kwargs[self.filter_key]
+
+        if self.complex_channels:
+            signal = channels_to_complex(signal)
+
+        self._check_axis(self.axis, ndim=ops.ndim(signal))
+
+        def _convolve(signal):
+            """Apply the filter to the signal using correlation."""
+            return correlate(signal, fir_filter_taps[::-1], mode="same")
+
+        filtered_signal = apply_along_axis(_convolve, self.axis, signal)
+
+        if self.complex_channels:
+            filtered_signal = complex_to_channels(filtered_signal)
+
+        return {self.output_key: filtered_signal}
+
+
+@ops_registry("low_pass_filter")
+class LowPassFilter(FirFilter):
+    """Apply a low-pass FIR filter to the input signal using convolution.
+
+    It is recommended to use :class:`FirFilter` with pre-computed filter taps for jittable
+    operations. The :class:`LowPassFilter` operation itself is not jittable and is provided
+    for convenience only.
+
+    Uses :func:`get_low_pass_iq_filter` to compute the filter taps.
+    """
+
+    def __init__(self, axis: int, complex_channels: bool = False, num_taps: int = 128, **kwargs):
+        """Initialize the LowPassFilter operation.
+
+        Args:
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
+                When using ``complex_channels=True``, the complex channels are removed to convert
+                to complex numbers before filtering, so adjust the ``axis`` accordingly.
+            complex_channels (bool): Whether the last dimension of the input signal represents
+                complex channels (real and imaginary parts). When True, it will convert the signal
+                to ``complex`` dtype before filtering and convert it back to two channels
+                after filtering.
+            num_taps (int): Number of taps in the FIR filter. Default is 128.
+        """
+        self._random_suffix = str(uuid.uuid4())
+        kwargs.pop("filter_key", None)
+        kwargs.pop("jittable", None)
+        super().__init__(
+            axis=axis,
+            complex_channels=complex_channels,
+            filter_key=f"low_pass_{self._random_suffix}",
+            jittable=False,
+            **kwargs,
+        )
+        self.num_taps = num_taps
+
+    def call(self, bandwidth, sampling_frequency, center_frequency, **kwargs):
+        lpf = get_low_pass_iq_filter(
+            self.num_taps,
+            ops.convert_to_numpy(sampling_frequency).item(),
+            ops.convert_to_numpy(center_frequency).item(),
+            ops.convert_to_numpy(bandwidth).item(),
+        )
+        kwargs[self.filter_key] = lpf
+        return super().call(**kwargs)
+
+
 @ops_registry("lambda")
 class Lambda(Operation):
     """Use any function as an operation."""
@@ -2427,7 +2549,10 @@ class Lambda(Operation):
 
     def call(self, **kwargs):
         data = kwargs[self.key]
-        data = self.func(data)
+        if self.with_batch_dim:
+            data = ops.map(self.func, data)
+        else:
+            data = self.func(data)
         return {self.output_key: data}
 
 
@@ -3182,7 +3307,7 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
     return bpf
 
 
-def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
+def get_low_pass_iq_filter(num_taps, sampling_frequency, center_frequency, bandwidth):
     """Design complex low-pass filter.
 
     The filter is a low-pass FIR filter modulated to the center frequency.
@@ -3190,16 +3315,16 @@ def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
     Args:
         num_taps (int): number of taps in filter.
         sampling_frequency (float): sample frequency.
-        f (float): center frequency.
-        bw (float): bandwidth in Hz.
+        center_frequency (float): center frequency.
+        bandwidth (float): bandwidth in Hz.
 
     Raises:
-        ValueError: if cutoff frequency (bw / 2) is not within (0, sampling_frequency / 2)
+        ValueError: if cutoff frequency (bandwidth / 2) is not within (0, sampling_frequency / 2)
 
     Returns:
         ndarray: Complex-valued low-pass filter
     """
-    cutoff = bw / 2
+    cutoff = bandwidth / 2
     if not (0 < cutoff < sampling_frequency / 2):
         raise ValueError(
             f"Cutoff frequency must be within (0, sampling_frequency / 2), "
@@ -3209,7 +3334,7 @@ def get_low_pass_iq_filter(num_taps, sampling_frequency, f, bw):
     lpf = scipy.signal.firwin(num_taps, cutoff, pass_zero=True, fs=sampling_frequency)
     # Modulate to center frequency to make it complex
     time_points = np.arange(num_taps) / sampling_frequency
-    lpf_complex = lpf * np.exp(1j * 2 * np.pi * f * time_points)
+    lpf_complex = lpf * np.exp(1j * 2 * np.pi * center_frequency * time_points)
     return lpf_complex
 
 
