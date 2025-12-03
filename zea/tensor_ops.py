@@ -1562,6 +1562,8 @@ def correlate(x, y, mode="full"):
         y: np.ndarray (complex or real)
         mode: "full", "valid", or "same"
     """
+    if keras.backend.backend() == "jax":
+        return ops.correlate(x, y, mode=mode)
     x = ops.convert_to_tensor(x)
     y = ops.convert_to_tensor(y)
 
