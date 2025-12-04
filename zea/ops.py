@@ -2217,7 +2217,7 @@ class GaussianBlur(ImageOperation):
         return ops.convert_to_tensor(kernel)
 
     def call(self, **kwargs):
-        """Apply the Lee filter to the input data.
+        """Apply a Gaussian filter to the input data.
 
         Args:
             data (ops.Tensor): Input image data of shape (height, width, channels) with
