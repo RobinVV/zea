@@ -7,7 +7,7 @@ def get_parser():
 
     Returns:
         argparse.Namespace: Parsed arguments with the following attributes:
-            dataset (str): One of "echonet", "echonetlvh", "camus", "picmus", "matlab".
+            dataset (str): One of "echonet", "echonetlvh", "camus", "picmus", "verasonics".
             src (str): Source folder path.
             dst (str): Destination folder path.
             split_path (str|None): Optional path to a split.yaml to copy dataset splits.
@@ -89,7 +89,7 @@ def main():
     Parse command-line arguments and dispatch to the selected dataset conversion routine.
 
     This function obtains CLI arguments via get_args() and calls the corresponding converter
-    (convert_echonet, convert_echonetlvh, convert_camus, convert_picmus, or convert_matlab)
+    (convert_echonet, convert_echonetlvh, convert_camus, convert_picmus, or convert_verasonics)
     based on args.dataset.
     Raises a ValueError if args.dataset is not one of the supported choices.
     """

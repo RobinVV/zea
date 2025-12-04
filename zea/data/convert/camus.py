@@ -198,6 +198,9 @@ def get_split(patient_id: int) -> str:
     """
     Determine which dataset split a patient ID belongs to.
 
+    Args:
+        patient_id: Integer ID of the patient.
+
     Returns:
         The split name: "train", "val", or "test".
 
