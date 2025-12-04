@@ -36,7 +36,8 @@ def unzip(src: str | Path, dataset: str) -> Path:
 
     Args:
         src (str | Path): The source directory containing the zip file or unzipped folder.
-        dataset (str): The name of the dataset to unzip. Options are "picmus", "camus", "echonet", "echonetlvh".
+        dataset (str): The name of the dataset to unzip.
+            Options are "picmus", "camus", "echonet", "echonetlvh".
 
     Returns:
         Path: The path to the unzipped dataset directory.

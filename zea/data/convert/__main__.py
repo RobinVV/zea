@@ -89,7 +89,8 @@ def main():
     Parse command-line arguments and dispatch to the selected dataset conversion routine.
 
     This function obtains CLI arguments via get_args() and calls the corresponding converter
-    (convert_echonet, convert_echonetlvh, convert_camus, convert_picmus, or convert_matlab) based on args.dataset.
+    (convert_echonet, convert_echonetlvh, convert_camus, convert_picmus, or convert_matlab)
+    based on args.dataset.
     Raises a ValueError if args.dataset is not one of the supported choices.
     """
     parser = get_parser()

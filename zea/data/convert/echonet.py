@@ -27,7 +27,8 @@ def segment(tensor, number_erasing=0, min_clip=0):
     Args:
         tensor (ndarray): Input image (sc) with 3 dimensions. (N, 112, 112)
         number_erasing (float, optional): number to fill the background with.
-        min_clip (float, optional): If > 0, values on the computed cone edge will be clipped to be at least this value. Defaults to 0.
+        min_clip (float, optional): If > 0, values on the computed cone edge will be clipped
+            to be at least this value. Defaults to 0.
     Returns:
         tensor (ndarray): Segmented matrix of same dimensions as input
 
@@ -244,7 +245,8 @@ def find_split_for_file(file_dict, target_file):
     Locate which split contains a given filename.
 
     Parameters:
-        file_dict (dict): Mapping from split name (e.g., "train", "val", "test", "rejected") to an iterable of filenames.
+        file_dict (dict): Mapping from split name (e.g., "train", "val", "test", "rejected")
+            to an iterable of filenames.
         target_file (str): Filename to search for within the split lists.
 
     Returns:
@@ -262,7 +264,9 @@ def count_init(shared_counter):
     Initialize the module-level shared counter used by worker processes.
 
     Parameters:
-        shared_counter (multiprocessing.Value): A process-shared integer Value that will be assigned to the module-global COUNTER for coordinated counting across processes.
+        shared_counter (multiprocessing.Value): A process-shared integer Value that
+            will be assigned to the module-global COUNTER for coordinated counting
+            across processes.
     """
     global COUNTER
     COUNTER = shared_counter
@@ -303,13 +307,18 @@ class H5Processor:
         Determine the dataset split label for a given file and its image sequence.
 
         This method checks acceptance based on the first frame of `sequence`.
-        If explicit splits were provided to the processor, it returns the split found for `hdf5_file` (and asserts that the acceptance result matches the split).
+        If explicit splits were provided to the processor, it returns the split
+        found for `hdf5_file` (and asserts that the acceptance result matches the split).
         If no explicit splits are provided, rejected sequences are labeled `"rejected"`.
-        Accepted sequences increment a shared counter and are assigned `"val"`, `"test"`, or `"train"` according to the processor's `num_val` and `num_test` quotas.
+        Accepted sequences increment a shared counter and are assigned
+        `"val"`, `"test"`, or `"train"` according to the processor's
+        `num_val` and `num_test` quotas.
 
         Parameters:
-            hdf5_file (str): Filename or identifier used to look up an existing split when splits are provided.
-            sequence (array-like): Time-ordered sequence of images; the first frame is used for acceptance checking.
+            hdf5_file (str): Filename or identifier used to look up an existing split
+                when splits are provided.
+            sequence (array-like): Time-ordered sequence of images; the first frame is
+                used for acceptance checking.
 
         Returns:
             str: One of `"train"`, `"val"`, `"test"`, or `"rejected"` indicating the assigned split.
@@ -347,11 +356,13 @@ class H5Processor:
         Validate that a generated split YAML matches the original splits provided to the processor.
 
         Reads the YAML at `split_file` and compares its `train`, `val`, `test`, and `rejected` lists
-        (or other split keys present in `self.splits`) against `self.splits`; logs confirmation when a split matches and logs
-        which entries are missing or extra when they differ. If the processor was not initialized with `splits`, validation is skipped and a message is logged.
+        (or other split keys present in `self.splits`) against `self.splits`; logs confirmation
+        when a split matches and logs which entries are missing or extra when they differ.If the
+        processor was not initialized with `splits`, validation is skipped and a message is logged.
 
         Parameters:
-            split_file (str or os.PathLike): Path to the YAML file containing the generated dataset splits.
+            split_file (str or os.PathLike): Path to the YAML file containing the generated dataset
+                splits.
         """
         if self.splits is not None:
             # Read the split_file and ensure contents of the train, val and split match
@@ -375,17 +386,22 @@ class H5Processor:
 
     def __call__(self, avi_file):
         """
-        Convert a single AVI file into a zea dataset entry and optionally save a consolidated NumPy archive.
+        Convert a single AVI file into a zea dataset entry and optionally save a
+        consolidated NumPy archive.
 
-        Loads the AVI, validates and rescales pixel ranges, applies segmentation, assigns a data split (train/val/test/rejected),
-        converts accepted frames to polar coordinates.
-        Constructs and returns the zea dataset descriptor used by generate_zea_dataset; the descriptor always includes `path`, `image_sc`, `probe_name`, and `description`, and includes `image` when the file is accepted.
+        Loads the AVI, validates and rescales pixel ranges, applies segmentation,
+        assigns a data split (train/val/test/rejected), converts accepted frames
+        to polar coordinates.
+        Constructs and returns the zea dataset descriptor used by
+        generate_zea_dataset; the descriptor always includes `path`, `image_sc`,
+        `probe_name`, and `description`, and includes `image` when the file is accepted.
 
         Parameters:
             avi_file (pathlib.Path): Path to the source .avi file to process.
 
         Returns:
-            dict: The value returned by generate_zea_dataset containing the dataset entry for the processed file.
+            dict: The value returned by generate_zea_dataset containing the dataset
+                entry for the processed file.
         """
         hdf5_file = avi_file.stem + ".hdf5"
         sequence = load_avi(avi_file)
@@ -432,14 +448,19 @@ class H5Processor:
 
 def convert_echonet(args):
     """
-    Convert an EchoNet dataset into zea files, organizing results into train/val/test/rejected splits.
+    Convert an EchoNet dataset into zea files, organizing results
+        into train/val/test/rejected splits.
 
     Parameters:
         args: An object (typically argparse.Namespace) with attributes:
-            src (str|Path): Path to the source archive or directory containing .avi files; will be unzipped if needed.
-            dst (str|Path): Destination directory for generated zea files; per-split subdirectories (train, val, test, rejected) and a split.yaml are created/updated.
-            split_path (str|Path|None): If provided, must contain a split.yaml to reproduce an existing split; function asserts the file exists.
-            no_hyperthreading (bool): When false, processing uses a ProcessPoolExecutor with a shared counter; when true, processing runs sequentially.
+            src (str|Path): Path to the source archive or directory containing .avi files;
+                will be unzipped if needed.
+            dst (str|Path): Destination directory for generated zea files; per-split subdirectories
+                (train, val, test, rejected) and a split.yaml are created/updated.
+            split_path (str|Path|None): If provided, must contain a split.yaml to reproduce
+            an existing split; function asserts the file exists.
+            no_hyperthreading (bool): When false, processing uses a ProcessPoolExecutor
+                with a shared counter; when true, processing runs sequentially.
 
     Side effects:
         - May unzip the source into a working directory.
