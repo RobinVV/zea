@@ -2,6 +2,24 @@ import argparse
 
 
 def get_parser():
+    """
+    Build and parse command-line arguments for converting raw datasets to a zea dataset.
+
+    Returns:
+        argparse.Namespace: Parsed arguments with the following attributes:
+            dataset (str): One of "echonet", "echonetlvh", "camus", "picmus", "verasonics".
+            src (str): Source folder path.
+            dst (str): Destination folder path.
+            split_path (str|None): Optional path to a split.yaml to copy dataset splits.
+            no_hyperthreading (bool): Disable hyperthreading for multiprocessing.
+            frames (list[str]): MATLAB frames spec (e.g., ["all"], integers, or ranges like "4-8").
+            no_rejection (bool): EchonetLVH flag to skip manual_rejections.txt filtering.
+            batch (str|None): EchonetLVH Batch directory to process (e.g., "Batch2").
+            convert_measurements (bool): EchonetLVH flag to convert only measurements CSV.
+            convert_images (bool): EchonetLVH flag to convert only image files.
+            max_files (int|None): EchonetLVH maximum number of files to process.
+            force (bool): EchonetLVH flag to force recomputation even if parameters exist.
+    """
     parser = argparse.ArgumentParser(description="Convert raw data to a zea dataset.")
     parser.add_argument(
         "dataset",
@@ -67,6 +85,14 @@ def get_parser():
 
 
 def main():
+    """
+    Parse command-line arguments and dispatch to the selected dataset conversion routine.
+
+    This function obtains CLI arguments via get_args() and calls the corresponding converter
+    (convert_echonet, convert_echonetlvh, convert_camus, convert_picmus, or convert_verasonics)
+    based on args.dataset.
+    Raises a ValueError if args.dataset is not one of the supported choices.
+    """
     parser = get_parser()
     args = parser.parse_args()
     if args.dataset == "echonet":
