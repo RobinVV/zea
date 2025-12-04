@@ -18,7 +18,8 @@ from zea.data.data_format import generate_zea_dataset
 
 
 def convert(source_path, output_path, overwrite=False):
-    """Converts the PICMUS database to the zea format.
+    """
+    Converts and writes a single PICMUS file to the zea format.
 
     Args:
         source_path (str, pathlike): The path to the original PICMUS file.
@@ -108,10 +109,19 @@ def convert(source_path, output_path, overwrite=False):
 
 
 def convert_picmus(args):
-    "Converts the PICMUS database to the zea format. The"
-    "src is scanned for hdf5 files ending in iq or rf. These files are"
-    "converted and stored in dst under the same relative path as "
-    "they came from in src."
+    """
+    Convert PICMUS HDF5 files under a source directory into the zea dataset format, preserving relative paths in the destination.
+
+    Parameters:
+        args: An object (e.g., argparse.Namespace) with the following attributes:
+            src (str or Path): Path to the PICMUS source directory or archive.
+            dst (str or Path): Path to the output directory where converted .hdf5 files will be written.
+
+    Behavior:
+        - Scans `src` (after unzipping if needed) for `.hdf5` files containing IQ/RF data and converts each to the zea format.
+        - Preserves the relative directory structure under `dst` and places each converted file in its own subdirectory named after the file stem.
+        - Fails fast if `src` does not exist or if `dst` already exists.
+    """
     # Get the source and output directories
     base_dir = Path(args.src)
     dst = Path(args.dst)

@@ -194,7 +194,15 @@ splits = {"train": [1, 401], "val": [401, 451], "test": [451, 501]}
 
 
 def get_split(patient_id: int) -> str:
-    """Determine the dataset split for a given patient ID."""
+    """
+    Determine which dataset split a patient ID belongs to.
+
+    Returns:
+        The split name: "train", "val", or "test".
+
+    Raises:
+        ValueError: If the patient_id does not fall into any defined split range.
+    """
     if splits["train"][0] <= patient_id < splits["train"][1]:
         return "train"
     elif splits["val"][0] <= patient_id < splits["val"][1]:
@@ -206,7 +214,16 @@ def get_split(patient_id: int) -> str:
 
 
 def _process_task(task):
-    """Unpack task tuple and call process_camus from the main module."""
+    """
+    Unpack a task tuple and invoke process_camus in a worker process.
+
+    Creates parent directories for the target outputs, calls process_camus with the unpacked paths, and logs then re-raises any exception raised by processing.
+
+    Parameters:
+        task (tuple): (source_file_str, output_file_str)
+            - source_file_str: filesystem path to the source CAMUS file as a string.
+            - output_file_str: filesystem path for the ZEA output file as a string.
+    """
     source_file_str, output_file_str = task
     source_file = Path(source_file_str)
     output_file = Path(output_file_str)
@@ -225,6 +242,19 @@ def _process_task(task):
 
 
 def convert_camus(args):
+    """
+    Converts the CAMUS dataset into ZEA HDF5 files across dataset splits.
+
+    Processes files found under the CAMUS source folder (after unzipping if needed), assigns each patient to a train/val/test split,
+    creates matching output paths, and executes per-file conversion tasks either serially or in parallel.
+    Ensures output directories do not pre-exist, and logs progress and failures.
+
+    Parameters:
+        args: An object with the following attributes:
+            src (str | Path): Path to the CAMUS archive or extracted folder.
+            dst (str | Path): Root destination folder for ZEA HDF5 outputs; split subfolders will be created.
+            no_hyperthreading (bool, optional): If True, run tasks serially instead of using a process pool.
+    """
     camus_source_folder = Path(args.src)
     camus_output_folder = Path(args.dst)
 
