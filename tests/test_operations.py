@@ -401,7 +401,7 @@ def test_gaussian_blur(sigma, spiral_image):
 @backend_equality_check(decimal=4)
 def test_lee_filter(sigma, spiral_image):
     """
-    Test `ops.LeeFilter`, checks if variance is reduced and that with and without
+    Test `ops.LeeFilter`, checks if variance is reduced and if with and without
     batch dimension give the same result.
     """
     import keras
