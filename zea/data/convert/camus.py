@@ -1,8 +1,12 @@
 """Functionality to convert the camus dataset to the zea format.
-Requires SimpleITK to be installed: pip install SimpleITK.
 
-Data source:
-https://humanheart-project.creatis.insa-lyon.fr/database/#collection/6373703d73e9f0047faa1bc8
+.. note::
+    Requires SimpleITK to be installed: `pip install SimpleITK`.
+
+For more information about the dataset, resort to the following links:
+
+- The original dataset can be found at `this link <https://humanheart-project.creatis.insa-lyon.fr/database/#collection/6373703d73e9f0047faa1bc8>`_.
+
 """
 
 from __future__ import annotations
@@ -125,7 +129,7 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
         filepath: Path to the image.
 
     Returns:
-        - ([N], H, W), Image array.
+        - Image array of shape (num_frames, height, width).
         - Collection of metadata.
     """
     # Load image and save info
@@ -224,7 +228,7 @@ def _process_task(task):
     Creates parent directories for the target outputs, calls process_camus
     with the unpacked paths, and logs then re-raises any exception raised by processing.
 
-    Parameters:
+    Args:
         task (tuple): (source_file_str, output_file_str)
             - source_file_str: filesystem path to the source CAMUS file as a string.
             - output_file_str: filesystem path for the ZEA output file as a string.
@@ -255,13 +259,14 @@ def convert_camus(args):
     and executes per-file conversion tasks either serially or in parallel.
     Ensures output directories do not pre-exist, and logs progress and failures.
 
-    Parameters:
-        args: An object with the following attributes:
-            src (str | Path): Path to the CAMUS archive or extracted folder.
-            dst (str | Path): Root destination folder for ZEA HDF5 outputs;
-                split subfolders will be created.
-            no_hyperthreading (bool, optional): If True, run tasks serially instead
-                of using a process pool.
+    Args:
+        args (argparse.Namespace): An object with attributes:
+
+            - src (str | Path): Path to the CAMUS archive or extracted folder.
+            - dst (str | Path): Root destination folder for ZEA HDF5 outputs;
+              split subfolders will be created.
+            - no_hyperthreading (bool, optional): If True, run tasks serially instead
+              of using a process pool.
     """
     camus_source_folder = Path(args.src)
     camus_output_folder = Path(args.dst)

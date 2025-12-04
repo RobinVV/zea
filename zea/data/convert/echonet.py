@@ -1,8 +1,14 @@
 """
-Script to convert the EchoNet database to .npy and zea formats.
-Will segment the images and convert them to polar coordinates.
+Script to convert the EchoNet database to zea format.
 
-Data source: https://stanfordaimi.azurewebsites.net/datasets/834e1cd1-92f7-4268-9daa-d359198b310a
+.. note::
+    Will segment the images and convert them to polar coordinates.
+
+For more information about the dataset, resort to the following links:
+
+- The original dataset can be found at `this link <https://stanfordaimi.azurewebsites.net/datasets/834e1cd1-92f7-4268-9daa-d359198b310a>`_.
+- The project page is available `here <https://echonet.github.io/>`_.
+
 """
 
 import os
@@ -314,7 +320,7 @@ class H5Processor:
         `"val"`, `"test"`, or `"train"` according to the processor's
         `num_val` and `num_test` quotas.
 
-        Parameters:
+        Args:
             hdf5_file (str): Filename or identifier used to look up an existing split
                 when splits are provided.
             sequence (array-like): Time-ordered sequence of images; the first frame is
@@ -360,9 +366,9 @@ class H5Processor:
         when a split matches and logs which entries are missing or extra when they differ. If the
         processor was not initialized with `splits`, validation is skipped and a message is logged.
 
-        Parameters:
-            split_file (str or os.PathLike): Path to the YAML file containing the generated dataset
-                splits.
+        Args:
+            split_file (str or os.PathLike): Path to the YAML file containing the
+                generated dataset splits.
         """
         if self.splits is not None:
             # Read the split_file and ensure contents of the train, val and split match
@@ -394,7 +400,7 @@ class H5Processor:
         generate_zea_dataset; the descriptor always includes `path`, `image_sc`,
         `probe_name`, and `description`, and includes `image` when the file is accepted.
 
-        Parameters:
+        Args:
             avi_file (pathlib.Path): Path to the source .avi file to process.
 
         Returns:
@@ -447,20 +453,22 @@ class H5Processor:
 def convert_echonet(args):
     """
     Convert an EchoNet dataset into zea files, organizing results
-        into train/val/test/rejected splits.
+    into train/val/test/rejected splits.
 
-    Parameters:
-        args: An object (typically argparse.Namespace) with attributes:
-            src (str|Path): Path to the source archive or directory containing .avi files;
-                will be unzipped if needed.
-            dst (str|Path): Destination directory for generated zea files; per-split subdirectories
-                (train, val, test, rejected) and a split.yaml are created/updated.
-            split_path (str|Path|None): If provided, must contain a split.yaml to reproduce
-            an existing split; function asserts the file exists.
-            no_hyperthreading (bool): When false, processing uses a ProcessPoolExecutor
+    Args:
+        args (argparse.Namespace): An object with the following attributes.
+
+            - src (str|Path): Path to the source archive or directory containing .avi files.
+                Will be unzipped if needed.
+            - dst (str|Path): Destination directory for generated zea files
+                per-split subdirectories (train, val, test, rejected) and a split.yaml
+                are created or updated.
+            - split_path (str|Path|None): If provided, must contain a split.yaml to reproduce
+                an existing split; function asserts the file exists.
+            - no_hyperthreading (bool): When false, processing uses a ProcessPoolExecutor
                 with a shared counter; when true, processing runs sequentially.
 
-    Side effects:
+    Note:
         - May unzip the source into a working directory.
         - Writes zea files into dst.
         - Writes a split.yaml into dst summarizing produced files per split.

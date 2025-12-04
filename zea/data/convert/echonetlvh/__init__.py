@@ -4,11 +4,14 @@ Script to convert the EchoNet-LVH database to zea format.
 Each video is cropped so that the scan cone is centered
 without padding, such that it can be converted to polar domain.
 
-This cropping requires first computing scan cone parameters
-using `data/convert/echonetlvh/precompute_crop.py`, which
-are then passed to this script.
+.. note::
+    This cropping requires first computing scan cone parameters
+    using :mod:`zea.data.convert.echonetlvh.precompute_crop`, which
+    are then passed to this script.
 
-Data source: https://stanfordaimi.azurewebsites.net/datasets/5b7fcc28-579c-4285-8b72-e4238eac7bd1
+For more information about the dataset, resort to the following links:
+
+- The original dataset can be found at `this link <https://stanfordaimi.azurewebsites.net/datasets/5b7fcc28-579c-4285-8b72-e4238eac7bd1>`_.
 """
 
 import csv
@@ -17,8 +20,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import jax.numpy as jnp
-from jax import jit, vmap
 import numpy as np
+from jax import jit, vmap
 from tqdm import tqdm
 
 from zea import log
@@ -460,7 +463,7 @@ def convert_echonetlvh(args):
     Is called with argparse arguments through zea/zea/data/convert/__main__.py
 
     Args:
-        args: argparse.Namespace containing command-line arguments
+        args (argparse.Namespace): Command-line arguments
     """
     # Check if unzip is needed
     src = unzip(args.src, "echonetlvh")

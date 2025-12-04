@@ -1,7 +1,9 @@
 """
 Script to convert the PICMUS database to the zea format.
 
-Data source: https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/download
+For more information about the dataset, resort to the following links:
+
+- The original dataset can be found at `this link <https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/download>`_.
 """
 
 import logging
@@ -113,17 +115,18 @@ def convert_picmus(args):
     Convert PICMUS HDF5 files under a source directory into the zea dataset format,
     preserving relative paths in the destination.
 
-    Parameters:
-        args: An object (e.g., argparse.Namespace) with the following attributes:
-            src (str or Path): Path to the PICMUS source directory or archive.
-            dst (str or Path): Path to the output directory where converted .hdf5 files
-                will be written.
+    Args:
+        args (argparse.Namespace): An object with the following attributes.
 
-    Behavior:
+            - src (str or Path): Path to the PICMUS source directory or archive.
+            - dst (str or Path): Path to the output directory where converted .hdf5 files
+              will be written.
+
+    Note:
         - Scans `src` (after unzipping if needed) for `.hdf5` files containing IQ/RF data and
-        converts each to the zea format.
+          converts each to the zea format.
         - Preserves the relative directory structure under `dst` and places each converted
-        file in its own subdirectory named after the file stem.
+          file in its own subdirectory named after the file stem.
         - Fails fast if `src` does not exist or if `dst` already exists.
     """
     # Get the source and output directories
