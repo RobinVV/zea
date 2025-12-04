@@ -9,7 +9,7 @@ import imageio
     
 from zea.data.convert.utils import load_avi, unzip
 from zea.data.convert.images import convert_image_dataset
-
+from zea.io_lib import _SUPPORTED_IMG_TYPES
 from .. import DEFAULT_TEST_SEED
 
 @pytest.mark.parametrize("dataset",
@@ -114,8 +114,37 @@ def verify_converted_picmus_test_data(dst):
 def verify_converted_verasonics_test_data(dst):
     return
 
-def test_convert_image_dataset(tmp_path):
-    return
+@pytest.mark.parametrize("image_type", _SUPPORTED_IMG_TYPES)
+def test_convert_image_dataset(tmp_path_factory, image_type):
+    """Test the convert_image_dataset function from zea.data.convert.images"""    
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    src = tmp_path_factory.mktemp("src")
+    dst = tmp_path_factory.mktemp("dst")
+    
+    # Create a temporary directory structure with image files
+    subdirs = ["dir1", "dir2/subdir"]
+    for subdir in subdirs:
+        dir_path = src / subdir
+        dir_path.mkdir(parents=True, exist_ok=True)
+        for i in range(5):
+            img_array = rng.integers(0, 256, (32, 32), dtype=np.uint8)
+            img_path = dir_path / f"image_{i}{image_type}"
+            imageio.imwrite(img_path, img_array)
+    
+    # Convert the image dataset
+    convert_image_dataset(
+        existing_dataset_root=str(src),
+        new_dataset_root=str(dst),
+        dataset_name="test_images",
+    )
+    
+    # Verify that the converted dataset exists and has the expected structure
+    for subdir in subdirs:
+        new_dir_path = dst / subdir
+        assert new_dir_path.exists()
+        for i in range(5):
+            h5_path = new_dir_path / f"image_{i}.hdf5"
+            assert h5_path.exists()
 
 
 def test_load_avi(tmp_path):
