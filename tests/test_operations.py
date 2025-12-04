@@ -18,7 +18,7 @@ from zea.ops import Pipeline, Simulate, compute_time_to_peak_stack
 from zea.probes import Probe
 from zea.scan import Scan
 
-from . import backend_equality_check, DEFAULT_TEST_SEED
+from . import DEFAULT_TEST_SEED, backend_equality_check
 
 
 @pytest.mark.parametrize(
@@ -401,7 +401,8 @@ def test_gaussian_blur(sigma, spiral_image):
 @backend_equality_check(decimal=4)
 def test_lee_filter(sigma, spiral_image):
     """
-    Test `ops.LeeFilter`, only checks if variance is reduced.
+    Test `ops.LeeFilter`, checks if variance is reduced and if with and without
+    batch dimension give the same result.
     """
     import keras
 
@@ -411,9 +412,16 @@ def test_lee_filter(sigma, spiral_image):
     image = spiral_image["spiral"]
 
     lee = ops.LeeFilter(sigma=sigma, with_batch_dim=False)
+    lee_batched = ops.LeeFilter(sigma=sigma, with_batch_dim=True)
 
     image_tensor = keras.ops.convert_to_tensor(image[..., None])
     filtered = lee(data=image_tensor)["data"][..., 0]
+    filtered_batched = lee_batched(data=image_tensor[None, ...])["data"][0, ..., 0]
+
+    assert np.allclose(
+        keras.ops.convert_to_numpy(filtered),
+        keras.ops.convert_to_numpy(filtered_batched),
+    ), "LeeFilter with and without batch dim should give the same result."
 
     assert keras.ops.var(filtered) < keras.ops.var(image_tensor), (
         "LeeFilter should reduce variance of the processed image"
