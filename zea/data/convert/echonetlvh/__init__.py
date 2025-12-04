@@ -461,9 +461,6 @@ def convert_echonetlvh(args):
 
     Args:
         args: argparse.Namespace containing command-line arguments
-
-    Returns:
-        None
     """
     # Check if unzip is needed
     src = unzip(args.src, "echonetlvh")

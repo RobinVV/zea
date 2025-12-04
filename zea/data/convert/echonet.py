@@ -274,7 +274,7 @@ def count_init(shared_counter):
 
 class H5Processor:
     """
-    Stores a few variables and paths to facilitate hyperthreading.
+    Stores a few variables and paths to allow for hyperthreading.
     """
 
     def __init__(
@@ -357,7 +357,7 @@ class H5Processor:
 
         Reads the YAML at `split_file` and compares its `train`, `val`, `test`, and `rejected` lists
         (or other split keys present in `self.splits`) against `self.splits`; logs confirmation
-        when a split matches and logs which entries are missing or extra when they differ.If the
+        when a split matches and logs which entries are missing or extra when they differ. If the
         processor was not initialized with `splits`, validation is skipped and a message is logged.
 
         Parameters:
@@ -386,9 +386,7 @@ class H5Processor:
 
     def __call__(self, avi_file):
         """
-        Convert a single AVI file into a zea dataset entry and optionally save a
-        consolidated NumPy archive.
-
+        Convert a single AVI file into a zea dataset entry.
         Loads the AVI, validates and rescales pixel ranges, applies segmentation,
         assigns a data split (train/val/test/rejected), converts accepted frames
         to polar coordinates.
