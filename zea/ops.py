@@ -413,6 +413,36 @@ class Operation(keras.Operation):
         return True
 
 
+class ImageOperation(Operation):
+    """
+    Base class for image processing operations.
+
+    This class extends the Operation class to provide a common interface
+    for operations that process image data, with shape (batch, height, width, channels)
+    or (height, width, channels) if batch dimension is not present.
+
+    Subclasses should implement the `call` method to define the image processing logic, and call
+    ``super().call(**kwargs)`` to validate the input data shape.
+    """
+
+    def call(self, **kwargs):
+        """
+        Validate input data shape for image operations.
+
+        Args:
+            **kwargs: Keyword arguments containing input data.
+
+        Raises:
+            AssertionError: If input data does not have the expected number of dimensions.
+        """
+        data = kwargs[self.key]
+
+        if self.with_batch_dim:
+            assert ops.ndim(data) == 4, "Input data must have 4 dimensions (b, h, w, c)."
+        else:
+            assert ops.ndim(data) == 3, "Input data must have 3 dimensions (h, w, c)."
+
+
 @ops_registry("pipeline")
 class Pipeline:
     """Pipeline class for processing ultrasound data through a series of operations."""
@@ -833,59 +863,9 @@ class Pipeline:
             return params
 
     def __str__(self):
-        """String representation of the pipeline.
-
-        Will print on two parallel pipeline lines if it detects a splitting operations
-        (such as multi_bandpass_filter)
-        Will merge the pipeline lines if it detects a stacking operation (such as stack)
-        """
-        split_operations = []
-        merge_operations = ["Stack"]
-
+        """String representation of the pipeline."""
         operations = [operation.__class__.__name__ for operation in self.operations]
         string = " -> ".join(operations)
-
-        if any(operation in split_operations for operation in operations):
-            # a second line is needed with same length as the first line
-            split_line = " " * len(string)
-            # find the splitting operation and index and print \\-> instead of -> after
-            split_detected = False
-            merge_detected = False
-            split_operation = None
-            for operation in operations:
-                if operation in split_operations:
-                    index = string.index(operation)
-                    index = index + len(operation)
-                    split_line = split_line[:index] + "\\->" + split_line[index + len("\\->") :]
-                    split_detected = True
-                    merge_detected = False
-                    split_operation = operation
-                    continue
-
-                if operation in merge_operations:
-                    index = string.index(operation)
-                    index = index - 4
-                    split_line = split_line[:index] + "/" + split_line[index + 1 :]
-                    split_detected = False
-                    merge_detected = True
-                    continue
-
-                if split_detected:
-                    # print all operations in the second line
-                    index = string.index(operation)
-                    split_line = (
-                        split_line[:index]
-                        + operation
-                        + " -> "
-                        + split_line[index + len(operation) + len(" -> ") :]
-                    )
-            assert merge_detected is True, log.error(
-                "Pipeline was never merged back together (with Stack operation), even "
-                f"though it was split with {split_operation}. "
-                "Please properly define your operation chain."
-            )
-            return f"\n{string}\n{split_line}\n"
-
         return string
 
     def __repr__(self):
@@ -1579,21 +1559,6 @@ class Merge(Operation):
         return merged
 
 
-@ops_registry("split")
-class Split(Operation):
-    """Operation that splits an input dictionary  n copies."""
-
-    def __init__(self, n: int, **kwargs):
-        super().__init__(**kwargs)
-        self.n = n
-
-    def call(self, **kwargs) -> List[Dict]:
-        """
-        Splits the input dictionary into n copies.
-        """
-        return [kwargs.copy() for _ in range(self.n)]
-
-
 @ops_registry("stack")
 class Stack(Operation):
     """Stack multiple data arrays along a new axis.
@@ -2208,7 +2173,7 @@ class ScanConvert(Operation):
 
 
 @ops_registry("gaussian_blur")
-class GaussianBlur(Operation):
+class GaussianBlur(ImageOperation):
     """
     GaussianBlur is an operation that applies a Gaussian blur to an input image.
     Uses scipy.ndimage.gaussian_filter to create a kernel.
@@ -2258,6 +2223,13 @@ class GaussianBlur(Operation):
         return ops.convert_to_tensor(kernel)
 
     def call(self, **kwargs):
+        """Apply the Lee filter to the input data.
+
+        Args:
+            data (ops.Tensor): Input image data of shape (height, width, channels) with
+                optional batch dimension if ``self.with_batch_dim``.
+        """
+        super().call(**kwargs)
         data = kwargs[self.key]
 
         # Add batch dimension if not present
@@ -2292,7 +2264,7 @@ class GaussianBlur(Operation):
 
 
 @ops_registry("lee_filter")
-class LeeFilter(Operation):
+class LeeFilter(ImageOperation):
     """
     The Lee filter is a speckle reduction filter commonly used in synthetic aperture radar (SAR)
     and ultrasound image processing. It smooths the image while preserving edges and details.
@@ -2322,7 +2294,7 @@ class LeeFilter(Operation):
             pad_mode=self.pad_mode,
             with_batch_dim=self.with_batch_dim,
             jittable=self._jittable,
-            key=self.key,
+            key="data",
         )
 
     @property
@@ -2338,24 +2310,29 @@ class LeeFilter(Operation):
             self.gaussian_blur.with_batch_dim = value
 
     def call(self, **kwargs):
-        data = kwargs[self.key]
+        """Apply the Lee filter to the input data.
+
+        Args:
+            data (ops.Tensor): Input image data of shape (height, width, channels) with
+                optional batch dimension if ``self.with_batch_dim``.
+        """
+        super().call(**kwargs)
+        data = kwargs.pop(self.key)
 
         # Apply Gaussian blur to get local mean
-        img_mean = self.gaussian_blur.call(**kwargs)[self.gaussian_blur.output_key]
+        img_mean = self.gaussian_blur.call(data=data, **kwargs)[self.gaussian_blur.output_key]
 
         # Apply Gaussian blur to squared data to get local squared mean
-        data_squared = data**2
-        kwargs[self.gaussian_blur.key] = data_squared
-        img_sqr_mean = self.gaussian_blur.call(**kwargs)[self.gaussian_blur.output_key]
+        img_sqr_mean = self.gaussian_blur.call(
+            data=data**2,
+            **kwargs,
+        )[self.gaussian_blur.output_key]
 
         # Calculate local variance
         img_variance = img_sqr_mean - img_mean**2
 
         # Calculate global variance (per channel)
-        if self.with_batch_dim:
-            overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
-        else:
-            overall_variance = ops.var(data, axis=(-2, -1), keepdims=True)
+        overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
 
         # Calculate adaptive weights
         img_weights = img_variance / (img_variance + overall_variance)
