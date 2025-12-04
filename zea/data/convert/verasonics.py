@@ -1046,6 +1046,18 @@ def get_answer(prompt, additional_options=None):
 
 
 def convert_verasonics(args):
+    """
+    Converts a Verasonics MATLAB workspace file (.mat) or a directory containing multiple
+    such files to the zea format.
+
+    Args:
+        args (argparse.Namespace): An object with attributes:
+
+            - src (str): Source folder path.
+            - dst (str): Destination folder path.
+            - frames (list[str]): MATLAB frames spec (e.g., ["all"], integers, or ranges like "4-8")
+    """
+
     # Variable to indicate what to do with existing files.
     # Is set by the user in case these are found.
     existing_file_policy = None
