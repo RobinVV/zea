@@ -1,13 +1,15 @@
 """Test dataset conversion scripts"""
 import subprocess
 import zipfile
-import pytest
-import numpy as np
-from pathlib import Path
 import os
 import csv
+from pathlib import Path
 import yaml
+
+import h5py
+import numpy as np
 import imageio
+import pytest
     
 from zea.data.convert.utils import load_avi, unzip
 from zea.data.convert.images import convert_image_dataset
@@ -16,28 +18,28 @@ from .. import DEFAULT_TEST_SEED
 
 @pytest.mark.parametrize("dataset",
                          ["echonet", "echonetlvh", "camus", "picmus", "verasonics"])
+@pytest.mark.heavy
 def test_conversion_script(tmp_path_factory, dataset):
     """
     Function that given a dataset name creates some temporary data which is 
     similar to the real dataset, runs the corresponding conversion script,
     and verifies the output.
     """
-    src = tmp_path_factory.mktemp("src")
-    dst = tmp_path_factory.mktemp("dst")
+    base = tmp_path_factory.mktemp("base")
+    src = base / "src"
+    dst = base / "dst"
     
     create_test_data_for_dataset(dataset, src)
-    
     subprocess.run(
         ["python", "-m", "zea.data.convert", dataset, str(src), str(dst)],
         check=True,
     )
-    
     verify_converted_test_dataset(dataset, dst)
     
     if dataset == "echonet":
         # For echonet we want to run it again, using the split.yaml file created in dst
         # to verify that the script can copy and verify integrity of existing split files
-        # We also test no_hyperthreading for good measure
+        # We also test no_hyperthreading with the H5Processor for good measure
         dst2 = tmp_path_factory.mktemp("dst2")
         subprocess.run(
             ["python", "-m", "zea.data.convert", dataset, str(src), str(dst2),
@@ -90,7 +92,7 @@ def verify_converted_test_dataset(dataset, dst):
     Raises:
         ValueError: If the dataset name is unknown
     """
-    
+
     if dataset == "echonet":
         verify_converted_echonet_test_data(dst)
     elif dataset == "echonetlvh":
@@ -117,17 +119,21 @@ def create_echonet_test_data(src):
     
     """
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
-    accepted_files = np.abs(rng.normal(size=(6, 112, 112))).astype(np.uint8)
+    os.mkdir(src)
+    os.mkdir(src / "EchoNet-Dynamic")
+    os.mkdir(src / "EchoNet-Dynamic" / "Videos")
+    
+    accepted_files = 10 * np.abs(rng.normal(size=(6, 112, 112)))
     
     # Create a file with missing bottom left corner
-    missing_bottom_left = np.abs(rng.normal(size=(1, 112, 112))).astype(np.uint8)
+    missing_bottom_left = 10 * np.abs(rng.normal(size=(1, 112, 112)))
     rows_lower = np.linspace(78, 47, 21).astype(np.int32)
     rows_upper = np.linspace(67, 47, 21).astype(np.int32)
     for idx, row in enumerate(rows_lower):
         missing_bottom_left[0, rows_upper[idx] : row, idx] = 0
     
     # Create a file with missing bottom right corner
-    missing_bottom_right = np.abs(rng.normal(size=(1, 112, 112))).astype(np.uint8)
+    missing_bottom_right = 10 * np.abs(rng.normal(size=(1, 112, 112)))
     cols = np.linspace(70, 111, 42).astype(np.int32)
     rows_bot = np.linspace(17, 57, 42).astype(np.int32)
     rows_top = np.linspace(17, 80, 42).astype(np.int32)
@@ -137,8 +143,6 @@ def create_echonet_test_data(src):
     files = np.concatenate(
         [accepted_files, missing_bottom_left, missing_bottom_right], axis=0
     )
-    os.mkdir(src / "EchoNet-Dynamic")
-    os.mkdir(src / "EchoNet-Dynamic" / "Videos")
     # Make a single avi file for each sample
     for i, file_data in enumerate(files):
         avi_path = src / "EchoNet-Dynamic" / "Videos" / f"video_{i}.avi"
@@ -153,6 +157,53 @@ def create_camus_test_data(src):
     return
 
 def create_picmus_test_data(src):
+    """
+    Creates test hdf5 files ending in iq or rf with random content,
+    representative of the subset of picmus files we process.
+    These files must contain:
+        ["US"]["US_DATASET0000"]["data"]["real"]
+        ["US"]["US_DATASET0000"]["data"]["imag"]
+        ["US"]["US_DATASET0000"]["modulation_frequency"][":"][0]
+        ["US"]["US_DATASET0000"]["sampling_frequency"][":"][0]
+        ["US"]["US_DATASET0000"]["probe_geometry"][":"]
+        ["US"]["US_DATASET0000"]["sound_speed"][":"][0]
+        ["US"]["US_DATASET0000"]["angles"][":"]
+    
+    Args:
+        src (Path): path to the source directory where test data will be created.
+    """
+    os.mkdir(src)
+    os.mkdir(src / "archive_to_download")
+    os.mkdir(src / "archive_to_download" / "parent_folder")
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    for name in ["test1_iq.hdf5", "test2_rf.hdf5", "ignore_me.hdf5"]:
+        file_path = src / "archive_to_download" / "parent_folder" / name
+        with h5py.File(file_path, "w") as f:
+            us_group = f.create_group("US")
+            dataset_group = us_group.create_group("US_DATASET0000")
+            data_group = dataset_group.create_group("data")
+            n_tx = 5
+            n_el = 32
+            n_samples = 128
+            real_part = rng.normal(size=(n_tx, n_el, n_samples)).astype(np.float32)
+            imag_part = rng.normal(size=(n_tx, n_el, n_samples)).astype(np.float32)
+            data_group.create_dataset("real", data=real_part)
+            data_group.create_dataset("imag", data=imag_part)
+            dataset_group.create_dataset(
+                "modulation_frequency", data=np.array([5e6], dtype=np.float32)
+            )
+            dataset_group.create_dataset(
+                "sampling_frequency", data=np.array([20e6], dtype=np.float32)
+            )
+            probe_geometry = rng.uniform(-0.01, 0.01, size=(3, n_el)).astype(np.float32)
+            dataset_group.create_dataset("probe_geometry", data=probe_geometry)
+            dataset_group.create_dataset(
+                "sound_speed", data=np.array([1540.0], dtype=np.float32)
+            )
+            angles = np.linspace(-np.pi/6, np.pi/6, n_tx).astype(np.float32)
+            dataset_group.create_dataset("angles", data=angles)
+    assert len(list((src / "archive_to_download").rglob("*.hdf5"))) == 3, \
+        "Failed to create test PICMUS hdf5 files."
     return
 
 def create_verasonics_test_data(src):
@@ -174,6 +225,11 @@ def verify_converted_echonet_test_data(dst):
         assert split_dir.exists(), f"Missing directory: {split_dir}"
         h5_files = list(split_dir.rglob("*.hdf5"))
         all_files.append(h5_files)
+        # The rejected split should have video_6 and video_7 only
+        if split == "rejected":
+            rejected_filenames = [f.name for f in h5_files]
+            assert set(rejected_filenames) == {"video_6.hdf5", "video_7.hdf5"}, \
+                "Rejected split does not have the expected files"
     
     # Verify that the set of hdf5 files is video_0.hdf5 to video_7.hdf5
     all_h5_files = [f.name for split_files in all_files for f in split_files]
@@ -188,6 +244,22 @@ def verify_converted_camus_test_data(dst):
     return
 
 def verify_converted_picmus_test_data(dst):
+    """
+    Verify that 2/3 of the created hdf5 files were converted to zea format.
+
+    Args:
+        dst (Path): Path to the destination directory where converted test data is located.
+    """
+    h5_files = list(dst.rglob("*.hdf5"))
+    assert len(h5_files) == 2, "Expected 2 converted hdf5 files."
+    
+    # Check that the files contain data
+    for h5_file in h5_files:
+        with h5py.File(h5_file, "r") as f:
+            print(f.keys())
+            assert "data" in f, f"Missing 'data' in {h5_file}"
+            assert "scan" in f, f"Missing 'scan' in {h5_file}"
+    
     return
 
 def verify_converted_verasonics_test_data(dst):
