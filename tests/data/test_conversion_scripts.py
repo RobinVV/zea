@@ -4,7 +4,9 @@ import zipfile
 import pytest
 import numpy as np
 from pathlib import Path
+import os
 import csv
+import yaml
 import imageio
     
 from zea.data.convert.utils import load_avi, unzip
@@ -31,6 +33,25 @@ def test_conversion_script(tmp_path_factory, dataset):
     )
     
     verify_converted_test_dataset(dataset, dst)
+    
+    if dataset == "echonet":
+        # For echonet we want to run it again, using the split.yaml file created in dst
+        # to verify that the script can copy and verify integrity of existing split files
+        # We also test no_hyperthreading for good measure
+        dst2 = tmp_path_factory.mktemp("dst2")
+        subprocess.run(
+            ["python", "-m", "zea.data.convert", dataset, str(src), str(dst2),
+             "--split_path", str(dst), "--no_hyperthreading"], 
+            check=True,
+        )
+        with open(dst / "split.yaml", "r") as f:
+            split_content1 = yaml.safe_load(f)
+        with open(dst2 / "split.yaml", "r") as f:
+            split_content2 = yaml.safe_load(f)
+        for split in split_content1.keys():
+            assert set(split_content1[split]) == set(split_content2[split]), \
+                "Split contents do not match after re-conversion"
+    return
 
 
 def create_test_data_for_dataset(dataset, src):
@@ -85,6 +106,44 @@ def verify_converted_test_dataset(dataset, dst):
     return
 
 def create_echonet_test_data(src):
+    """
+    Creates test AVI files with random content in the expected directory 
+    structure for the EchoNet dataset. They should be defined such that
+    the convert function splits them evenly into train/val/test/rejected sets 
+    and creates a split.yaml file.
+    
+    Args:
+        src (Path): path to the source directory where test data will be created.
+    
+    """
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    accepted_files = np.abs(rng.normal(size=(6, 112, 112))).astype(np.uint8)
+    
+    # Create a file with missing bottom left corner
+    missing_bottom_left = np.abs(rng.normal(size=(1, 112, 112))).astype(np.uint8)
+    rows_lower = np.linspace(78, 47, 21).astype(np.int32)
+    rows_upper = np.linspace(67, 47, 21).astype(np.int32)
+    for idx, row in enumerate(rows_lower):
+        missing_bottom_left[0, rows_upper[idx] : row, idx] = 0
+    
+    # Create a file with missing bottom right corner
+    missing_bottom_right = np.abs(rng.normal(size=(1, 112, 112))).astype(np.uint8)
+    cols = np.linspace(70, 111, 42).astype(np.int32)
+    rows_bot = np.linspace(17, 57, 42).astype(np.int32)
+    rows_top = np.linspace(17, 80, 42).astype(np.int32)
+    for i, col in enumerate(cols):
+        missing_bottom_right[0, rows_bot[i]: rows_top[i], col] = 0
+        
+    files = np.concatenate(
+        [accepted_files, missing_bottom_left, missing_bottom_right], axis=0
+    )
+    os.mkdir(src / "EchoNet-Dynamic")
+    os.mkdir(src / "EchoNet-Dynamic" / "Videos")
+    # Make a single avi file for each sample
+    for i, file_data in enumerate(files):
+        avi_path = src / "EchoNet-Dynamic" / "Videos" / f"video_{i}.avi"
+        with imageio.get_writer(avi_path, fps=30, codec="ffv1") as writer:
+            writer.append_data(file_data)
     return
 
 def create_echonetlvh_test_data(src):
@@ -100,6 +159,26 @@ def create_verasonics_test_data(src):
     return
 
 def verify_converted_echonet_test_data(dst):
+    """
+    Verify that the converted EchoNet test dataset has the correct structure with hdf5 files
+    in train/val/test/rejected folders for every original AVI file. The split.yaml file is 
+    already test in the test_conversion_script function.
+    
+    Args:
+        dst (Path): path to the destination directory where converted test data is located.
+    """
+    # List all hdf5 files in the splits
+    all_files = []
+    for split in ["train", "val", "test", "rejected"]:
+        split_dir = dst / split
+        assert split_dir.exists(), f"Missing directory: {split_dir}"
+        h5_files = list(split_dir.rglob("*.hdf5"))
+        all_files.append(h5_files)
+    
+    # Verify that the set of hdf5 files is video_0.hdf5 to video_7.hdf5
+    all_h5_files = [f.name for split_files in all_files for f in split_files]
+    expected_files = [f"video_{i}.hdf5" for i in range(8)]
+    assert set(all_h5_files) == set(expected_files), "Mismatch in converted hdf5 files"
     return
 
 def verify_converted_echonetlvh_test_data(dst):
