@@ -10,6 +10,7 @@ import h5py
 import numpy as np
 import imageio
 import pytest
+import SimpleITK as sitk
     
 from zea.data.convert.utils import load_avi, unzip
 from zea.data.convert.images import convert_image_dataset
@@ -17,7 +18,8 @@ from zea.io_lib import _SUPPORTED_IMG_TYPES
 from .. import DEFAULT_TEST_SEED
 
 @pytest.mark.parametrize("dataset",
-                         ["echonet", "echonetlvh", "camus", "picmus", "verasonics"])
+                         ["echonet", "camus", "picmus"]
+) # Does not test 'echonetlvh' or 'verasonics' yet
 @pytest.mark.heavy
 def test_conversion_script(tmp_path_factory, dataset):
     """
@@ -54,7 +56,6 @@ def test_conversion_script(tmp_path_factory, dataset):
             assert set(split_content1[split]) == set(split_content2[split]), \
                 "Split contents do not match after re-conversion"
     return
-
 
 def create_test_data_for_dataset(dataset, src):
     """
@@ -151,9 +152,65 @@ def create_echonet_test_data(src):
     return
 
 def create_echonetlvh_test_data(src):
-    return
+    pass
 
 def create_camus_test_data(src):
+    """
+    Creates test data representing the CAMUS dataset.
+    Makes a folder CAMUS_public with in it, database_nifti and database_split folders
+    database_nifti folder:
+        patient0001 folder:
+            file.nii.gz (SimpleITK image with random data and metadata)
+        patient0002 folder:
+            ...
+    database_split folder:
+        can be empty
+
+    Args:
+        src (Path): path to the source directory where test data will be created.
+    """
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    os.mkdir(src)
+    os.mkdir(src / "CAMUS_public")
+    os.mkdir(src / "CAMUS_public" / "database_nifti")
+    os.mkdir(src / "CAMUS_public" / "database_split")
+    
+    data_folder = src / "CAMUS_public" / "database_nifti"
+    for i in [50, 420, 470]:  # Patients to be put in train, val, test
+        patient_folder = data_folder / f"patient{i:04d}"
+        os.mkdir(patient_folder)
+        filepath = patient_folder / f"patient{i:04d}_half_sequence.nii.gz"
+        
+        # Create some data that does not crash the
+        # transform_sc_image_to_polar function in camus.py
+        img = np.zeros((32, 32), dtype=float)
+        active_cols = rng.choice(32, size=30, replace=False)
+        active_cols.sort()
+        for c in active_cols:
+            start = rng.integers(0, 32 // 4)
+            length = rng.integers(32 // 2, 32)
+            end = min(32, start + length)
+            img[start:end, c] = rng.uniform(0.2, 1.0, end - start)
+        img_set = []
+        for _ in range(10):
+            noise = rng.normal(0, 0.02, (32, 32))
+            img += noise
+            img = np.clip(img, 0, None)
+            img_set.append(img.copy())
+        img = np.stack(img_set, axis=0)
+        img[:, 0, :] = 0.0
+        
+        # Create SimpleITK image with metadata
+        image = sitk.GetImageFromArray(img)
+        image.SetOrigin((0.0, 0.0, 0.0))
+        image.SetSpacing((1.0, 1.0, 1.0))
+        image.SetDirection((1.0, 0.0, 0.0,
+                            0.0, 1.0, 0.0,
+                            0.0, 0.0, 1.0))
+        image.SetMetaData("PatientName", "John Doe")
+        image.SetMetaData("Modality", "US")
+        image.SetMetaData("StudyDate", "01011970")
+        sitk.WriteImage(image, str(filepath))
     return
 
 def create_picmus_test_data(src):
@@ -207,7 +264,7 @@ def create_picmus_test_data(src):
     return
 
 def create_verasonics_test_data(src):
-    return
+    pass
 
 def verify_converted_echonet_test_data(dst):
     """
@@ -238,9 +295,34 @@ def verify_converted_echonet_test_data(dst):
     return
 
 def verify_converted_echonetlvh_test_data(dst):
-    return
+    pass
 
 def verify_converted_camus_test_data(dst):
+    """
+    Verify that all 3 created nifti files were converted to zea format and split correctly.
+    
+    Args:
+        dst (Path): Path to the destination directory where converted test data is located.
+    """
+    splits = ["train", "val", "test"]
+    expected_patients = {
+        "train": ["patient0050_half_sequence.hdf5"],
+        "val": ["patient0420_half_sequence.hdf5"],
+        "test": ["patient0470_half_sequence.hdf5"],
+    }
+    for split in splits:
+        split_dir = dst / split
+        assert split_dir.exists(), f"Missing directory: {split_dir}"
+        h5_files = list(split_dir.rglob("*.hdf5"))
+        h5_filenames = [f.name for f in h5_files]
+        assert set(h5_filenames) == set(expected_patients[split]), \
+            f"Mismatch in converted hdf5 files for split {split}"
+        
+        # Load the hdf5 file and check for expected datasets
+        for h5_file in h5_files:
+            with h5py.File(h5_file, "r") as f:
+                assert "data" in f, f"Missing 'data' in {h5_file}"
+                assert "scan" in f, f"Missing 'scan' in {h5_file}"
     return
 
 def verify_converted_picmus_test_data(dst):
@@ -263,7 +345,7 @@ def verify_converted_picmus_test_data(dst):
     return
 
 def verify_converted_verasonics_test_data(dst):
-    return
+    pass
 
 @pytest.mark.parametrize("image_type", _SUPPORTED_IMG_TYPES)
 def test_convert_image_dataset(tmp_path_factory, image_type):
