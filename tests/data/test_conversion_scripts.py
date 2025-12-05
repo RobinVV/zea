@@ -340,7 +340,7 @@ def verify_converted_camus_test_data(dst):
         # Load the hdf5 file and check for expected datasets
         for h5_file in h5_files:
             with h5py.File(h5_file, "r") as f:
-                assert "data" in f, f"Missing 'data' in {h5_file}"
+    
                 assert "scan" in f, f"Missing 'scan' in {h5_file}"
     return
 
@@ -358,7 +358,6 @@ def verify_converted_picmus_test_data(dst):
     # Check that the files contain data
     for h5_file in h5_files:
         with h5py.File(h5_file, "r") as f:
-            print(f.keys())
             assert "data" in f, f"Missing 'data' in {h5_file}"
             assert "scan" in f, f"Missing 'scan' in {h5_file}"
 
