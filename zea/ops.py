@@ -413,6 +413,36 @@ class Operation(keras.Operation):
         return True
 
 
+class ImageOperation(Operation):
+    """
+    Base class for image processing operations.
+
+    This class extends the Operation class to provide a common interface
+    for operations that process image data, with shape (batch, height, width, channels)
+    or (height, width, channels) if batch dimension is not present.
+
+    Subclasses should implement the `call` method to define the image processing logic, and call
+    ``super().call(**kwargs)`` to validate the input data shape.
+    """
+
+    def call(self, **kwargs):
+        """
+        Validate input data shape for image operations.
+
+        Args:
+            **kwargs: Keyword arguments containing input data.
+
+        Raises:
+            AssertionError: If input data does not have the expected number of dimensions.
+        """
+        data = kwargs[self.key]
+
+        if self.with_batch_dim:
+            assert ops.ndim(data) == 4, "Input data must have 4 dimensions (b, h, w, c)."
+        else:
+            assert ops.ndim(data) == 3, "Input data must have 3 dimensions (h, w, c)."
+
+
 @ops_registry("pipeline")
 class Pipeline:
     """Pipeline class for processing ultrasound data through a series of operations."""
@@ -2137,7 +2167,7 @@ class ScanConvert(Operation):
 
 
 @ops_registry("gaussian_blur")
-class GaussianBlur(Operation):
+class GaussianBlur(ImageOperation):
     """
     GaussianBlur is an operation that applies a Gaussian blur to an input image.
     Uses scipy.ndimage.gaussian_filter to create a kernel.
@@ -2187,6 +2217,13 @@ class GaussianBlur(Operation):
         return ops.convert_to_tensor(kernel)
 
     def call(self, **kwargs):
+        """Apply a Gaussian filter to the input data.
+
+        Args:
+            data (ops.Tensor): Input image data of shape (height, width, channels) with
+                optional batch dimension if ``self.with_batch_dim``.
+        """
+        super().call(**kwargs)
         data = kwargs[self.key]
 
         # Add batch dimension if not present
@@ -2221,7 +2258,7 @@ class GaussianBlur(Operation):
 
 
 @ops_registry("lee_filter")
-class LeeFilter(Operation):
+class LeeFilter(ImageOperation):
     """
     The Lee filter is a speckle reduction filter commonly used in synthetic aperture radar (SAR)
     and ultrasound image processing. It smooths the image while preserving edges and details.
@@ -2251,7 +2288,7 @@ class LeeFilter(Operation):
             pad_mode=self.pad_mode,
             with_batch_dim=self.with_batch_dim,
             jittable=self._jittable,
-            key=self.key,
+            key="data",
         )
 
     @property
@@ -2267,24 +2304,29 @@ class LeeFilter(Operation):
             self.gaussian_blur.with_batch_dim = value
 
     def call(self, **kwargs):
-        data = kwargs[self.key]
+        """Apply the Lee filter to the input data.
+
+        Args:
+            data (ops.Tensor): Input image data of shape (height, width, channels) with
+                optional batch dimension if ``self.with_batch_dim``.
+        """
+        super().call(**kwargs)
+        data = kwargs.pop(self.key)
 
         # Apply Gaussian blur to get local mean
-        img_mean = self.gaussian_blur.call(**kwargs)[self.gaussian_blur.output_key]
+        img_mean = self.gaussian_blur.call(data=data, **kwargs)[self.gaussian_blur.output_key]
 
         # Apply Gaussian blur to squared data to get local squared mean
-        data_squared = data**2
-        kwargs[self.gaussian_blur.key] = data_squared
-        img_sqr_mean = self.gaussian_blur.call(**kwargs)[self.gaussian_blur.output_key]
+        img_sqr_mean = self.gaussian_blur.call(
+            data=data**2,
+            **kwargs,
+        )[self.gaussian_blur.output_key]
 
         # Calculate local variance
         img_variance = img_sqr_mean - img_mean**2
 
         # Calculate global variance (per channel)
-        if self.with_batch_dim:
-            overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
-        else:
-            overall_variance = ops.var(data, axis=(-2, -1), keepdims=True)
+        overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
 
         # Calculate adaptive weights
         img_weights = img_variance / (img_variance + overall_variance)
