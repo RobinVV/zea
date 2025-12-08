@@ -5,19 +5,22 @@ import zipfile
 import os
 import csv
 from pathlib import Path
-import yaml
 import sys
+import yaml
+
 
 import h5py
 import numpy as np
 import imageio
 import pytest
-import SimpleITK as sitk
 
 from zea.data.convert.utils import load_avi, unzip
 from zea.data.convert.images import convert_image_dataset
 from zea.io_lib import _SUPPORTED_IMG_TYPES
 from .. import DEFAULT_TEST_SEED
+
+# Require SimpleITK for CAMUS tests but skip them cleanly if missing
+sitk = pytest.importorskip("SimpleITK")
 
 
 @pytest.mark.parametrize(
@@ -167,7 +170,7 @@ def create_echonet_test_data(src):
 
 
 def create_echonetlvh_test_data(src):
-    pass
+    raise NotImplementedError("Test data generation for EchoNetLVH is not implemented yet.")
 
 
 def create_camus_test_data(src):
@@ -279,7 +282,7 @@ def create_picmus_test_data(src):
 
 
 def create_verasonics_test_data(src):
-    pass
+    raise NotImplementedError("Test data generation for Verasonics is not implemented yet.")
 
 
 def verify_converted_echonet_test_data(dst):
@@ -313,7 +316,7 @@ def verify_converted_echonet_test_data(dst):
 
 
 def verify_converted_echonetlvh_test_data(dst):
-    pass
+    raise NotImplementedError("Verification for EchoNetLVH conversion is not implemented yet.")
 
 
 def verify_converted_camus_test_data(dst):
@@ -365,7 +368,7 @@ def verify_converted_picmus_test_data(dst):
 
 
 def verify_converted_verasonics_test_data(dst):
-    pass
+    raise NotImplementedError("Verification for Verasonics conversion is not implemented yet.")
 
 
 @pytest.mark.parametrize("image_type", _SUPPORTED_IMG_TYPES)
