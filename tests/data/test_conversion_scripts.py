@@ -1,26 +1,24 @@
 """Test dataset conversion scripts"""
 
-import subprocess
-import zipfile
-import os
 import csv
-from pathlib import Path
+import os
+import subprocess
 import sys
-import yaml
-
+import zipfile
+from pathlib import Path
 
 import h5py
-import numpy as np
 import imageio
+import numpy as np
 import pytest
+import SimpleITK as sitk
+import yaml
 
-from zea.data.convert.utils import load_avi, unzip
 from zea.data.convert.images import convert_image_dataset
+from zea.data.convert.utils import load_avi, unzip
 from zea.io_lib import _SUPPORTED_IMG_TYPES
-from .. import DEFAULT_TEST_SEED
 
-# Require SimpleITK for CAMUS tests but skip them cleanly if missing
-sitk = pytest.importorskip("SimpleITK")
+from .. import DEFAULT_TEST_SEED
 
 
 @pytest.mark.parametrize(
