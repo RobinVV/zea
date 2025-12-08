@@ -5033,7 +5033,7 @@ description = "SimpleITK is a simplified interface to the Insight Toolkit (ITK) 
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"tests\""
+markers = "extra == \"dev\" or extra == \"tests\""
 files = [
     {file = "simpleitk-2.5.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:63f8ff790cf59232860a9cfa4b730032c3d9b8ecde76b6ad5fc199be6a76cde4"},
     {file = "simpleitk-2.5.3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:b4dacf663d5956bd0c883fba6f0bc09f54b6c5298293627a5eb8aec8d0711cad"},
@@ -6487,7 +6487,7 @@ propcache = ">=0.2.1"
 
 [extras]
 backends = ["jax", "tensorflow", "torch"]
-dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "mock", "myst-parser", "nbsphinx", "onnxruntime", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-bibtex"]
+dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "mock", "myst-parser", "nbsphinx", "onnxruntime", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "simpleitk", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-bibtex"]
 display = ["opencv-python"]
 display-headless = ["opencv-python-headless"]
 docs = ["IPython", "PyStemmer", "furo", "mock", "myst-parser", "nbsphinx", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-bibtex"]
@@ -6498,4 +6498,4 @@ tests = ["cloudpickle", "ipykernel", "ipywidgets", "papermill", "pre-commit", "p
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "d2373e0bd7bd694edee3bfd08718cb22144e9dfed6740d8354773642e16b4880"
+content-hash = "6d30129162ebe1249cd3e38cf1a3aa7e2136e9cf1b91e2bf09d2f85ff984f962"
