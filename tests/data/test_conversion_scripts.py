@@ -6,6 +6,7 @@ import os
 import csv
 from pathlib import Path
 import yaml
+import sys
 
 import h5py
 import numpy as np
@@ -35,7 +36,7 @@ def test_conversion_script(tmp_path_factory, dataset):
 
     create_test_data_for_dataset(dataset, src)
     subprocess.run(
-        ["python", "-m", "zea.data.convert", dataset, str(src), str(dst)],
+        [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst)],
         check=True,
     )
     verify_converted_test_dataset(dataset, dst)
@@ -47,7 +48,7 @@ def test_conversion_script(tmp_path_factory, dataset):
         dst2 = tmp_path_factory.mktemp("dst2")
         subprocess.run(
             [
-                "python",
+                sys.executable,
                 "-m",
                 "zea.data.convert",
                 dataset,
@@ -424,7 +425,7 @@ def test_load_avi(tmp_path):
     [
         ("picmus", "picmus.zip", "archive_to_download"),
         ("camus", "CAMUS_public.zip", "CAMUS_public"),
-        ("echonet", "EchoNet-Dynamic.zip", "echonet"),
+        ("echonet", "EchoNet-Dynamic.zip", "EchoNet-Dynamic"),
         ("echonetlvh", "EchoNet-LVH.zip", "Batch1"),
     ],
 )
@@ -435,7 +436,12 @@ def test_unzip(tmp_path, dataset):
     zip_path = tmp_path / zip_filename
     with zipfile.ZipFile(zip_path, "w") as zipf:
         # Add a dummy file to the zip
-        zipf.writestr(f"{folder_name}/dummy.txt", "This is a test.")
+        if dataset_name == "echonet":
+            # Match unzip()’s expected structure: EchoNet-Dynamic/Videos/...
+            zipf.writestr(f"{folder_name}/Videos/dummy.txt", "This is a test.")
+        else:
+            zipf.writestr(f"{folder_name}/dummy.txt", "This is a test.")
+
         if dataset_name == "echonetlvh":
             # EchoNetLVH dataset unzips into four folders and a csv file.
             zipf.writestr("Batch2/dummy.txt", "This is a test.")
@@ -455,6 +461,10 @@ def test_unzip(tmp_path, dataset):
     unzip(tmp_path, dataset_name)
 
     # Verify that the folder was created and contains the dummy file
-    extracted_folder = tmp_path / folder_name
+    if dataset_name == "echonet":
+        extracted_folder = tmp_path / folder_name / "Videos"
+    else:
+        extracted_folder = tmp_path / folder_name
+
     assert extracted_folder.exists()
     assert (extracted_folder / "dummy.txt").exists()
