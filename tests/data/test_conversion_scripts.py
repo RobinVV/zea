@@ -69,7 +69,6 @@ def test_conversion_script(tmp_path_factory, dataset):
             assert set(split_content1[split]) == set(split_content2[split]), (
                 "Split contents do not match after re-conversion"
             )
-    return
 
 
 def create_test_data_for_dataset(dataset, src):
@@ -95,7 +94,6 @@ def create_test_data_for_dataset(dataset, src):
         create_verasonics_test_data(src)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
-    return
 
 
 def verify_converted_test_dataset(dataset, dst):
@@ -122,7 +120,6 @@ def verify_converted_test_dataset(dataset, dst):
         verify_converted_verasonics_test_data(dst)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
-    return
 
 
 def create_echonet_test_data(src):
@@ -164,7 +161,6 @@ def create_echonet_test_data(src):
         avi_path = src / "EchoNet-Dynamic" / "Videos" / f"video_{i}.avi"
         with imageio.get_writer(avi_path, fps=30, codec="ffv1") as writer:
             writer.append_data(file_data)
-    return
 
 
 def create_echonetlvh_test_data(src):
@@ -226,7 +222,6 @@ def create_camus_test_data(src):
         image.SetMetaData("Modality", "US")
         image.SetMetaData("StudyDate", "01011970")
         sitk.WriteImage(image, str(filepath))
-    return
 
 
 def create_picmus_test_data(src):
@@ -276,7 +271,6 @@ def create_picmus_test_data(src):
     assert len(list((src / "archive_to_download").rglob("*.hdf5"))) == 3, (
         "Failed to create test PICMUS hdf5 files."
     )
-    return
 
 
 def create_verasonics_test_data(src):
@@ -310,7 +304,6 @@ def verify_converted_echonet_test_data(dst):
     all_h5_files = [f.name for split_files in all_files for f in split_files]
     expected_files = [f"video_{i}.hdf5" for i in range(8)]
     assert set(all_h5_files) == set(expected_files), "Mismatch in converted hdf5 files"
-    return
 
 
 def verify_converted_echonetlvh_test_data(dst):
@@ -343,7 +336,6 @@ def verify_converted_camus_test_data(dst):
         for h5_file in h5_files:
             with h5py.File(h5_file, "r") as f:
                 assert "scan" in f, f"Missing 'scan' in {h5_file}"
-    return
 
 
 def verify_converted_picmus_test_data(dst):
@@ -361,8 +353,6 @@ def verify_converted_picmus_test_data(dst):
         with h5py.File(h5_file, "r") as f:
             assert "data" in f, f"Missing 'data' in {h5_file}"
             assert "scan" in f, f"Missing 'scan' in {h5_file}"
-
-    return
 
 
 def verify_converted_verasonics_test_data(dst):
