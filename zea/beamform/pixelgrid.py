@@ -30,44 +30,101 @@ def check_for_aliasing(scan):
         )
 
 
-def cartesian_pixel_grid(xlims, zlims, grid_size_x=None, grid_size_z=None, dx=None, dz=None):
-    """Generate a Cartesian pixel grid based on input parameters.
+def cartesian_pixel_grid(
+    xlims,
+    zlims,
+    ylims=None,
+    grid_size_x=None,
+    grid_size_y=None,
+    grid_size_z=None,
+    dx=None,
+    dy=None,
+    dz=None,
+):
+    """Generate a Cartesian pixel grid.
+
+    Behaviour:
+      - If ylims has zero extent (|ymax - ymin| < eps) the function returns a 2D grid
+        with shape (nz, nx, 3) that contains (x, y=0, z) per-pixel (y omitted as a dimension).
+      - If ylims has non-zero extent the function returns a 3D grid with shape
+        (nz, nx, ny, 3) containing (x, y, z) per-voxel.
 
     Args:
-        xlims (tuple): Azimuthal limits of pixel grid ([xmin, xmax])
-        zlims (tuple): Depth limits of pixel grid ([zmin, zmax])
-        grid_size_x (int): Number of azimuthal pixels, overrides dx and dz parameters
-        grid_size_z (int): Number of depth pixels, overrides dx and dz parameters
-        dx (float): Pixel spacing in azimuth
-        dz (float): Pixel spacing in depth
-
-    Raises:
-        ValueError: Either grid_size_x and grid_size_z or dx and dz must be defined.
+        xlims (tuple): [xmin, xmax]
+        ylims (tuple): [ymin, ymax] — if ymax == ymin (within tol) treated as "no y extent"
+        zlims (tuple): [zmin, zmax]
+        grid_size_x, grid_size_y, grid_size_z (int): number of samples along each axis.
+            For 2D (no y extent) only grid_size_x and grid_size_z are required if using sizes.
+        dx, dy, dz (float): spacings along axes. For 2D, only dx and dz are required if using spacings.
 
     Returns:
-        grid (np.ndarray): Pixel grid of size (grid_size_z, grid_size_x, 3) in
-            Cartesian coordinates (x, y, z)
+        np.ndarray:
+            - 2D: shape (nz, nx, 3) with per-pixel [x, y, z] (y will be zeros)
+            - 3D: shape (nz, nx, ny, 3) with per-voxel [x, y, z]
     """
-    assert (bool(grid_size_x) and bool(grid_size_z)) ^ (bool(dx) and bool(dz)), (
-        "Either grid_size_x and grid_size_z or dx and dz must be defined."
-    )
+    # decide whether y dimension exists
+    is_3d = ylims is not None and abs(ylims[1] - ylims[0]) > eps
 
-    # Determine the grid spacing
-    if grid_size_x is not None and grid_size_z is not None:
+    # helper booleans
+    sizes_all = (
+        (grid_size_x is not None) and (grid_size_z is not None) and (grid_size_y is not None)
+    )
+    spacings_all = (dx is not None) and (dz is not None) and (dy is not None)
+
+    # For 2D mode, we accept sizes/spacings that omit y
+    if not is_3d:
+        sizes_2d = (grid_size_x is not None) and (grid_size_z is not None)
+        spacings_2d = (dx is not None) and (dz is not None)
+        # exactly one of sizes_2d or spacings_2d must be True
+        if sizes_2d == spacings_2d:
+            raise ValueError(
+                "For 2D (no y extent) either provide grid_size_x & grid_size_z "
+                "OR provide dx & dz (but not both)."
+            )
+    else:
+        # 3D: must provide either all three sizes OR all three spacings (exclusive)
+        if sizes_all == spacings_all:
+            raise ValueError(
+                "For 3D (non-zero y extent) either provide grid_size_x/grid_size_y/grid_size_z "
+                "OR provide dx/dy/dz (but not both)."
+            )
+
+    # Build coordinate vectors
+    # X and Z (always present)
+    if (
+        (grid_size_x is not None)
+        and (grid_size_z is not None)
+        and (not is_3d or grid_size_y is not None)
+    ):
+        # size-based for whichever mode
         x = np.linspace(xlims[0], xlims[1] + eps, grid_size_x)
         z = np.linspace(zlims[0], zlims[1] + eps, grid_size_z)
-    elif dx is not None and dz is not None:
-        sign = np.sign(xlims[1] - xlims[0])
-        x = np.arange(xlims[0], xlims[1] + eps, sign * dx)
-        z = np.arange(zlims[0], zlims[1] + eps, sign * dz)
+        if is_3d:
+            y = np.linspace(ylims[0], ylims[1] + eps, grid_size_y)
     else:
-        raise ValueError("Either grid_size_x and grid_size_z or dx and dz must be defined.")
+        # spacing-based: sign-aware arange
+        sign_x = np.sign(xlims[1] - xlims[0]) if xlims[1] != xlims[0] else 1.0
+        sign_z = np.sign(zlims[1] - zlims[0]) if zlims[1] != zlims[0] else 1.0
+        x = np.arange(xlims[0], xlims[1] + sign_x * eps, sign_x * dx)
+        z = np.arange(zlims[0], zlims[1] + sign_z * eps, sign_z * dz)
+        if is_3d:
+            sign_y = np.sign(ylims[1] - ylims[0]) if ylims[1] != ylims[0] else 1.0
+            y = np.arange(ylims[0], ylims[1] + sign_y * eps, sign_y * dy)
 
-    # Create the pixel grid
-    z_grid, x_grid = np.meshgrid(z, x, indexing="ij")
-    y_grid = 0 * x_grid  # Assume y = 0
-    grid = np.stack((x_grid, y_grid, z_grid), axis=-1)
-    return grid
+    # Build grids
+    if not is_3d:
+        # 2D: ensure shapes (nz, nx)
+        # meshgrid with z (first axis) and x (second axis) to get (nz, nx)
+        z_grid, x_grid = np.meshgrid(z, x, indexing="ij")
+        y_grid = np.zeros_like(x_grid)
+        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)  # (nz, nx, 3)
+        return grid
+    else:
+        # 3D: user requested output shape (grid_size_z, grid_size_x, grid_size_y, 3)
+        # so we meshgrid in the order (z, x, y) which yields arrays with shape (nz, nx, ny)
+        z_grid, x_grid, y_grid = np.meshgrid(z, x, y, indexing="ij")
+        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)  # (nz, nx, ny, 3)
+        return grid
 
 
 def radial_pixel_grid(rlims, dr, oris, dirs):
