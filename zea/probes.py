@@ -232,12 +232,3 @@ class Esaote_sll1543(Probe):
             bandwidth_MHz=bandwidth_MHz,
             probe_type="linear",
         )
-
-    def get_parameters(self):
-        return {
-            "probe_geometry": self.probe_geometry,
-            "center_frequency": self.center_frequency,
-            "sampling_frequency": self.sampling_frequency,
-            "xlims": self.xlims,
-            "zlims": self.zlims,
-        }
