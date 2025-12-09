@@ -22,7 +22,7 @@ We can initialize a generic probe with the following code:
 
     >>> probe = Probe.from_name("generic")
     >>> print(probe.get_parameters())
-    {'probe_geometry': None, 'center_frequency': None, 'sampling_frequency': None, 'xlims': None, 'zlims': None}
+    {'probe_geometry': None, 'center_frequency': None, 'sampling_frequency': None, 'xlims': None, 'zlims': None, 'n_el': None}
 """  # noqa: E501
 
 import numpy as np
