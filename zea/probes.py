@@ -114,6 +114,7 @@ class Probe(Object):
             "sampling_frequency": self.sampling_frequency,
             "xlims": self.xlims,
             "zlims": self.zlims,
+            "n_el": self.n_el,
         }
 
     @classmethod
