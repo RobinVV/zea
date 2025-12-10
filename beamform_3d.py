@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # Load data
     INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/vincent/example-3d-data/carotid.hdf5"
     SAVE_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/carotid_mesh/beamformed_4d_test.npy"
-    NUM_FRAMES = 10
+    NUM_FRAMES = 1
     log.info(f"Loading data from {log.yellow(INPUT_PATH)}")
 
     with zea.File(INPUT_PATH, mode="r") as file:
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         scan = file.scan()
         probe = file.probe()
 
-    scan.n_ch = 1
+    scan.n_ch = 2
 
     pipeline = Pipeline(
         [
@@ -64,7 +64,6 @@ if __name__ == "__main__":
 
     n_frames = len(rf_data_4d)
     beamform_4d_volume = vmap(beamform_3d_volume, chunks=n_frames, in_axes=0)
-    beamformed_4d_volume = beamform_4d_volume(rf_data_4d[:, None, ...])
 
     start_time = time.time()
     beamformed_4d_volume = beamform_4d_volume(rf_data_4d[:, None, ...])
