@@ -154,7 +154,7 @@ RUN apt-get update && \
       python3-tk \
       ffmpeg imagemagick \
       make pandoc \
-      openssh-client git && \
+      openssh-client git sudo && \
     python3 -m pip install --no-cache-dir --upgrade pip setuptools && \
     ln -s /usr/bin/python3 /usr/bin/python && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
