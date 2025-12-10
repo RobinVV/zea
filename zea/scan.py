@@ -255,6 +255,8 @@ class Scan(Parameters):
     def grid(self):
         """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
+            if self.is_3d():
+                raise ValueError("3D polar grids are not yet supported.")
             return polar_pixel_grid(
                 self.polar_limits, self.zlims, self.grid_size_z, self.grid_size_x
             )
