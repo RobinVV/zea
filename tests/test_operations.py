@@ -525,7 +525,6 @@ def test_multiply_and_sum_dmas():
     data = keras.ops.zeros((1, 3, 7, 4, 2))
 
     output = operation(data=data)["data"]
-    print(output.shape)
     assert output.shape == (1, 7, 2), f"Output shape should be (1, 7, 2), got {output.shape}"
 
     with pytest.raises(ValueError):

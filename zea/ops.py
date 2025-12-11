@@ -1881,7 +1881,7 @@ def envelope_detect(data, axis=-3):
     return data
 
 
-@ops_registry("multipy_and_sum")
+@ops_registry("multiply_and_sum")
 class MultiplyAndSum(Operation):
     """Performs the operations for the Delay-Multiply-and-Sum beamformer except the delay.
     The delay should be performed by the TOF correction operation.
@@ -1938,7 +1938,7 @@ class MultiplyAndSum(Operation):
         return data
 
     def call(self, grid=None, **kwargs):
-        """Performs DAS beamforming on tof-corrected input.
+        """Performs DMAS beamforming on tof-corrected input.
 
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
