@@ -16,7 +16,7 @@ Generated with Keras 3.12.0
 import keras
 
 from zea.internal.registry import ops_registry
-from zea.ops import Lambda
+from zea.ops.base import Lambda
 
 class MissingKerasOps(ValueError):
     def __init__(self, class_name: str, func: str):

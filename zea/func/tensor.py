@@ -1700,3 +1700,27 @@ def translate(array, range_from=None, range_to=(0, 255)):
 
     # Convert the 0-1 range into a value in the right range.
     return right_min + (value_scaled * (right_max - right_min))
+
+
+def normalize(data, output_range, input_range=None):
+    """Normalize data to a given range.
+
+    Equivalent to `translate` with clipping.
+
+    Args:
+        data (ops.Tensor): Input data to normalize.
+        output_range (tuple): Range to which data should be mapped, e.g., (0, 1).
+        input_range (tuple, optional): Range of input data.
+            If None, the range will be computed from the data.
+            Defaults to None.
+    """
+    if input_range is None:
+        input_range = (None, None)
+    minval, maxval = input_range
+    if minval is None:
+        minval = ops.min(data)
+    if maxval is None:
+        maxval = ops.max(data)
+    data = ops.clip(data, minval, maxval)
+    normalized_data = translate(data, (minval, maxval), output_range)
+    return normalized_data

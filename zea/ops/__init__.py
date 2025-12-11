@@ -1,0 +1,129 @@
+"""Operations and Pipelines for ultrasound data processing.
+
+This module contains two important classes, :class:`Operation` and :class:`Pipeline`,
+which are used to process ultrasound data. A pipeline is a sequence of operations
+that are applied to the data in a specific order.
+
+Stand-alone manual usage
+------------------------
+
+Operations can be run on their own:
+
+Examples
+^^^^^^^^
+.. doctest::
+
+    >>> import numpy as np
+    >>> from zea.ops import EnvelopeDetect
+    >>> data = np.random.randn(2000, 128, 1)
+    >>> # static arguments are passed in the constructor
+    >>> envelope_detect = EnvelopeDetect(axis=-1)
+    >>> # other parameters can be passed here along with the data
+    >>> envelope_data = envelope_detect(data=data)
+
+Using a pipeline
+----------------
+
+You can initialize with a default pipeline or create your own custom pipeline.
+
+.. doctest::
+
+    >>> from zea.ops import Pipeline, EnvelopeDetect, Normalize, LogCompress
+    >>> pipeline = Pipeline.from_default()
+
+    >>> operations = [
+    ...     EnvelopeDetect(),
+    ...     Normalize(),
+    ...     LogCompress(),
+    ... ]
+    >>> pipeline_custom = Pipeline(operations)
+
+One can also load a pipeline from a config or yaml/json file:
+
+.. doctest::
+
+    >>> from zea import Pipeline
+
+    >>> # From JSON string
+    >>> json_string = '{"operations": ["identity"]}'
+    >>> pipeline = Pipeline.from_json(json_string)
+
+    >>> # from yaml file
+    >>> import yaml
+    >>> from zea import Config
+    >>> # Create a sample pipeline YAML file
+    >>> pipeline_dict = {
+    ...     "operations": [
+    ...         {"name": "identity"},
+    ...     ]
+    ... }
+    >>> with open("pipeline.yaml", "w") as f:
+    ...     yaml.dump(pipeline_dict, f)
+    >>> yaml_file = "pipeline.yaml"
+    >>> pipeline = Pipeline.from_yaml(yaml_file)
+
+.. testcleanup::
+
+    import os
+
+    os.remove("pipeline.yaml")
+
+Example of a yaml file:
+
+.. code-block:: yaml
+
+    pipeline:
+      operations:
+        - name: demodulate
+        - name: "patched_grid"
+          params:
+            operations:
+              - name: tof_correction
+              - name: pfield_weighting
+              - name: delay_and_sum
+            num_patches: 100
+        - name: envelope_detect
+        - name: normalize
+        - name: log_compress
+
+"""
+
+from zea.internal.registry import ops_registry
+
+from .base import (
+    Identity,
+    ImageOperation,
+    Lambda,
+    Mean,
+    Merge,
+    Operation,
+    Stack,
+    get_ops,
+)
+from .keras_ops import *  # noqa: F403
+from .pipeline import Pipeline
+from .tensor import (
+    GaussianBlur,
+    Normalize,
+    Pad,
+    Threshold,
+)
+from .ultrasound import (
+    AnisotropicDiffusion,
+    ChannelsToComplex,
+    Companding,
+    ComplexToChannels,
+    Demodulate,
+    Downsample,
+    EnvelopeDetect,
+    FirFilter,
+    LeeFilter,
+    LogCompress,
+    LowPassFilter,
+    PfieldWeighting,
+    ReshapeGrid,
+    ScanConvert,
+    Simulate,
+    TOFCorrection,
+    UpMix,
+)

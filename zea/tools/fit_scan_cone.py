@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from zea import log
-from zea.tensor_ops import translate
+from zea.func.tensor import translate
 
 
 def filter_edge_points_by_boundary(edge_points, is_left=True, min_cone_half_angle_deg=20):

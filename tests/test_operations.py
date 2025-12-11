@@ -14,7 +14,8 @@ from scipy.ndimage import gaussian_filter
 from scipy.signal import hilbert
 
 from zea import ops
-from zea.ops import Pipeline, Simulate, compute_time_to_peak_stack
+from zea.func.ultrasound import compute_time_to_peak_stack
+from zea.ops import Pipeline, Simulate
 from zea.probes import Probe
 from zea.scan import Scan
 
