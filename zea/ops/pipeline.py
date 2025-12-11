@@ -12,12 +12,13 @@ from zea.config import Config
 from zea.func.tensor import (
     vmap,
 )
-from zea.internal.core import Object as ZEAObject
 from zea.internal.core import (
+    DataTypes,
     ZEADecoderJSON,
     ZEAEncoderJSON,
     dict_to_tensor,
 )
+from zea.internal.core import Object as ZEAObject
 from zea.internal.registry import ops_registry
 from zea.ops.base import (
     Operation,
@@ -1090,12 +1091,18 @@ class Beamform(Pipeline):
             TOFCorrection(),
             Reshape(),
             # PfieldWeighting(),  # Inserted conditionally
-            Sum(),
-            Sum(),
+            # Sum over the channels, i.e. DAS
+            Sum(axis=-2),
+            # Sum over transmits, i.e. Compounding
+            Sum(axis=-4),
         ]
 
         if pfield:
             beamforming.insert(2, PfieldWeighting())
+
+        # Set the output data type of the last operation
+        # which also defines the pipeline output type
+        beamforming[-1].output_data_type = DataTypes.BEAMFORMED_DATA
 
         # Optionally add patching
         if num_patches > 1:
