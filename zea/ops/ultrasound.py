@@ -1,5 +1,6 @@
 import uuid
 
+import keras
 import numpy as np
 from keras import ops
 
@@ -572,7 +573,8 @@ class LeeFilter(ImageOperation):
         overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
 
         # Calculate adaptive weights
-        img_weights = img_variance / (img_variance + overall_variance)
+        eps = keras.config.epsilon()
+        img_weights = img_variance / (img_variance + overall_variance + eps)
 
         # Apply Lee filter formula
         img_output = img_mean + img_weights * (data - img_mean)
@@ -821,7 +823,7 @@ class UpMix(Operation):
 
         if data.shape[-1] == 1:
             log.warning("Upmixing is not applicable to RF data.")
-            return data
+            return {self.output_key: data}
         elif data.shape[-1] == 2:
             data = channels_to_complex(data)
 

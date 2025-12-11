@@ -334,8 +334,7 @@ class Pipeline:
         if return_numpy:
             # Convert tensors to numpy arrays but preserve None values
             outputs = {
-                k: ops.convert_to_numpy(v) if v is ops.is_tensor(v) else v
-                for k, v in outputs.items()
+                k: ops.convert_to_numpy(v) if ops.is_tensor(v) else v for k, v in outputs.items()
             }
 
         return outputs

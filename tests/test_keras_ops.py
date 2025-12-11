@@ -37,5 +37,5 @@ def test_registry():
 
     classes = inspect.getmembers(keras_ops, inspect.isclass)
     for _, _class in classes:
-        if _class.__module__.startswith("zea.keras_ops."):
+        if _class.__module__.startswith("zea.ops.keras_ops."):
             ops_registry.get_name(_class)  # this raises an error if the class is not registered
