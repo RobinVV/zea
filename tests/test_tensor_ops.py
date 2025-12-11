@@ -181,7 +181,7 @@ def test_func_with_one_batch_dim(func, tensor, n_batch_dims, func_axis):
     out2 = zea.func.func_with_one_batch_dim(
         func, tensor, n_batch_dims, batch_size=2, func_axis=func_axis
     )
-    assert ops.shape(out) == (*zea.func.shape[:-1], 1), "Output shape is incorrect."
+    assert ops.shape(out) == (*tensor.shape[:-1], 1), "Output shape is incorrect."
     assert np.allclose(ops.convert_to_numpy(out), ops.convert_to_numpy(out2)), (
         "Outputs with and without batch_size do not match."
     )

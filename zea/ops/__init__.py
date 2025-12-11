@@ -4,6 +4,12 @@ This module contains two important classes, :class:`Operation` and :class:`Pipel
 which are used to process ultrasound data. A pipeline is a sequence of operations
 that are applied to the data in a specific order.
 
+We implement a range of common
+operations for ultrasound data processing (:mod:`zea.ops.ultrasound`), but also support
+a variety of basic tensor operations (:mod:`zea.ops.tensor`). Lastly, all existing Keras
+operations (see `Keras Ops API <https://keras.io/api/ops/>`_) are available as `zea`
+operations as well (see :mod:`zea.ops.keras_ops`).
+
 Stand-alone manual usage
 ------------------------
 
@@ -89,6 +95,7 @@ Example of a yaml file:
 """
 
 from zea.internal.registry import ops_registry
+from zea.ops import keras_ops
 
 from .base import (
     Identity,
@@ -101,7 +108,13 @@ from .base import (
     get_ops,
 )
 from .keras_ops import *  # noqa: F403
-from .pipeline import Pipeline
+from .pipeline import (
+    Beamform,
+    BranchedPipeline,
+    Map,
+    PatchedGrid,
+    Pipeline,
+)
 from .tensor import (
     GaussianBlur,
     Normalize,
@@ -127,3 +140,48 @@ from .ultrasound import (
     TOFCorrection,
     UpMix,
 )
+
+__all__ = [
+    # Registry
+    "ops_registry",
+    # Base operations
+    "Identity",
+    "ImageOperation",
+    "Lambda",
+    "Mean",
+    "Merge",
+    "Operation",
+    "Stack",
+    "get_ops",
+    # Pipeline
+    "Beamform",
+    "BranchedPipeline",
+    "Map",
+    "PatchedGrid",
+    "Pipeline",
+    # Tensor operations
+    "GaussianBlur",
+    "Normalize",
+    "Pad",
+    "Threshold",
+    # Ultrasound operations
+    "AnisotropicDiffusion",
+    "ChannelsToComplex",
+    "Companding",
+    "ComplexToChannels",
+    "Demodulate",
+    "Downsample",
+    "EnvelopeDetect",
+    "FirFilter",
+    "LeeFilter",
+    "LogCompress",
+    "LowPassFilter",
+    "PfieldWeighting",
+    "ReshapeGrid",
+    "ScanConvert",
+    "Simulate",
+    "TOFCorrection",
+    "UpMix",
+    # Keras operations
+    "keras_ops",
+]

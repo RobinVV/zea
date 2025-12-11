@@ -11,10 +11,15 @@ import keras
 import numpy as np
 import pytest
 from scipy.ndimage import gaussian_filter
-from scipy.signal import hilbert
+from scipy.signal import hilbert as hilbert_scipy
 
 from zea import ops
-from zea.func.ultrasound import compute_time_to_peak_stack
+from zea.func.ultrasound import (
+    channels_to_complex,
+    complex_to_channels,
+    compute_time_to_peak_stack,
+    hilbert,
+)
 from zea.ops import Pipeline, Simulate
 from zea.probes import Probe
 from zea.scan import Scan
@@ -170,8 +175,8 @@ def test_complex_to_channels(size, axis):
     """Test complex to channels and back"""
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.random(size) + 1j * rng.random(size)
-    _data = ops.complex_to_channels(data, axis=axis)
-    __data = ops.channels_to_complex(_data)
+    _data = complex_to_channels(data, axis=axis)
+    __data = channels_to_complex(_data)
     np.testing.assert_almost_equal(data, __data)
 
 
@@ -187,8 +192,8 @@ def test_channels_to_complex(size, axis):
     """Test channels to complex and back"""
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
     data = rng.random(size)
-    _data = ops.channels_to_complex(data)
-    __data = ops.complex_to_channels(_data, axis=axis)
+    _data = channels_to_complex(data)
+    __data = complex_to_channels(_data, axis=axis)
     np.testing.assert_almost_equal(data, __data)
 
 
@@ -312,8 +317,6 @@ def test_hilbert_transform():
 
     import keras
 
-    from zea import ops
-
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
@@ -327,7 +330,7 @@ def test_hilbert_transform():
 
     data = keras.ops.convert_to_tensor(data)
 
-    data_iq = ops.hilbert(data, axis=-3)
+    data_iq = hilbert(data, axis=-3)
     assert keras.ops.dtype(data_iq) in [
         "complex64",
         "complex128",
@@ -335,7 +338,7 @@ def test_hilbert_transform():
 
     data_iq = keras.ops.convert_to_numpy(data_iq)
 
-    reference_data_iq = hilbert(data, axis=-3)
+    reference_data_iq = hilbert_scipy(data, axis=-3)
     np.testing.assert_almost_equal(reference_data_iq, data_iq, decimal=4)
 
     return data_iq

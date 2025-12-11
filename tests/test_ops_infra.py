@@ -12,6 +12,7 @@ from zea.beamform.delays import compute_t0_delays_planewave
 from zea.config import Config
 from zea.internal.core import DataTypes
 from zea.internal.registry import ops_registry
+from zea.ops.pipeline import pipeline_from_config, pipeline_from_json, pipeline_from_yaml
 from zea.probes import Probe
 from zea.scan import Scan
 
@@ -476,7 +477,7 @@ def test_default_pipeline_from_json(config_fixture, request):
     """Tests building a default pipeline from a JSON string."""
     config = request.getfixturevalue(config_fixture)
     json_string = json.dumps(config)
-    pipeline = ops.pipeline_from_json(json_string, jit_options=None)
+    pipeline = pipeline_from_json(json_string, jit_options=None)
 
     if config_fixture == "branched_pipeline_config":
         validate_branched_pipeline(pipeline)
@@ -489,7 +490,7 @@ def test_pipeline_from_config(config_fixture, request):
     """Tests building a dummy pipeline from a Config object."""
     config_dict = request.getfixturevalue(config_fixture)
     config = Config(**config_dict)
-    pipeline = ops.pipeline_from_config(config, jit_options=None)
+    pipeline = pipeline_from_config(config, jit_options=None)
 
     validate_basic_pipeline(pipeline, with_params=config_fixture == "pipeline_config_with_params")
 
@@ -502,7 +503,7 @@ def test_default_pipeline_from_config(config_fixture, request):
     """Tests building a default pipeline from a Config object."""
     config_dict = request.getfixturevalue(config_fixture)
     config = Config(**config_dict)
-    pipeline = ops.pipeline_from_config(config, jit_options=None)
+    pipeline = pipeline_from_config(config, jit_options=None)
 
     if config_fixture == "branched_pipeline_config":
         validate_branched_pipeline(pipeline)
@@ -518,13 +519,13 @@ def test_pipeline_to_config(config_fixture, request):
     """Tests converting a pipeline to a Config object."""
     config_dict = request.getfixturevalue(config_fixture)
     config = Config(**config_dict)
-    pipeline = ops.pipeline_from_config(config, jit_options=None)
+    pipeline = pipeline_from_config(config, jit_options=None)
 
     # Convert the pipeline back to a Config object
     new_config = pipeline.to_config()
 
     # Create a new pipeline from the new Config object
-    new_pipeline = ops.pipeline_from_config(new_config, jit_options=None)
+    new_pipeline = pipeline_from_config(new_config, jit_options=None)
 
     if config_fixture == "branched_pipeline_config":
         validate_branched_pipeline(new_pipeline)
@@ -540,13 +541,13 @@ def test_pipeline_to_json(config_fixture, request):
     """Tests converting a pipeline to a JSON string."""
     config_dict = request.getfixturevalue(config_fixture)
     config = Config(**config_dict)
-    pipeline = ops.pipeline_from_config(config, jit_options=None)
+    pipeline = pipeline_from_config(config, jit_options=None)
 
     # Convert the pipeline to a JSON string
     json_string = pipeline.to_json()
 
     # Create a new pipeline from the JSON string
-    new_pipeline = ops.pipeline_from_json(json_string, jit_options=None)
+    new_pipeline = pipeline_from_json(json_string, jit_options=None)
 
     if config_fixture == "branched_pipeline_config":
         validate_branched_pipeline(new_pipeline)
@@ -562,14 +563,14 @@ def test_pipeline_to_yaml(config_fixture, request, tmp_path):
     """Tests converting a pipeline to a YAML file (in tmp directory), and then loading it back."""
     config_dict = request.getfixturevalue(config_fixture)
     config = Config(**config_dict)
-    pipeline = ops.pipeline_from_config(config, jit_options=None)
+    pipeline = pipeline_from_config(config, jit_options=None)
 
     # Write pipeline to a YAML file in the temporary directory
     path = tmp_path / "tmp_pipeline.yaml"
     pipeline.to_yaml(path)
 
     # Load the pipeline from the YAML file
-    new_pipeline = ops.pipeline_from_yaml(path, jit_options=None)
+    new_pipeline = pipeline_from_yaml(path, jit_options=None)
 
     if config_fixture == "branched_pipeline_config":
         validate_branched_pipeline(new_pipeline)

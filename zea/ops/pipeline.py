@@ -1078,10 +1078,12 @@ class Beamform(Pipeline):
 
     def __init__(self, num_patches=100, pfield=False, **kwargs):
         """Initialize a Beamform `zea.Pipeline`.
+
         Args:
             num_patches (int): Number of patches to split the grid into for patch-wise
                 beamforming. If 1, no patching is performed.
             pfield (bool): Whether to include pressure field weighting in the beamforming.
+
         """
         # Get beamforming ops
         beamforming = [

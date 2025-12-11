@@ -10,6 +10,7 @@ from keras import ops
 from zea import log
 from zea.backend import func_on_device
 from zea.func import tensor
+from zea.func.tensor import translate
 from zea.internal.registry import metrics_registry
 from zea.internal.utils import reduce_to_signature
 from zea.models.lpips import LPIPS
@@ -295,8 +296,8 @@ def get_lpips(image_range, batch_size=None, clip=False):
         if clip:
             img1 = ops.clip(img1, *image_range)
             img2 = ops.clip(img2, *image_range)
-        img1 = tensor.translate(img1, image_range, [-1, 1])
-        img2 = tensor.translate(img2, image_range, [-1, 1])
+        img1 = translate(img1, image_range, [-1, 1])
+        img2 = translate(img2, image_range, [-1, 1])
 
         imgs = ops.stack([img1, img2], axis=-1)
         n_batch_dims = ops.ndim(img1) - 3
@@ -384,7 +385,7 @@ class Metrics:
         return out
 
     def _prepocess(self, tensor):
-        tensor = tensor.translate(tensor, self.image_range, [0, 255])
+        tensor = translate(tensor, self.image_range, [0, 255])
         if self.clip:
             tensor = ops.clip(tensor, 0, 255)
         if self.quantize:
