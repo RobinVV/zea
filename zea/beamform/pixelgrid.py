@@ -44,7 +44,7 @@ def cartesian_pixel_grid(
     """Generate a Cartesian pixel grid.
 
     Behaviour:
-      - If ylims has zero extent (|ymax - ymin| < eps) the function returns a 2D grid
+      - If ylims has zero extent (abs(ymax - ymin) < eps) the function returns a 2D grid
         with shape (nz, nx, 3) that contains (x, y=0, z) per-pixel (y omitted as a dimension).
       - If ylims has non-zero extent the function returns a 3D grid with shape
         (nz, nx, ny, 3) containing (x, y, z) per-voxel.
@@ -55,7 +55,8 @@ def cartesian_pixel_grid(
         zlims (tuple): [zmin, zmax]
         grid_size_x, grid_size_y, grid_size_z (int): number of samples along each axis.
             For 2D (no y extent) only grid_size_x and grid_size_z are required if using sizes.
-        dx, dy, dz (float): spacings along axes. For 2D, only dx and dz are required if using spacings.
+        dx, dy, dz (float): spacings along axes.
+            For 2D, only dx and dz are required if using spacings.
 
     Returns:
         np.ndarray:
