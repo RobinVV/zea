@@ -452,6 +452,8 @@ def distance_Tx_generic(
             `(n_el,)`.
         probe_geometry (ops.Tensor): The positions of the transducer elements of shape
             `(n_el, 3)`.
+        focus_distance (float): The focus distance in meters.
+        polar_angle (float): The polar angle in radians.
         sound_speed (float): The speed of sound in m/s. Defaults to 1540.
 
     Returns:
