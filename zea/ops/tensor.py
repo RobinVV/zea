@@ -117,8 +117,15 @@ class Normalize(Operation):
             output_range = (0, 1)
         self.output_range = self.to_float32(output_range)
         self.input_range = self.to_float32(input_range)
-        assert output_range is None or len(output_range) == 2
-        assert input_range is None or len(input_range) == 2
+
+        if len(self.output_range) != 2:
+            raise ValueError(
+                f"output_range must have exactly 2 elements, got {len(self.output_range)}"
+            )
+        if self.input_range is not None and len(self.input_range) != 2:
+            raise ValueError(
+                f"input_range must have exactly 2 elements, got {len(self.input_range)}"
+            )
 
     @staticmethod
     def to_float32(data):

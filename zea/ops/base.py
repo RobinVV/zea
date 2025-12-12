@@ -341,8 +341,12 @@ class Lambda(Operation):
 
     def __init__(self, func, **kwargs):
         # Split kwargs into kwargs for partial and __init__
-        op_kwargs = {k: v for k, v in kwargs.items() if k not in func.__code__.co_varnames}
-        func_kwargs = {k: v for k, v in kwargs.items() if k in func.__code__.co_varnames}
+        sig = inspect.signature(func)
+        func_params = set(sig.parameters.keys())
+
+        func_kwargs = {k: v for k, v in kwargs.items() if k in func_params}
+        op_kwargs = {k: v for k, v in kwargs.items() if k not in func_params}
+
         Lambda._check_if_unary(func, **func_kwargs)
 
         super().__init__(**op_kwargs)
