@@ -1150,23 +1150,6 @@ class DAS(Operation):
             **kwargs,
         )
 
-    def process_image(self, data):
-        """Performs DAS beamforming on tof-corrected input.
-
-        Args:
-            data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
-
-        Returns:
-            ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
-        """
-        # Sum over the channels, i.e. DAS
-        data = ops.sum(data, -2)
-
-        # Sum over transmits, i.e. Compounding
-        data = ops.sum(data, 0)
-
-        return data
-
     def call(self, grid=None, **kwargs):
         """Performs DAS beamforming on tof-corrected input.
 
@@ -1181,11 +1164,11 @@ class DAS(Operation):
         """
         data = kwargs[self.key]
 
-        if not self.with_batch_dim:
-            beamformed_data = self.process_image(data)
-        else:
-            # Apply process_image to each item in the batch
-            beamformed_data = ops.map(self.process_image, data)
+        # Sum over the channels (n_el), i.e. DAS
+        beamformed_data = ops.sum(data, -2)
+        # Sum over transmits (n_tx), i.e. Compounding
+        beamformed_data = ops.sum(beamformed_data, -3)
+
         return {self.output_key: beamformed_data}
 
 
