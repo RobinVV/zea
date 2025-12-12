@@ -419,53 +419,37 @@ class VerasonicsFile(h5py.File):
 
         return tx_waveform_indices, waveforms_one_way_list, waveforms_two_way_list
 
-    def read_polar_angles(self, tx_order, event=None):
-        """
-        Read the polar angles from the file.
+    def read_beamsteering_angles(self, tx_order, event=None):
+        """Beam steering angles in radians (theta, alpha) for each transmit.
 
         Returns:
-            polar_angles (np.ndarray): The polar angles of shape (n_tx,).
+            angles (np.ndarray): The beam steering angles of shape (n_tx, 2).
         """
-        polar_angles_list = []
+        angles_list = []
 
         for n in tx_order:
             # Read the polar angle
             if event is None:
-                polar_angle = self.dereference_index(self["TX"]["Steer"], n)[:]
+                angle = self.dereference_index(self["TX"]["Steer"], n)[:]
             else:
-                polar_angle = self.dereference_index(self["TX_Agent"]["Steer"], n, event)[:]
-            # Turn into 1d array
-            polar_angle = polar_angle[0, 0]
+                angle = self.dereference_index(self["TX_Agent"]["Steer"], n, event)[:]
 
-            polar_angles_list.append(polar_angle)
+            angles_list.append(angle)
+        angles = np.stack(angles_list, axis=0)
+        angles = np.squeeze(angles, axis=-1)
 
-        polar_angles = np.stack(polar_angles_list, axis=0)
+        assert angles.shape == (len(tx_order), 2), (
+            f"Expected angles shape to be {(len(tx_order), 2)}, but got {angles.shape}"
+        )
+        return angles
 
-        return polar_angles
+    def read_polar_angles(self, tx_order, event=None):
+        """Read the polar angles  of shape (n_tx,) from the file."""
+        return self.read_beamsteering_angles(tx_order, event)[:, 0]
 
     def read_azimuth_angles(self, tx_order, event=None):
-        """
-        Read the azimuth angles from the file.
-
-        Returns:
-            azimuth_angles (np.ndarray): The azimuth angles of shape (n_tx,).
-        """
-        azimuth_angles_list = []
-
-        for n in tx_order:
-            # Read the azimuth angle
-            if event is None:
-                azimuth_angle = self.dereference_index(self["TX"]["Steer"], n)[:]
-            else:
-                azimuth_angle = self.dereference_index(self["TX_Agent"]["Steer"], n, event)[:]
-            # Turn into 1d array
-            azimuth_angle = azimuth_angle[1, 0]
-
-            azimuth_angles_list.append(azimuth_angle)
-
-        azimuth_angles = np.stack(azimuth_angles_list, axis=0)
-
-        return azimuth_angles
+        """Read the azimuth angles of shape (n_tx,) from the file."""
+        return self.read_beamsteering_angles(tx_order, event)[:, 1]
 
     @property
     def end_samples(self):
@@ -1151,7 +1135,7 @@ def convert_verasonics(args):
                         continue
 
                     if existing_file_policy == "overwrite" or answer is True:
-                        log.warning(f"{log.yellow(full_path)} exists. Deleting...")
+                        log.warning(f"{log.yellow(file_output_path)} exists. Deleting...")
                         file_output_path.unlink(missing_ok=False)
 
                 try:
