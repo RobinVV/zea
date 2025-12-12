@@ -12,6 +12,7 @@ from zea.config import Config
 from zea.func.tensor import (
     vmap,
 )
+from zea.func.ultrasound import channels_to_complex, complex_to_channels
 from zea.internal.core import (
     DataTypes,
     ZEADecoderJSON,
@@ -24,7 +25,6 @@ from zea.ops.base import (
     Operation,
     get_ops,
 )
-from zea.ops.keras_ops import Reshape, Sum
 from zea.ops.tensor import Normalize
 from zea.ops.ultrasound import (
     Demodulate,
@@ -183,11 +183,13 @@ class Pipeline:
 
     @classmethod
     def from_default(
-        cls, num_patches=100, baseband=False, pfield=False, timed=False, **kwargs
+        cls, beamformer="das", num_patches=100, baseband=False, pfield=False, timed=False, **kwargs
     ) -> "Pipeline":
         """Create a default pipeline.
 
         Args:
+            beamformer (str): Type of beamformer to use. Currently supporting,
+                "das" (Delay-and-Sum) and "dmas" (Delay-Multiply-and-Sum).
             num_patches (int): Number of patches for the PatchedGrid operation.
                 Defaults to 100. If you get an out of memory error, try to increase this number.
             baseband (bool): If True, assume the input data is baseband (I/Q) data,
@@ -206,11 +208,16 @@ class Pipeline:
             operations.append(Demodulate())
 
         # Add beamforming ops
-        operations += Beamform(num_patches=num_patches, pfield=pfield)
+        operations.append(
+            Beamform(
+                beamformer=beamformer,
+                num_patches=num_patches,
+                pfield=pfield,
+            ),
+        )
 
         # Add display ops
         operations += [
-            ReshapeGrid(),
             EnvelopeDetect(),
             Normalize(),
             LogCompress(),
@@ -1074,34 +1081,43 @@ class PatchedGrid(Map):
 
 @ops_registry("beamform")
 class Beamform(Pipeline):
-    """Classical Delay-and-Sum beamforming pipeline for ultrasound image formation."""
+    """Classical beamforming pipeline for ultrasound image formation.
 
-    def __init__(self, num_patches=100, pfield=False, **kwargs):
-        """Initialize a Beamform `zea.Pipeline`.
+    Expected input data type is `DataTypes.RF_DATA` which has shape `(n_tx, n_ax, n_el, n_ch)`.
+
+    Will run the following operations in sequence:
+    - TOFCorrection (output type `DataTypes.ALIGNED_DATA`: `(n_tx, n_ax, n_el, n_ch)`)
+    - PfieldWeighting (optional, output type `DataTypes.ALIGNED_DATA`: `(n_tx, n_ax, n_el, n_ch)`)
+    - Sum over channels (DAS)
+    - Sum over transmits (Compounding) (output type `DataTypes.BEAMFORMED_DATA`: `(grid_size_z, grid_size_x, n_ch)`)
+    - ReshapeGrid (flattened grid is also reshaped to `(grid_size_z, grid_size_x)`)
+    """  # noqa: E501
+
+    def __init__(self, beamformer="das", num_patches=100, pfield=False, **kwargs):
+        """Initialize a Delay-and-Sum beamforming `zea.Pipeline`.
 
         Args:
+            beamformer (str): Type of beamformer to use. Currently supporting,
+                "das" (Delay-and-Sum) and "dmas" (Delay-Multiply-and-Sum).
             num_patches (int): Number of patches to split the grid into for patch-wise
                 beamforming. If 1, no patching is performed.
             pfield (bool): Whether to include pressure field weighting in the beamforming.
 
         """
+
+        assert beamformer in ["das", "dmas"], (
+            f"Unsupported beamformer type: {beamformer}. Supported types are 'das' and 'dmas'."
+        )
+
         # Get beamforming ops
         beamforming = [
             TOFCorrection(),
-            Reshape(),
             # PfieldWeighting(),  # Inserted conditionally
-            # Sum over the channels, i.e. DAS
-            Sum(axis=-2),
-            # Sum over transmits, i.e. Compounding
-            Sum(axis=-4),
+            get_ops(beamformer)(),
         ]
 
         if pfield:
             beamforming.insert(2, PfieldWeighting())
-
-        # Set the output data type of the last operation
-        # which also defines the pipeline output type
-        beamforming[-1].output_data_type = DataTypes.BEAMFORMED_DATA
 
         # Optionally add patching
         if num_patches > 1:
@@ -1113,7 +1129,143 @@ class Beamform(Pipeline):
                 )
             ]
 
+        # Reshape the grid to image shape
+        beamforming.append(ReshapeGrid())
+
+        # Set the output data type of the last operation
+        # which also defines the pipeline output type
+        beamforming[-1].output_data_type = DataTypes.BEAMFORMED_DATA
+
         super().__init__(operations=beamforming, **kwargs)
+
+
+@ops_registry("das")
+class DAS(Operation):
+    """Sums time-delayed signals along channels and transmits."""
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            input_data_type=DataTypes.ALIGNED_DATA,
+            output_data_type=DataTypes.BEAMFORMED_DATA,
+            **kwargs,
+        )
+
+    def process_image(self, data):
+        """Performs DAS beamforming on tof-corrected input.
+
+        Args:
+            data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
+
+        Returns:
+            ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
+        """
+        # Sum over the channels, i.e. DAS
+        data = ops.sum(data, -2)
+
+        # Sum over transmits, i.e. Compounding
+        data = ops.sum(data, 0)
+
+        return data
+
+    def call(self, grid=None, **kwargs):
+        """Performs DAS beamforming on tof-corrected input.
+
+        Args:
+            tof_corrected_data (ops.Tensor): The TOF corrected input of shape
+                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+
+        Returns:
+            dict: Dictionary containing beamformed_data
+                of shape `(grid_size_z*grid_size_x, n_ch)`
+                with optional batch dimension.
+        """
+        data = kwargs[self.key]
+
+        if not self.with_batch_dim:
+            beamformed_data = self.process_image(data)
+        else:
+            # Apply process_image to each item in the batch
+            beamformed_data = ops.map(self.process_image, data)
+        return {self.output_key: beamformed_data}
+
+
+@ops_registry("dmas")
+class DMAS(Operation):
+    """Performs the operations for the Delay-Multiply-and-Sum beamformer except the delay.
+    The delay should be performed by the TOF correction operation.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            input_data_type=DataTypes.ALIGNED_DATA,
+            output_data_type=DataTypes.BEAMFORMED_DATA,
+            **kwargs,
+        )
+
+    def process_image(self, data):
+        """Performs DMAS beamforming on tof-corrected input.
+
+        Args:
+            data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
+
+        Returns:
+            ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
+        """
+
+        if not data.shape[-1] == 2:
+            raise ValueError(
+                "MultiplyAndSum operation requires IQ data with 2 channels. "
+                f"Got data with shape {data.shape}."
+            )
+
+        # Compute the correlation matrix
+        data = channels_to_complex(data)
+
+        data = self._multiply(data)
+        data = self._select_lower_triangle(data)
+        data = ops.sum(data, axis=(0, 2, 3))
+
+        data = complex_to_channels(data)
+
+        return data
+
+    def _select_lower_triangle(self, data):
+        """Select only the lower triangle of the correlation matrix."""
+        n_el = data.shape[3]
+        mask = ops.ones((n_el, n_el), dtype=data.dtype) - ops.eye(n_el, dtype=data.dtype)
+        data = data * mask[None, None, :, :] / 2
+        return data
+
+    def _multiply(self, data):
+        """Apply the DMAS multiplication step."""
+        channel_products = data[:, :, :, None] * data[:, :, None, :]
+
+        data = ops.sign(channel_products) * ops.cast(
+            ops.sqrt(ops.abs(channel_products)), data.dtype
+        )
+        return data
+
+    def call(self, grid=None, **kwargs):
+        """Performs DMAS beamforming on tof-corrected input.
+
+        Args:
+            tof_corrected_data (ops.Tensor): The TOF corrected input of shape
+                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+
+        Returns:
+            dict: Dictionary containing beamformed_data
+                of shape `(grid_size_z*grid_size_x, n_ch)`
+                with optional batch dimension.
+        """
+        data = kwargs[self.key]
+
+        if not self.with_batch_dim:
+            beamformed_data = self.process_image(data)
+        else:
+            # Apply process_image to each item in the batch
+            beamformed_data = ops.map(self.process_image, data)
+
+        return {self.output_key: beamformed_data}
 
 
 def make_operation_chain(

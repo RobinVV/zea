@@ -81,12 +81,10 @@ Example of a yaml file:
     pipeline:
       operations:
         - name: demodulate
-        - name: "patched_grid"
+        - name: beamform
           params:
-            operations:
-              - name: tof_correction
-              - name: pfield_weighting
-              - name: delay_and_sum
+            type: das
+            pfield: false
             num_patches: 100
         - name: envelope_detect
         - name: normalize
@@ -109,6 +107,8 @@ from .base import (
 )
 from .keras_ops import *  # noqa: F403
 from .pipeline import (
+    DAS,
+    DMAS,
     Beamform,
     BranchedPipeline,
     Map,
@@ -154,6 +154,8 @@ __all__ = [
     "Stack",
     "get_ops",
     # Pipeline
+    "DAS",
+    "DMAS",
     "Beamform",
     "BranchedPipeline",
     "Map",
