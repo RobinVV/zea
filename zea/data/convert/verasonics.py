@@ -97,6 +97,7 @@ data from the file and returns a ``DatasetElement``. Then pass the function to t
     )
 """  # noqa: E501
 
+import argparse
 import os
 import sys
 import traceback
@@ -1049,6 +1050,7 @@ def convert_verasonics(args):
             - src (str): Source folder path.
             - dst (str): Destination folder path.
             - frames (list[str]): MATLAB frames spec (e.g., ["all"], integers, or ranges like "4-8")
+            - allow_accumulate (bool): Whether to allow accumulate mode.
     """
 
     # Variable to indicate what to do with existing files.
@@ -1145,7 +1147,9 @@ def convert_verasonics(args):
             else:
                 log.info("Aborting...")
                 sys.exit()
-        _zea_from_verasonics_workspace(selected_path, output_path, frames=frames)
+        _zea_from_verasonics_workspace(
+            selected_path, output_path, frames=frames, allow_accumulate=args.allow_accumulate
+        )
     else:
         # Continue with the rest of your code...
         for root, dirs, files in os.walk(selected_path):
@@ -1192,7 +1196,12 @@ def convert_verasonics(args):
                         file_output_path.unlink(missing_ok=False)
 
                 try:
-                    _zea_from_verasonics_workspace(full_path, file_output_path, frames=frames)
+                    _zea_from_verasonics_workspace(
+                        full_path,
+                        file_output_path,
+                        frames=frames,
+                        allow_accumulate=args.allow_accumulate,
+                    )
                 except Exception:
                     # Print error message without raising it
                     log.error(f"Failed to convert {mat_file}")
@@ -1202,9 +1211,32 @@ def convert_verasonics(args):
                     continue
 
 
-if __name__ == "__main__":
-    _zea_from_verasonics_workspace(
-        "/mnt/z/usbmd/Wessel/Verasonics/2025-12-11/20251211_cardiac_line_dw_thi_0000.mat",
-        "/mnt/z/usbmd/Wessel/Verasonics/2025-12-11_zea/20251211_cardiac_line_dw_thi_0000.hdf5",
-        allow_accumulate=True,
+def get_parser():
+    parser = argparse.ArgumentParser(description="Convert Verasonics workspace(s) to a zea files.")
+    parser.add_argument("src", type=str, help="Source folder path")
+    parser.add_argument("dst", type=str, help="Destination folder path")
+    parser.add_argument(
+        "--frames",
+        default=["all"],
+        type=str,
+        nargs="+",
+        help="The frames to add to the file. This can be a list of integers, a range "
+        "of integers (e.g. 4-8), or 'all'.",
     )
+    parser.add_argument(
+        "--allow_accumulate",
+        action="store_true",
+        help=(
+            "Sometimes, some transmits are already accumulated on the Verasonics system "
+            "(e.g. harmonic imaging through pulse inversion). In this case, the mode in the "
+            "Receive structure is set to 1 (accumulate). If this flag is set, such files "
+            "will be processed. Otherwise, an error is raised when such a mode is detected."
+        ),
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    parser = get_parser()
+    args = parser.parse_args()
+    convert_verasonics(args)
