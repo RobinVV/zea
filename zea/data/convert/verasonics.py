@@ -490,6 +490,10 @@ class VerasonicsFile(h5py.File):
         probe_connector = probe_connector - 1  # make 0-based
         return probe_connector
 
+    @property
+    def is_new_save_raw_format(self):
+        return "save_raw_version" in self.keys()
+
     def read_raw_data(self, event=None, frames="all"):
         """
         Read the raw data from the file.
@@ -506,15 +510,15 @@ class VerasonicsFile(h5py.File):
             raw_data = self.dereference_index(self["RcvData"], 0, subindex=event)
             raw_data = np.expand_dims(raw_data, axis=0)
 
-        # Select only the channels that are connected to the probe elements
-        n_el = self.probe_connector.shape[0]
-        if n_el < raw_data.shape[1]:
-            log.warning(
-                f"Number of probe elements ({n_el}) is less than number of received channels "
-                f"({raw_data.shape[1]}). We are using 'Trans.ConnectorES' to determine "
-                "which channels to use. Please verify if this is correct!"
-            )
+        # Reorder and select channels based on probe elements
+        if self.is_new_save_raw_format:
             raw_data = raw_data[:, self.probe_connector, :]
+        else:
+            log.warning(
+                "Data was not saved using the updated `save_raw` function (version >= 1.0). "
+                "In that case, we assume that the channel order in the data matches the "
+                "probe element order. Please verify that this is correct!"
+            )
 
         # Select only the requested frames
         frame_indices = self.get_frame_indices(frames)
