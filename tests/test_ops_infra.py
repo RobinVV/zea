@@ -146,7 +146,7 @@ def patched_pipeline_config():
                 "params": {
                     "beamformer": "das",
                     "num_patches": 15,
-                    "pfield": False,
+                    "pfield": True,
                 },
             },
             {"name": "reshape_grid"},
@@ -171,14 +171,14 @@ def branched_pipeline_config():
                         {"name": "demodulate"},
                         {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
-                        {"name": "beamform"},
+                        {"name": "das"},
                     ],
                     "branch_2": [
                         {"name": "simulate_rf"},
                         {"name": "demodulate"},
                         {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
-                        {"name": "beamform"},
+                        {"name": "das"},
                     ],
                 },
             },
@@ -205,7 +205,7 @@ def validate_branched_pipeline(pipeline):
         assert isinstance(branch[1], ops.Demodulate)
         assert isinstance(branch[2], ops.TOFCorrection)
         assert isinstance(branch[3], ops.PfieldWeighting)
-        assert isinstance(branch[4], ops.DelayAndSum)
+        assert isinstance(branch[4], ops.DAS)
 
 
 @pytest.fixture
@@ -457,11 +457,11 @@ def validate_default_pipeline(pipeline, patched=False):
         assert isinstance(pipeline.operations[7], ops.Normalize)
         assert isinstance(pipeline.operations[8], ops.LogCompress)
     else:
-        patched_grid = pipeline.operations[2]
-        assert hasattr(patched_grid, "operations")
-        assert isinstance(patched_grid.operations[0], ops.TOFCorrection)
-        assert isinstance(patched_grid.operations[1], ops.PfieldWeighting)
-        assert isinstance(patched_grid.operations[2], ops.DAS)
+        beamform = pipeline.operations[2]
+        assert hasattr(beamform, "operations")
+        assert isinstance(beamform.operations[0].operations[0], ops.TOFCorrection)
+        assert isinstance(beamform.operations[0].operations[1], ops.PfieldWeighting)
+        assert isinstance(beamform.operations[0].operations[2], ops.DAS)
         assert isinstance(pipeline.operations[3], ops.ReshapeGrid)
         assert isinstance(pipeline.operations[4], ops.EnvelopeDetect)
         assert isinstance(pipeline.operations[5], ops.Normalize)
@@ -784,4 +784,11 @@ def test_registry():
     classes = inspect.getmembers(ops, inspect.isclass)
     for _, _class in classes:
         if _class.__module__.startswith("zea.ops."):
+            # Skip abstract base classes and base Operation classes
+            if inspect.isabstract(_class) or _class.__name__ in [
+                "Operation",
+                "ImageOperation",
+                "MissingKerasOps",
+            ]:
+                continue
             ops_registry.get_name(_class)  # this raises an error if the class is not registered

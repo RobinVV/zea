@@ -456,7 +456,12 @@ class Pipeline:
 
     def __str__(self):
         """String representation of the pipeline."""
-        operations = [operation.__class__.__name__ for operation in self.operations]
+        operations = []
+        for operation in self.operations:
+            if isinstance(operation, Pipeline):
+                operations.append(f"{operation.__class__.__name__}({str(operation)})")
+            else:
+                operations.append(operation.__class__.__name__)
         string = " -> ".join(operations)
         return string
 
@@ -1044,6 +1049,8 @@ class Map(Pipeline):
     def get_dict(self):
         """Get the configuration of the pipeline."""
         config = super().get_dict()
+        config.update({"name": "map"})
+
         config["params"].update(
             {
                 "argnames": self.argnames,
@@ -1073,6 +1080,8 @@ class PatchedGrid(Map):
     def get_dict(self):
         """Get the configuration of the pipeline."""
         config = super().get_dict()
+        config.update({"name": "patched_grid"})
+
         config["params"].pop("argnames")
         config["params"].pop("chunks")
         config["params"].update({"num_patches": self.num_patches})
@@ -1105,26 +1114,31 @@ class Beamform(Pipeline):
 
         """
 
-        assert beamformer in ["das", "dmas"], (
-            f"Unsupported beamformer type: {beamformer}. Supported types are 'das' and 'dmas'."
+        self.beamformer_type = beamformer
+        self.num_patches = num_patches
+        self.enable_pfield = pfield
+
+        assert self.beamformer_type in ["das", "dmas"], (
+            f"Unsupported beamformer type: {self.beamformer_type}. "
+            "Supported types are 'das' and 'dmas'."
         )
 
         # Get beamforming ops
         beamforming = [
             TOFCorrection(),
             # PfieldWeighting(),  # Inserted conditionally
-            get_ops(beamformer)(),
+            get_ops(self.beamformer_type)(),
         ]
 
-        if pfield:
-            beamforming.insert(2, PfieldWeighting())
+        if self.enable_pfield:
+            beamforming.insert(1, PfieldWeighting())
 
         # Optionally add patching
-        if num_patches > 1:
+        if self.num_patches > 1:
             beamforming = [
                 PatchedGrid(
                     operations=beamforming,
-                    num_patches=num_patches,
+                    num_patches=self.num_patches,
                     **kwargs,
                 )
             ]
@@ -1137,6 +1151,29 @@ class Beamform(Pipeline):
         beamforming[-1].output_data_type = DataTypes.BEAMFORMED_DATA
 
         super().__init__(operations=beamforming, **kwargs)
+
+    def __repr__(self):
+        """String representation of the pipeline."""
+        operations = []
+        for operation in self.operations:
+            if isinstance(operation, Pipeline):
+                operations.append(repr(operation))
+            else:
+                operations.append(operation.__class__.__name__)
+        return f"<Beamform {self.name}=({', '.join(operations)})>"
+
+    def get_dict(self) -> dict:
+        """Convert the pipeline to a dictionary."""
+        config = super().get_dict()
+        config.update({"name": "beamform"})
+        config["params"].update(
+            {
+                "beamformer": self.beamformer_type,
+                "num_patches": self.num_patches,
+                "pfield": self.enable_pfield,
+            }
+        )
+        return config
 
 
 @ops_registry("das")
@@ -1328,9 +1365,15 @@ def make_operation_chain(
             # Check for nested operations at the same level as params
             elif "operations" in operation:
                 nested_operations = make_operation_chain(operation["operations"])
-
                 # Instantiate pipeline-type operations with nested operations
-                if issubclass(operation_cls, Pipeline):
+                if issubclass(operation_cls, Beamform):
+                    # some pipelines, such as `zea.ops.Beamformer`, are initialized
+                    # not with a list of operations but with other parameters that then
+                    # internally create a list of operations
+                    operation_instance = operation_cls(**params)
+                elif issubclass(operation_cls, Pipeline):
+                    # in most cases we want to pass an operations list to
+                    # initialize a pipeline
                     operation_instance = operation_cls(operations=nested_operations, **params)
                 else:
                     operation_instance = operation_cls(operations=nested_operations, **params)
