@@ -31,9 +31,10 @@ set_mpl_style()
 
 if __name__ == "__main__":
     # Load data
-    INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/vincent/example-3d-data/carotid.hdf5"
+    # INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/vincent/example-3d-data/carotid.hdf5"
+    INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/Carotid/test.hdf5"
     SAVE_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/carotid_mesh/beamformed_4d_test.npy"
-    NUM_FRAMES = 10
+    NUM_FRAMES = 1
     log.info(f"Loading data from {log.yellow(INPUT_PATH)}")
 
     with zea.File(INPUT_PATH, mode="r") as file:
@@ -63,10 +64,10 @@ if __name__ == "__main__":
         with_batch_dim=True,
     )
     scan.grid_type = "cartesian"
-    scan.grid_size_x = 256
-    scan.grid_size_y = 256
-    scan.grid_size_z = 256
-    scan.zlims = (0.0, 20e-3)
+    scan.grid_size_x = 128
+    scan.grid_size_y = 128
+    scan.grid_size_z = 128
+    # scan.zlims = (0.0, 20e-3)
     parameters = pipeline.prepare_parameters(probe, scan)
 
     def beamform_3d_volume(rf_data_3d):
