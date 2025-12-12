@@ -222,7 +222,7 @@ class Scan(Parameters):
         "theta_range": {"type": (tuple, list)},
         "phi_range": {"type": (tuple, list)},
         "rho_range": {"type": (tuple, list)},
-        "fill_value": {"type": float, "default": 0.0},
+        "fill_value": {"type": float},
         "resolution": {"type": float, "default": None},
     }
 
@@ -241,16 +241,7 @@ class Scan(Parameters):
         if selected_transmits_input is not None:
             self.set_transmits(selected_transmits_input)
 
-    @cache_with_dependencies(
-        "xlims",
-        "zlims",
-        "grid_size_x",
-        "grid_size_z",
-        "sound_speed",
-        "center_frequency",
-        "pixels_per_wavelength",
-        "grid_type",
-    )
+    @cache_with_dependencies("xlims", "zlims", "grid_size_x", "grid_size_z", "grid_type")
     def grid(self):
         """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
@@ -270,12 +261,7 @@ class Scan(Parameters):
                 "'cartesian' and 'polar'."
             )
 
-    @cache_with_dependencies(
-        "xlims",
-        "wavelength",
-        "pixels_per_wavelength",
-        "grid_type",
-    )
+    @cache_with_dependencies("xlims", "wavelength", "pixels_per_wavelength")
     def grid_size_x(self):
         """Grid width in pixels. For a cartesian grid, this is the lateral (x) pixels in the grid,
         set to prevent aliasing if not provided. For a polar grid, this can be thought of as
@@ -310,7 +296,7 @@ class Scan(Parameters):
         """Calculate the wavelength based on sound speed and center frequency."""
         return self.sound_speed / self.center_frequency
 
-    @cache_with_dependencies("zlims", "grid_type", "polar_limits", "probe_geometry")
+    @cache_with_dependencies("zlims", "polar_limits", "probe_geometry")
     def xlims(self):
         """The x-limits of the beamforming grid [m]. If not explicitly set, it is computed based
         on the polar limits and probe geometry.
@@ -553,11 +539,23 @@ class Scan(Parameters):
         return value[self.selected_transmits]
 
     @property
+    def n_waveforms(self):
+        """The number of unique transmit waveforms."""
+
+        if self.waveforms_one_way is not None:
+            return self.waveforms_one_way.shape[0]
+
+        if self.waveforms_two_way is not None:
+            return self.waveforms_two_way.shape[0]
+
+        return 1
+
+    @property
     def t_peak(self):
         """The time of the peak of the pulse in seconds of shape (n_waveforms,)."""
         t_peak = self._params.get("t_peak")
         if t_peak is None:
-            t_peak = np.array([1 / self.center_frequency])
+            t_peak = np.array([1 / self.center_frequency] * self.n_waveforms)
 
         return t_peak
 
