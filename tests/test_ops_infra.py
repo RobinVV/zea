@@ -10,7 +10,7 @@ import pytest
 from zea import ops
 from zea.beamform.delays import compute_t0_delays_planewave
 from zea.config import Config
-from zea.internal.core import DataTypes
+from zea.internal.core import DEFAULT_DYNAMIC_RANGE, DataTypes
 from zea.internal.registry import ops_registry
 from zea.ops.pipeline import pipeline_from_config, pipeline_from_json, pipeline_from_yaml
 from zea.probes import Probe
@@ -213,7 +213,7 @@ def default_pipeline():
     """Returns a default pipeline for ultrasound simulation."""
     pipeline = ops.Pipeline.from_default(num_patches=1, jit_options=None)
     pipeline.prepend(ops.Simulate())
-    pipeline.append(ops.Normalize(input_range=ops.DEFAULT_DYNAMIC_RANGE, output_range=(0, 255)))
+    pipeline.append(ops.Normalize(input_range=DEFAULT_DYNAMIC_RANGE, output_range=(0, 255)))
     return pipeline
 
 
@@ -222,7 +222,7 @@ def patched_pipeline():
     """Returns a pipeline for ultrasound simulation where the beamforming happens patch-wise."""
     pipeline = ops.Pipeline.from_default(jit_options=None)
     pipeline.prepend(ops.Simulate())
-    pipeline.append(ops.Normalize(input_range=ops.DEFAULT_DYNAMIC_RANGE, output_range=(0, 255)))
+    pipeline.append(ops.Normalize(input_range=DEFAULT_DYNAMIC_RANGE, output_range=(0, 255)))
     return pipeline
 
 
