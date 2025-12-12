@@ -190,21 +190,15 @@ class VerasonicsFile(h5py.File):
         if unit == "mm":
             probe_geometry = probe_geometry / 1000
         else:
-            wavelength = self.read_wavelength()
-            probe_geometry = probe_geometry * wavelength
+            probe_geometry = probe_geometry * self.wavelength
 
         return probe_geometry
 
-    def read_wavelength(self):
-        """Reads the wavelength from the file.
+    @property
+    def wavelength(self):
+        """Wavelength of the probe from the file in meters."""
 
-        Returns:
-            `wavelength` (`float`): The wavelength of the probe.
-        """
-        center_frequency = self.read_probe_center_frequency()
-        sound_speed = self.read_sound_speed()
-        wavelength = sound_speed / center_frequency
-        return wavelength
+        return self.sound_speed / self.center_frequency
 
     def read_transmit_events(self, event=None, frames="all", allow_accumulate=False):
         """Read the events from the file and finds the order in which transmits and receives
@@ -330,9 +324,6 @@ class VerasonicsFile(h5py.File):
         t0_delays_list = []
         tx_apodizations_list = []
 
-        wavelength = self.read_wavelength()
-        sound_speed = self.read_sound_speed()
-
         for n in tx_order:
             # Get column vector of t0_delays
             if event is None:
@@ -357,7 +348,7 @@ class VerasonicsFile(h5py.File):
         apodizations = np.stack(tx_apodizations_list, axis=0)
 
         # Convert the t0_delays to meters
-        t0_delays = t0_delays * wavelength / sound_speed
+        t0_delays = t0_delays * self.wavelength / self.sound_speed
 
         return t0_delays, apodizations
 
@@ -556,42 +547,33 @@ class VerasonicsFile(h5py.File):
 
         return raw_data
 
-    def read_probe_center_frequency(self):
-        """Reads the center frequency of the probe from the file.
+    @property
+    def center_frequency(self):
+        """Center frequency of the probe from the file in Hz."""
 
-        Returns:
-            center_frequency (float): The center frequency of the probe.
-        """
-        center_frequency = self["Trans"]["frequency"][0, 0] * 1e6
-        return center_frequency
+        return self["Trans"]["frequency"][0, 0] * 1e6
 
-    def read_sound_speed(self):
-        """Reads the speed of sound from the file.
+    @property
+    def sound_speed(self):
+        """Speed of sound in the medium in m/s."""
 
-        Returns:
-            sound_speed (float): The speed of sound.
-        """
+        return self["Resource"]["Parameters"]["speedOfSound"][0, 0].item()
 
-        sound_speed = self["Resource"]["Parameters"]["speedOfSound"][0, 0].item()
-        return sound_speed
-
-    def read_initial_times(self, rcv_order, sound_speed):
+    def read_initial_times(self, rcv_order):
         """Reads the initial times from the file.
 
         Args:
             rcv_order (list): The order in which the receives appear in the events.
             wavelength (float): The wavelength of the probe.
-            sound_speed (float): The speed of sound.
 
         Returns:
             initial_times (np.ndarray): The initial times of shape (n_rcv,).
         """
-        wavelength = self.read_wavelength()
         initial_times = []
         for n in rcv_order:
             start_depth = self.dereference_index(self["Receive"]["startDepth"], n).item()
 
-            initial_times.append(2 * start_depth * wavelength / sound_speed)
+            initial_times.append(2 * start_depth * self.wavelength / self.sound_speed)
 
         return np.array(initial_times).astype(np.float32)
 
@@ -632,7 +614,11 @@ class VerasonicsFile(h5py.File):
             else:
                 focus_distance = self.dereference_index(self["TX_Agent"]["focus"], n, event)[0, 0]
             focus_distances.append(focus_distance)
-        return np.array(focus_distances)
+
+        # Convert focus distances from wavelengths to meters
+        focus_distances = np.array(focus_distances) * self.wavelength
+
+        return focus_distances
 
     @staticmethod
     def _probe_geometry_is_ordered_ula(probe_geometry):
@@ -770,12 +756,9 @@ class VerasonicsFile(h5py.File):
 
         return image_data
 
-    def read_probe_element_width(self):
-        """Reads the element width from the file.
-
-        Returns:
-            float: The element width.
-        """
+    @property
+    def element_width(self):
+        """The element width in meters from the file."""
         element_width = self["Trans"]["elementWidth"][:][0, 0]
 
         # Read the unit
@@ -785,8 +768,7 @@ class VerasonicsFile(h5py.File):
         if unit == "mm":
             element_width = element_width / 1000
         else:
-            wavelength = self.read_wavelength()
-            element_width = element_width * wavelength
+            element_width = element_width * self.wavelength
 
         return element_width
 
@@ -814,12 +796,9 @@ class VerasonicsFile(h5py.File):
         )
         sampling_frequency = self.read_sampling_frequency()
         bandwidth_percent = self.read_bandwidth_percent()
-        center_frequency = self.read_probe_center_frequency()
-        sound_speed = self.read_sound_speed()
-        initial_times = self.read_initial_times(rcv_order, sound_speed)
+        initial_times = self.read_initial_times(rcv_order)
         probe_name = self.read_probe_name()
         tgc_gain_curve = self.read_tgc_gain_curve()
-        element_width = self.read_probe_element_width()
 
         # these are capable of handling multiple events
         raw_data = self.read_raw_data(event, frames=frames)
@@ -888,8 +867,8 @@ class VerasonicsFile(h5py.File):
             "bandwidth_percent": bandwidth_percent,
             "raw_data": raw_data,
             "image": image,
-            "center_frequency": center_frequency,
-            "sound_speed": sound_speed,
+            "center_frequency": self.center_frequency,
+            "sound_speed": self.sound_speed,
             "initial_times": initial_times,
             "probe_name": probe_name,
             "focus_distances": focus_distances,
@@ -897,7 +876,7 @@ class VerasonicsFile(h5py.File):
             "waveforms_one_way": waveforms_one_way_list,
             "waveforms_two_way": waveforms_two_way_list,
             "tgc_gain_curve": tgc_gain_curve,
-            "element_width": element_width,
+            "element_width": self.element_width,
             "additional_elements": [el_lens_correction, *additional_elements],
         }
 
