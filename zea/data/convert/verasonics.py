@@ -363,11 +363,8 @@ class VerasonicsFile(h5py.File):
 
         if "quadDecim" in self["Receive"]:
             quaddecim = self.dereference_index(self["Receive"]["quadDecim"], 0)
-        elif "sampleSkip" in self["Receive"]:
-            # The Vantage NXT has renamed this field to sampleSkip
-            quaddecim = self.dereference_index(self["Receive"]["sampleSkip"], 0)
         else:
-            raise KeyError("Could not find 'quadDecim' or 'sampleSkip' in 'Receive' structure.")
+            raise KeyError("Could not find 'quadDecim' in 'Receive' structure.")
 
         sampling_frequency = adc_rate / quaddecim * 1e6
         sampling_frequency = sampling_frequency[0, 0]
