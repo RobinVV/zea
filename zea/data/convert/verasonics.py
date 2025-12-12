@@ -170,24 +170,27 @@ class VerasonicsFile(h5py.File):
         """Decode a string dataset."""
         return "".join([chr(c) for c in dataset.squeeze()])
 
-    def read_probe_geometry(self):
-        """
-        Read the probe geometry from the file.
+    @property
+    def probe_unit(self):
+        """The unit the probe dimensions are defined in."""
+        _ALLOWED_UNITS = {"wavelengths", "mm"}
+        unit = self.decode_string(self["Trans"]["units"][:])
+        assert unit in {"wavelengths", "mm"}, (
+            f"Unexpected unit '{unit}' in file, must be one of {_ALLOWED_UNITS}"
+        )
+        return unit
 
-        Returns:
-            probe_geometry (np.ndarray): The probe geometry of shape (n_el, 3).
-        """
+    @property
+    def probe_geometry(self):
+        """The probe geometry of shape (n_el, 3)."""
         # Read the probe geometry from the file
         probe_geometry = self["Trans"]["ElementPos"][:3, :]
 
         # Transpose the probe geometry to have the shape (n_el, 3)
         probe_geometry = probe_geometry.T
 
-        # Read the unit
-        unit = self.decode_string(self["Trans"]["units"][:])
-
         # Convert the probe geometry to meters
-        if unit == "mm":
+        if self.probe_unit == "mm":
             probe_geometry = probe_geometry / 1000
         else:
             probe_geometry = probe_geometry * self.wavelength
@@ -352,13 +355,9 @@ class VerasonicsFile(h5py.File):
 
         return t0_delays, apodizations
 
-    def read_sampling_frequency(self):
-        """
-        Read the sampling frequency from the file.
-
-        Returns:
-            sampling_frequency (float): The sampling frequency.
-        """
+    @property
+    def sampling_frequency(self):
+        """The sampling frequency in Hz from the file."""
         # Read the sampling frequency from the file
         adc_rate = self.dereference_index(self["Receive"]["decimSampleRate"], 0)
 
@@ -369,8 +368,14 @@ class VerasonicsFile(h5py.File):
             quaddecim = 1.0
 
         sampling_frequency = adc_rate / quaddecim * 1e6
+        sampling_frequency = sampling_frequency[0, 0]
 
-        return sampling_frequency[0, 0]
+        if self.is_baseband_mode:
+            # Two sequential samples are interpreted as a single complex sample
+            # Therefore, we need to halve the sampling frequency
+            sampling_frequency = sampling_frequency / 2
+
+        return sampling_frequency
 
     def read_waveforms(self, tx_order, event=None):
         """
@@ -464,6 +469,7 @@ class VerasonicsFile(h5py.File):
 
     @property
     def end_samples(self):
+        """The index of the last sample for each receive event."""
         length = self["Receive"]["endSample"].shape[0]
         return np.concatenate(
             [self.dereference_index(self["Receive"]["endSample"], i) for i in range(length)]
@@ -471,6 +477,7 @@ class VerasonicsFile(h5py.File):
 
     @property
     def start_samples(self):
+        """The index of the first sample for each receive event."""
         length = self["Receive"]["startSample"].shape[0]
         return np.concatenate(
             [self.dereference_index(self["Receive"]["startSample"], i) for i in range(length)]
@@ -545,6 +552,17 @@ class VerasonicsFile(h5py.File):
         # Add channel dimension
         raw_data = raw_data[..., None]
 
+        # If the data is captured in BS100BW mode or BS50BW mode, the data is stored in
+        # as complex IQ data.
+        if self.is_baseband_mode:
+            raw_data = np.concatenate(
+                (
+                    raw_data[:, :, 0::2, :, :],
+                    -raw_data[:, :, 1::2, :, :],
+                ),
+                axis=-1,
+            )
+
         return raw_data
 
     @property
@@ -577,12 +595,9 @@ class VerasonicsFile(h5py.File):
 
         return np.array(initial_times).astype(np.float32)
 
-    def read_probe_name(self):
-        """Reads the name of the probe from the file.
-
-        Returns:
-            probe_name (str): The name of the probe.
-        """
+    @property
+    def probe_name(self):
+        """The name of the probe from the file."""
         probe_name = self["Trans"]["name"][:]
         probe_name = self.decode_string(probe_name)
         # Translates between verasonics probe names and zea probe names
@@ -620,16 +635,13 @@ class VerasonicsFile(h5py.File):
 
         return focus_distances
 
-    @staticmethod
-    def _probe_geometry_is_ordered_ula(probe_geometry):
+    @property
+    def _probe_geometry_is_ordered_ula(self):
         """Checks if the probe geometry is ordered as a uniform linear array (ULA)."""
-        diff_vec = probe_geometry[1:] - probe_geometry[:-1]
+        diff_vec = self.probe_geometry[1:] - self.probe_geometry[:-1]
         return np.isclose(diff_vec, diff_vec[0]).all()
 
-    @staticmethod
-    def planewave_focal_distance_to_inf(
-        focus_distances, t0_delays, tx_apodizations, probe_geometry
-    ):
+    def planewave_focal_distance_to_inf(self, focus_distances, t0_delays, tx_apodizations):
         """Detects plane wave transmits and sets the focus distance to infinity.
 
         Args:
@@ -644,7 +656,7 @@ class VerasonicsFile(h5py.File):
             This function assumes that the probe_geometry is a 1d uniform linear array.
             If not it will warn and return.
         """
-        if not VerasonicsFile._probe_geometry_is_ordered_ula(probe_geometry):
+        if not self._probe_geometry_is_ordered_ula:
             log.warning(
                 "The probe geometry is not ordered as a uniform linear array. "
                 "Focal distances are not set to infinity for plane waves."
@@ -663,34 +675,34 @@ class VerasonicsFile(h5py.File):
 
         return focus_distances
 
-    def read_bandwidth_percent(self):
-        """Reads the bandwidth percent from the file.
-
-        Returns:
-            bandwidth_percent (int): The bandwidth percent.
-        """
+    @property
+    def bandwidth_percent(self):
+        """Receive bandwidth as a percentage of center frequency."""
         bandwidth_percent = self.dereference_index(self["Receive"]["sampleMode"], 0)
         bandwidth_percent = self.decode_string(bandwidth_percent)
         bandwidth_percent = int(bandwidth_percent[2:-2])
         return bandwidth_percent
 
-    def read_lens_correction(self):
-        """Reads the lens correction from the file.
-
-        Returns:
-            `lens_correction` (`np.ndarray`): The lens correction.
+    @property
+    def is_baseband_mode(self):
         """
+        If the data is captured in 'BS100BW' mode or 'BS50BW' mode:
+            - The data is stored as complex IQ data.
+            - The sampling frequency is halved.
+            - Two sequential samples are interpreted as a single complex sample.
+                Therefore, we need to halve the sampling frequency
+        """
+        return self.bandwidth_percent in (50, 100)
+
+    @property
+    def lens_correction(self):
+        """The lens correction: 1 way delay in wavelengths thru lens"""
         lens_correction = self["Trans"]["lensCorrection"][0, 0].item()
         return lens_correction
 
-    def read_tgc_gain_curve(self):
-        """Reads the TGC gain curve from the file.
-
-        Returns
-        -------
-        np.ndarray
-            The TGC gain curve of shape `(n_ax,)`.
-        """
+    @property
+    def tgc_gain_curve(self):
+        """The TGC gain curve from the file interpolated to the number of axial samples (n_ax,)."""
 
         gain_curve = self["TGC"]["Waveform"][:][:, 0]
 
@@ -704,11 +716,8 @@ class VerasonicsFile(h5py.File):
         # Define the time axis for the gain curve
         t_gain_curve = np.arange(gain_curve.size) * gain_curve_sampling_period
 
-        # Read the sampling frequency
-        sampling_frequency = self.read_sampling_frequency()
-
         # Define the time axis for the axial samples
-        t_samples = np.arange(self.n_ax) / sampling_frequency
+        t_samples = np.arange(self.n_ax) / self.sampling_frequency
 
         # Interpolate the gain_curve to the number of axial samples
         gain_curve = np.interp(t_samples, t_gain_curve, gain_curve)
@@ -761,11 +770,8 @@ class VerasonicsFile(h5py.File):
         """The element width in meters from the file."""
         element_width = self["Trans"]["elementWidth"][:][0, 0]
 
-        # Read the unit
-        unit = self.decode_string(self["Trans"]["units"][:])
-
         # Convert the probe element width to meters
-        if unit == "mm":
+        if self.probe_unit == "mm":
             element_width = element_width / 1000
         else:
             element_width = element_width * self.wavelength
@@ -788,17 +794,10 @@ class VerasonicsFile(h5py.File):
         if additional_functions is None:
             additional_functions = []
 
-        probe_geometry = self.read_probe_geometry()
-
-        # same for all events
         tx_order, rcv_order, time_to_next_transmit = self.read_transmit_events(
             frames=frames, allow_accumulate=allow_accumulate
         )
-        sampling_frequency = self.read_sampling_frequency()
-        bandwidth_percent = self.read_bandwidth_percent()
         initial_times = self.read_initial_times(rcv_order)
-        probe_name = self.read_probe_name()
-        tgc_gain_curve = self.read_tgc_gain_curve()
 
         # these are capable of handling multiple events
         raw_data = self.read_raw_data(event, frames=frames)
@@ -813,28 +812,9 @@ class VerasonicsFile(h5py.File):
             tx_order, event
         )
         focus_distances = self.planewave_focal_distance_to_inf(
-            focus_distances, t0_delays, tx_apodizations, probe_geometry
+            focus_distances, t0_delays, tx_apodizations
         )
 
-        # If the data is captured in BS100BW mode or BS50BW mode, the data is stored in
-        # as complex IQ data and the sampling frequency is halved.
-        if bandwidth_percent in (50, 100):
-            raw_data = np.concatenate(
-                (
-                    raw_data[:, :, 0::2, :, :],
-                    -raw_data[:, :, 1::2, :, :],
-                ),
-                axis=-1,
-            )
-            # Two sequential samples are interpreted as a single complex sample
-            # Therefore, we need to halve the sampling frequency
-            sampling_frequency = sampling_frequency / 2
-
-            # We have halved the number of samples, so we need to halve the number
-            # of samples in the gain curve as well
-            tgc_gain_curve = tgc_gain_curve[0::2]
-
-        lens_correction = self.read_lens_correction()
         if event is None:
             group_name = "scan"
         else:
@@ -843,7 +823,7 @@ class VerasonicsFile(h5py.File):
         el_lens_correction = DatasetElement(
             group_name=group_name,
             dataset_name="lens_correction",
-            data=lens_correction,
+            data=self.lens_correction,
             description=(
                 "The lens correction value used by Verasonics. This value is the "
                 "additional path length in wavelength that the lens introduces. "
@@ -857,25 +837,25 @@ class VerasonicsFile(h5py.File):
             additional_elements.append(additional_function(self))
 
         data = {
-            "probe_geometry": probe_geometry,
+            "probe_geometry": self.probe_geometry,
             "time_to_next_transmit": time_to_next_transmit,
             "t0_delays": t0_delays,
             "tx_apodizations": tx_apodizations,
-            "sampling_frequency": sampling_frequency,
+            "sampling_frequency": self.sampling_frequency,
             "polar_angles": polar_angles,
             "azimuth_angles": azimuth_angles,
-            "bandwidth_percent": bandwidth_percent,
+            "bandwidth_percent": self.bandwidth_percent,
             "raw_data": raw_data,
             "image": image,
             "center_frequency": self.center_frequency,
             "sound_speed": self.sound_speed,
             "initial_times": initial_times,
-            "probe_name": probe_name,
+            "probe_name": self.probe_name,
             "focus_distances": focus_distances,
             "tx_waveform_indices": tx_waveform_indices,
             "waveforms_one_way": waveforms_one_way_list,
             "waveforms_two_way": waveforms_two_way_list,
-            "tgc_gain_curve": tgc_gain_curve,
+            "tgc_gain_curve": self.tgc_gain_curve,
             "element_width": self.element_width,
             "additional_elements": [el_lens_correction, *additional_elements],
         }
