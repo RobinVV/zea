@@ -51,7 +51,7 @@ pipeline:
         factor: 4
     - name: "beamform"
       params:
-        type: das
+        beamformer: das
         pfield: false
         num_patches: 200
     - name: envelope_detect
