@@ -665,6 +665,10 @@ class Downsample(Operation):
             additional_output_keys=["sampling_frequency", "n_ax"],
             **kwargs,
         )
+        if factor < 1:
+            raise ValueError("Downsample factor must be >= 1.")
+        if phase < 0 or phase >= factor:
+            raise ValueError("phase must satisfy 0 <= phase < factor.")
         self.factor = factor
         self.phase = phase
         self.axis = axis

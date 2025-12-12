@@ -634,12 +634,6 @@ class Pipeline:
             probe: Probe object.
             scan: Scan object.
             config: Config object.
-            include (None, "all", or list): Only include these parameter/computed property names.
-                If None or "all", include all.
-            exclude (None or list): Exclude these parameter/computed property names.
-                If provided, these keys will be excluded from the output.
-                Only one of include or exclude can be set.
-
             **kwargs: Additional keyword arguments to be included in the inputs.
 
         Returns:
@@ -1016,14 +1010,14 @@ class Map(Pipeline):
     @property
     def valid_keys(self) -> set:
         """Get a set of valid keys for the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
+        Adds the parameters that Map itself operates on (even if not used by operations
         inside it)."""
         return super().valid_keys.union(self.argnames)
 
     @property
     def needs_keys(self) -> set:
         """Get a set of all input keys needed by the pipeline.
-        Adds the parameters that PatchedGrid itself operates on (even if not used by operations
+        Adds the parameters that Map itself operates on (even if not used by operations
         inside it)."""
         return super().needs_keys.union(self.argnames)
 
