@@ -31,7 +31,7 @@ def assert_key(file: h5py.File, key: str):
 class File(h5py.File):
     """h5py.File in zea format."""
 
-    def __init__(self, name, *args, **kwargs):
+    def __init__(self, name, *args, validate: bool = True, **kwargs):
         """Initialize the file.
 
         Args:
@@ -41,16 +41,24 @@ class File(h5py.File):
                 huggingface path.
             *args: Additional arguments to pass to h5py.File.
             **kwargs: Additional keyword arguments to pass to h5py.File.
+            validate (bool): Whether to validate the file structure after loading.
         """
 
+        # Resolve huggingface path
         if str(name).startswith(HF_PREFIX):
             name = _hf_resolve_path(str(name))
 
+        # Disable locking for read mode by default
         if "locking" not in kwargs and "mode" in kwargs and kwargs["mode"] == "r":
             # If the file is opened in read mode, disable locking
             kwargs["locking"] = False
 
+        # Initialize the h5py.File
         super().__init__(name, *args, **kwargs)
+
+        # Validate the file structure
+        if validate:
+            self.validate()
 
     @property
     def path(self):
@@ -285,6 +293,23 @@ class File(h5py.File):
         else:
             log.warning("Could not find scan parameters in file.")
 
+        scan_parameters = self._check_focus_distances(scan_parameters)
+
+        return scan_parameters
+
+    def _check_focus_distances(self, scan_parameters):
+        if "focus_distances" in scan_parameters:
+            focus_distances = scan_parameters["focus_distances"]
+            # check if focus distances are in wavelengths
+            if np.any(np.logical_and(focus_distances >= 1, focus_distances != np.inf)):
+                log.warning(
+                    f"We have detected that focus distances in '{self.path}' are "
+                    "(probably) stored wavelengths. Please update your file! "
+                    "Converting to meters automatically for now."
+                )
+            wavelength = scan_parameters["sound_speed"] / scan_parameters["center_frequency"]
+            focus_distances = focus_distances * wavelength
+            scan_parameters["focus_distances"] = focus_distances
         return scan_parameters
 
     def get_scan_parameters(self, event=None) -> dict:
