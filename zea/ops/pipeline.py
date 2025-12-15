@@ -1102,7 +1102,7 @@ class Beamform(Pipeline):
     - ReshapeGrid (flattened grid is also reshaped to `(grid_size_z, grid_size_x)`)
     """  # noqa: E501
 
-    def __init__(self, beamformer="das", num_patches=100, enable_pfield=False, **kwargs):
+    def __init__(self, beamformer="delay_and_sum", num_patches=100, enable_pfield=False, **kwargs):
         """Initialize a Delay-and-Sum beamforming `zea.Pipeline`.
 
         Args:
@@ -1117,6 +1117,18 @@ class Beamform(Pipeline):
         self.beamformer_type = beamformer
         self.num_patches = num_patches
         self.enable_pfield = enable_pfield
+
+        # for backwards compatibility
+        name_mapping = {
+            "das": "delay_and_sum",
+            "dmas": "delay_multiply_and_sum",
+        }
+        if beamformer in name_mapping:
+            log.deprecated(
+                f"Beamformer name '{beamformer}' is deprecated. "
+                f"Please use '{name_mapping[beamformer]}' instead."
+            )
+            self.beamformer_type = name_mapping[beamformer]
 
         assert self.beamformer_type in ["delay_and_sum", "delay_multiply_and_sum"], (
             f"Unsupported beamformer type: {self.beamformer_type}. "
