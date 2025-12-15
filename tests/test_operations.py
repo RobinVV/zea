@@ -523,14 +523,31 @@ def test_compute_time_to_peak():
     assert np.allclose(t_peak, 1e-6, atol=1e-8), f"t_peak should be close to 1e-6, got {t_peak}"
 
 
-def test_multiply_and_sum_dmas():
-    operation = ops.DMAS(with_batch_dim=True)
+@pytest.mark.parametrize(
+    "beamformer,expected_shape",
+    [
+        ("das", (1, 7, 2)),
+        ("dmas", (1, 7, 2)),
+    ],
+)
+def test_beamformers(beamformer, expected_shape):
+    """Test all beamformer operations (DAS and DMAS stages)."""
+    if beamformer == "das":
+        operation = ops.DelayAndSum(with_batch_dim=True)
+    elif beamformer == "dmas":
+        operation = ops.DelayMultiplyAndSum(with_batch_dim=True)
+    else:
+        raise ValueError(f"Unknown beamformer: {beamformer}")
 
     data = keras.ops.zeros((1, 3, 7, 4, 2))
 
     output = operation(data=data)["data"]
-    assert output.shape == (1, 7, 2), f"Output shape should be (1, 7, 2), got {output.shape}"
+    assert output.shape == expected_shape, (
+        f"Output shape should be {expected_shape} for {beamformer}, got {output.shape}"
+    )
 
-    with pytest.raises(ValueError):
-        data = keras.ops.zeros((1, 3, 7, 4, 1))
-        operation(data=data)
+    # DMAS should raise ValueError with single channel
+    if beamformer == "dmas":
+        with pytest.raises(ValueError):
+            data = keras.ops.zeros((1, 3, 7, 4, 1))
+            operation(data=data)

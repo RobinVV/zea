@@ -205,7 +205,7 @@ def validate_branched_pipeline(pipeline):
         assert isinstance(branch[1], ops.Demodulate)
         assert isinstance(branch[2], ops.TOFCorrection)
         assert isinstance(branch[3], ops.PfieldWeighting)
-        assert isinstance(branch[4], ops.DAS)
+        assert isinstance(branch[4], ops.DelayAndSum)
 
 
 @pytest.fixture
@@ -451,7 +451,7 @@ def validate_default_pipeline(pipeline, patched=False):
     if not patched:
         assert isinstance(pipeline.operations[2], ops.TOFCorrection)
         assert isinstance(pipeline.operations[3], ops.PfieldWeighting)
-        assert isinstance(pipeline.operations[4], ops.DAS)
+        assert isinstance(pipeline.operations[4], ops.DelayAndSum)
         assert isinstance(pipeline.operations[5], ops.ReshapeGrid)
         assert isinstance(pipeline.operations[6], ops.EnvelopeDetect)
         assert isinstance(pipeline.operations[7], ops.Normalize)
@@ -461,7 +461,7 @@ def validate_default_pipeline(pipeline, patched=False):
         assert hasattr(beamform, "operations")
         assert isinstance(beamform.operations[0].operations[0], ops.TOFCorrection)
         assert isinstance(beamform.operations[0].operations[1], ops.PfieldWeighting)
-        assert isinstance(beamform.operations[0].operations[2], ops.DAS)
+        assert isinstance(beamform.operations[0].operations[2], ops.DelayAndSum)
         assert isinstance(pipeline.operations[3], ops.ReshapeGrid)
         assert isinstance(pipeline.operations[4], ops.EnvelopeDetect)
         assert isinstance(pipeline.operations[5], ops.Normalize)

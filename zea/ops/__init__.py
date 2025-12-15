@@ -107,10 +107,10 @@ from .base import (
 )
 from .keras_ops import *  # noqa: F403
 from .pipeline import (
-    DAS,
-    DMAS,
     Beamform,
     BranchedPipeline,
+    DelayAndSum,
+    DelayMultiplyAndSum,
     Map,
     PatchedGrid,
     Pipeline,
@@ -154,8 +154,8 @@ __all__ = [
     "Stack",
     "get_ops",
     # Pipeline
-    "DAS",
-    "DMAS",
+    "DelayAndSum",
+    "DelayMultiplyAndSum",
     "Beamform",
     "BranchedPipeline",
     "Map",
