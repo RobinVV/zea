@@ -31,7 +31,7 @@ def assert_key(file: h5py.File, key: str):
 class File(h5py.File):
     """h5py.File in zea format."""
 
-    def __init__(self, name, *args, validate: bool = True, **kwargs):
+    def __init__(self, name, *args, **kwargs):
         """Initialize the file.
 
         Args:
@@ -41,7 +41,6 @@ class File(h5py.File):
                 huggingface path.
             *args: Additional arguments to pass to h5py.File.
             **kwargs: Additional keyword arguments to pass to h5py.File.
-            validate (bool): Whether to validate the file structure after loading.
         """
 
         # Resolve huggingface path
@@ -55,10 +54,6 @@ class File(h5py.File):
 
         # Initialize the h5py.File
         super().__init__(name, *args, **kwargs)
-
-        # Validate the file structure
-        if validate:
-            self.validate()
 
     @property
     def path(self):
