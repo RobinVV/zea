@@ -1130,10 +1130,11 @@ class Beamform(Pipeline):
             )
             self.beamformer_type = name_mapping[beamformer]
 
-        assert self.beamformer_type in ["delay_and_sum", "delay_multiply_and_sum"], (
-            f"Unsupported beamformer type: {self.beamformer_type}. "
-            "Supported types are 'delay_and_sum' and 'delay_multiply_and_sum'."
-        )
+        if self.beamformer_type not in ["delay_and_sum", "delay_multiply_and_sum"]:
+            raise ValueError(
+                f"Unsupported beamformer type: {self.beamformer_type}. "
+                "Supported types are 'delay_and_sum' and 'delay_multiply_and_sum'."
+            )
 
         # Get beamforming ops
         beamforming = [
