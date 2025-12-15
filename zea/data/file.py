@@ -302,9 +302,9 @@ class File(h5py.File):
                     "(probably) stored wavelengths. Please update your file! "
                     "Converting to meters automatically for now."
                 )
-            wavelength = scan_parameters["sound_speed"] / scan_parameters["center_frequency"]
-            focus_distances = focus_distances * wavelength
-            scan_parameters["focus_distances"] = focus_distances
+                wavelength = scan_parameters["sound_speed"] / scan_parameters["center_frequency"]
+                focus_distances = focus_distances * wavelength
+                scan_parameters["focus_distances"] = focus_distances
         return scan_parameters
 
     def get_scan_parameters(self, event=None) -> dict:
