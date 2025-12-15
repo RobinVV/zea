@@ -125,7 +125,7 @@ def default_pipeline_config():
             {"name": "demodulate"},
             {"name": "tof_correction"},
             {"name": "pfield_weighting"},
-            {"name": "das"},
+            {"name": "delay_and_sum"},
             {"name": "reshape_grid"},
             {"name": "envelope_detect"},
             {"name": "normalize"},
@@ -144,12 +144,11 @@ def patched_pipeline_config():
             {
                 "name": "beamform",
                 "params": {
-                    "beamformer": "das",
+                    "beamformer": "delay_and_sum",
                     "num_patches": 15,
-                    "pfield": True,
+                    "enable_pfield": True,
                 },
             },
-            {"name": "reshape_grid"},
             {"name": "envelope_detect"},
             {"name": "normalize"},
             {"name": "log_compress"},
@@ -171,17 +170,18 @@ def branched_pipeline_config():
                         {"name": "demodulate"},
                         {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
-                        {"name": "das"},
+                        {"name": "delay_and_sum"},
                     ],
                     "branch_2": [
                         {"name": "simulate_rf"},
                         {"name": "demodulate"},
                         {"name": "tof_correction"},
                         {"name": "pfield_weighting"},
-                        {"name": "das"},
+                        {"name": "delay_and_sum"},
                     ],
                 },
             },
+            {"name": "reshape_grid"},
             {"name": "envelope_detect"},
             {"name": "normalize"},
             {"name": "log_compress"},
@@ -191,7 +191,7 @@ def branched_pipeline_config():
 
 def validate_branched_pipeline(pipeline):
     """Validates the branched pipeline."""
-    assert len(pipeline.operations) == 4
+    assert len(pipeline.operations) == 5
     assert hasattr(pipeline.operations[0], "branches")
     assert isinstance(pipeline.operations[1], ops.EnvelopeDetect)
     assert isinstance(pipeline.operations[2], ops.Normalize)
@@ -462,7 +462,6 @@ def validate_default_pipeline(pipeline, patched=False):
         assert isinstance(beamform.operations[0].operations[0], ops.TOFCorrection)
         assert isinstance(beamform.operations[0].operations[1], ops.PfieldWeighting)
         assert isinstance(beamform.operations[0].operations[2], ops.DelayAndSum)
-        assert isinstance(pipeline.operations[3], ops.ReshapeGrid)
         assert isinstance(pipeline.operations[4], ops.EnvelopeDetect)
         assert isinstance(pipeline.operations[5], ops.Normalize)
         assert isinstance(pipeline.operations[6], ops.LogCompress)
