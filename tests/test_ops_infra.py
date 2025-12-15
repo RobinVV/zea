@@ -193,9 +193,10 @@ def validate_branched_pipeline(pipeline):
     """Validates the branched pipeline."""
     assert len(pipeline.operations) == 5
     assert hasattr(pipeline.operations[0], "branches")
-    assert isinstance(pipeline.operations[1], ops.EnvelopeDetect)
-    assert isinstance(pipeline.operations[2], ops.Normalize)
-    assert isinstance(pipeline.operations[3], ops.LogCompress)
+    assert isinstance(pipeline.operations[1], ops.ReshapeGrid)
+    assert isinstance(pipeline.operations[2], ops.EnvelopeDetect)
+    assert isinstance(pipeline.operations[3], ops.Normalize)
+    assert isinstance(pipeline.operations[4], ops.LogCompress)
 
     branch_1 = pipeline.operations[0].branches["branch_1"]
     branch_2 = pipeline.operations[0].branches["branch_2"]
@@ -462,9 +463,9 @@ def validate_default_pipeline(pipeline, patched=False):
         assert isinstance(beamform.operations[0].operations[0], ops.TOFCorrection)
         assert isinstance(beamform.operations[0].operations[1], ops.PfieldWeighting)
         assert isinstance(beamform.operations[0].operations[2], ops.DelayAndSum)
-        assert isinstance(pipeline.operations[4], ops.EnvelopeDetect)
-        assert isinstance(pipeline.operations[5], ops.Normalize)
-        assert isinstance(pipeline.operations[6], ops.LogCompress)
+        assert isinstance(pipeline.operations[3], ops.EnvelopeDetect)
+        assert isinstance(pipeline.operations[4], ops.Normalize)
+        assert isinstance(pipeline.operations[5], ops.LogCompress)
 
 
 @pytest.mark.parametrize(
