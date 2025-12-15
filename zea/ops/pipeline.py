@@ -183,19 +183,25 @@ class Pipeline:
 
     @classmethod
     def from_default(
-        cls, beamformer="das", num_patches=100, baseband=False, pfield=False, timed=False, **kwargs
+        cls,
+        beamformer="delay_and_sum",
+        num_patches=100,
+        baseband=False,
+        enable_pfield=False,
+        timed=False,
+        **kwargs,
     ) -> "Pipeline":
         """Create a default pipeline.
 
         Args:
             beamformer (str): Type of beamformer to use. Currently supporting,
-                "das" (Delay-and-Sum) and "dmas" (Delay-Multiply-and-Sum).
+                "delay_and_sum" and "delay_multiply_and_sum". Defaults to "delay_and_sum".
             num_patches (int): Number of patches for the PatchedGrid operation.
                 Defaults to 100. If you get an out of memory error, try to increase this number.
             baseband (bool): If True, assume the input data is baseband (I/Q) data,
                 which has 2 channels (last dim). Defaults to False, which assumes RF data,
                 so input signal has a single channel dim and is still on carrier frequency.
-            pfield (bool): If True, apply Pfield weighting. Defaults to False.
+            enable_pfield (bool): If True, apply PfieldWeighting. Defaults to False.
                 This will calculate pressure field and only beamform the data to those locations.
             timed (bool, optional): Whether to time each operation. Defaults to False.
             **kwargs: Additional keyword arguments to be passed to the Pipeline constructor.
@@ -212,7 +218,7 @@ class Pipeline:
             Beamform(
                 beamformer=beamformer,
                 num_patches=num_patches,
-                pfield=pfield,
+                enable_pfield=enable_pfield,
             ),
         )
 
@@ -1096,25 +1102,25 @@ class Beamform(Pipeline):
     - ReshapeGrid (flattened grid is also reshaped to `(grid_size_z, grid_size_x)`)
     """  # noqa: E501
 
-    def __init__(self, beamformer="das", num_patches=100, pfield=False, **kwargs):
+    def __init__(self, beamformer="das", num_patches=100, enable_pfield=False, **kwargs):
         """Initialize a Delay-and-Sum beamforming `zea.Pipeline`.
 
         Args:
             beamformer (str): Type of beamformer to use. Currently supporting,
-                "das" (Delay-and-Sum) and "dmas" (Delay-Multiply-and-Sum).
+                "delay_and_sum" and "delay_multiply_and_sum".
             num_patches (int): Number of patches to split the grid into for patch-wise
                 beamforming. If 1, no patching is performed.
-            pfield (bool): Whether to include pressure field weighting in the beamforming.
+            enable_pfield (bool): Whether to include pressure field weighting in the beamforming.
 
         """
 
         self.beamformer_type = beamformer
         self.num_patches = num_patches
-        self.enable_pfield = pfield
+        self.enable_pfield = enable_pfield
 
-        assert self.beamformer_type in ["das", "dmas"], (
+        assert self.beamformer_type in ["delay_and_sum", "delay_multiply_and_sum"], (
             f"Unsupported beamformer type: {self.beamformer_type}. "
-            "Supported types are 'das' and 'dmas'."
+            "Supported types are 'delay_and_sum' and 'delay_multiply_and_sum'."
         )
 
         # Get beamforming ops
@@ -1164,14 +1170,14 @@ class Beamform(Pipeline):
             {
                 "beamformer": self.beamformer_type,
                 "num_patches": self.num_patches,
-                "pfield": self.enable_pfield,
+                "enable_pfield": self.enable_pfield,
             }
         )
         return config
 
 
-@ops_registry("das")
-class DAS(Operation):
+@ops_registry("delay_and_sum")
+class DelayAndSum(Operation):
     """Sums time-delayed signals along channels and transmits."""
 
     def __init__(self, **kwargs):
@@ -1203,8 +1209,8 @@ class DAS(Operation):
         return {self.output_key: beamformed_data}
 
 
-@ops_registry("dmas")
-class DMAS(Operation):
+@ops_registry("delay_multiply_and_sum")
+class DelayMultiplyAndSum(Operation):
     """Performs the operations for the Delay-Multiply-and-Sum beamformer except the delay.
     The delay should be performed by the TOF correction operation.
     """

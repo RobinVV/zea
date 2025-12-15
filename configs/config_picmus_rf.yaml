@@ -51,8 +51,8 @@ pipeline:
         factor: 4
     - name: "beamform"
       params:
-        beamformer: das
-        pfield: false
+        beamformer: delay_and_sum
+        enable_pfield: false
         num_patches: 200
     - name: envelope_detect
     - name: normalize
