@@ -108,7 +108,7 @@ import numpy as np
 
 from zea import log
 from zea.data.data_format import DatasetElement, generate_zea_dataset
-from zea.ops import LogCompress, Normalize
+from zea.ops import log_compress, normalize
 from zea.utils import strtobool
 
 _VERASONICS_TO_ZEA_PROBE_NAMES = {
@@ -367,7 +367,7 @@ class VerasonicsFile(h5py.File):
             raise KeyError("Could not find 'quadDecim' in 'Receive' structure.")
 
         sampling_frequency = adc_rate / quaddecim * 1e6
-        sampling_frequency = sampling_frequency[0, 0]
+        sampling_frequency = sampling_frequency.item()
 
         if self.is_baseband_mode:
             # Two sequential samples are interpreted as a single complex sample
@@ -607,7 +607,7 @@ class VerasonicsFile(h5py.File):
             tx_order (list): The order in which the transmits appear in the events.
 
         Returns:
-            focus_distances (list): The focus distances.
+            focus_distances (list): The focus distances of shape (n_tx,) in meters.
         """
         focus_distances = []
         for n in tx_order:
@@ -714,8 +714,31 @@ class VerasonicsFile(h5py.File):
 
         return gain_curve
 
+    def get_image_data_p_frame_order(self, image_data: np.ndarray):
+        """The order of frames in the ImgDataP buffer.
+
+        Because of the circular buffer used in Verasonics, the frames in the ImgDataP
+        buffer are not necessarily in the correct order. This function computes the
+        correct order of frames.
+        """
+        n_frames = image_data.shape[0]
+        first_frame = int(
+            self.dereference_index(self["Resource"]["ImageBuffer"]["firstFrame"], 0)[()].item() - 1
+        )
+        last_frame = int(
+            self.dereference_index(self["Resource"]["ImageBuffer"]["lastFrame"], 0)[()].item() - 1
+        )
+        indices = np.arange(first_frame, first_frame + n_frames) % n_frames
+        assert indices[-1] == last_frame, (
+            "The last frame index does not match the expected last frame index."
+        )
+        return indices
+
     def read_image_data_p(self, event=None, frames="all"):
         """Reads the image data from the file.
+
+        Uses the ``ImgDataP`` buffer, which is used for spatial filtering
+        and persistence processing.
 
         Returns:
             `image_data` (`np.ndarray`): The image data.
@@ -723,8 +746,6 @@ class VerasonicsFile(h5py.File):
         # Check if the file contains image data
         if "ImgDataP" not in self:
             return None
-
-        frame_indices = self.get_frame_indices(frames)
 
         # Get the dataset reference
         image_data_ref = self["ImgDataP"][0, 0]
@@ -736,18 +757,24 @@ class VerasonicsFile(h5py.File):
             image_data = np.expand_dims(image_data, axis=0)
 
         # Get the relevant dimensions
-        image_data = image_data[:, 0, :, :]
+        assert image_data.ndim == 4, (
+            f"Expected image data to have 4 dimensions, but got {image_data.ndim}"
+        )
+        image_data = np.squeeze(image_data, axis=1)
 
-        # Convert to [-60, 0] dB range based on min and max values
-        normalize = Normalize(output_range=(0, 1), input_range=None)
-        log_compress = LogCompress()
+        # Re-order images such that sequence is correct
+        indices = self.get_image_data_p_frame_order(image_data)
+        image_data = image_data[indices, :, :]
 
-        image_data = normalize(data=image_data)["data"]
-        image_data = log_compress(data=image_data, dynamic_range=(-np.inf, 0))["data"]
+        # Normalize and log-compress the image data
+        image_data = normalize(image_data, output_range=(0, 1), input_range=(0, None))
+        image_data = log_compress(image_data)
 
         # Reshape so that [n_frames, n_samples, n_lines]
         image_data = np.transpose(image_data, (0, 2, 1))
 
+        # Select only the requested frames
+        frame_indices = self.get_frame_indices(frames)
         image_data = image_data[frame_indices]
 
         return image_data
