@@ -148,3 +148,18 @@ carotid_segmenter_presets = {
         "hf_handle": "hf://zeahub/carotid-segmenter",
     },
 }
+
+hvae_presets = {
+    "hvae": {
+        "metadata": {
+            "description": (
+                "Hierarchical Variational Autoencoder (HVAE) model."
+                "Trained on EchoNetLVH dataset at 256x256 resolution"
+                "with Full 256/256 line selection and 3 channels."
+            ),
+            "params": 24266595,
+            "path": "hvae",
+        },
+        "hf_handle": "hf://zeahub/hvae",
+    },
+}
