@@ -32,11 +32,14 @@ set_mpl_style()
 if __name__ == "__main__":
     # Load data
     # INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/vincent/example-3d-data/carotid.hdf5"
+    # INPUT_PATH = (
+    #     "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/Carotid/12_12_25_carotid_focused_3d.hdf5"
+    # )
     INPUT_PATH = (
-        "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/Carotid/12_12_25_carotid_focused_3d.hdf5"
+        "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/CIRS/16_12_25_cirs_focused_3d.hdf5"
     )
-    SAVE_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/carotid_mesh/beamformed_4d_test.npy"
-    NUM_FRAMES = 10
+    SAVE_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/carotid_mesh/beamformed_3d_cirs.npy"
+    NUM_FRAMES = 1
     log.info(f"Loading data from {log.yellow(INPUT_PATH)}")
 
     with zea.File(INPUT_PATH, mode="r") as file:
@@ -48,7 +51,7 @@ if __name__ == "__main__":
     scan.n_ch = 2
     # these params help a lot with contrast
     # scan.f_number = 1.5
-    # scan.dynamic_range = (-45, 0)
+    scan.dynamic_range = (-45, 0)
 
     pipeline = Pipeline(
         [
@@ -66,12 +69,12 @@ if __name__ == "__main__":
         with_batch_dim=True,
     )
     scan.grid_type = "cartesian"
-    scan.grid_size_x = 128
-    scan.grid_size_y = 128
-    scan.grid_size_z = 128
-    scan.zlims = (0.0, 20e-3)
-    scan.ylims = (-10e-3, 10e-3)
-    scan.xlims = (-10e-3, 10e-3)
+    # Don't need to image the full depth
+    scan.zlims = (0.0, 25e-3)
+    # Decrease grid resolution from default for more efficient beamforming
+    scan.grid_size_x = scan.grid_size_x // 2
+    scan.grid_size_y = scan.grid_size_y // 2
+    scan.grid_size_z = scan.grid_size_z // 2
     parameters = pipeline.prepare_parameters(probe, scan)
 
     def beamform_3d_volume(rf_data_3d):
