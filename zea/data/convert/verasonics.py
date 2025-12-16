@@ -757,7 +757,10 @@ class VerasonicsFile(h5py.File):
         """Reads the image data from the file.
 
         Uses the ``ImgDataP`` buffer, which is used for spatial filtering
-        and persistence processing.
+        and persistence processing. Generally, this buffer does not contain the same frames
+        as the raw data buffer. This happens because the Verasonics often does not reconstruct
+        every acquired frame. This means that the images in this buffer often skip frames, and
+        span a longer time period than the raw data buffer.
 
         Returns:
             `image_data` (`np.ndarray`): The image data.
