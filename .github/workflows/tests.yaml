@@ -122,9 +122,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Git
-        run: git config --global safe.directory $GITHUB_WORKSPACE
-
       - name: Run heavy Pytest
         run: |
           docker run --rm \
