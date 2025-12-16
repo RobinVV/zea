@@ -360,13 +360,14 @@ class Scan(Parameters):
         """
         ylims = self._params.get("ylims")
         if ylims is None:
-            # this avoids numerical imprecision with np.cos(np.pi/2)
-            if self.azimuth_limits[0] == self.azimuth_limits[1]:
-                return (0.0, 0.0)
             radius = max(self.zlims)
             ylims_azimuth = (
-                radius * np.cos(-np.pi / 2 + self.azimuth_limits[0]),
-                radius * np.cos(-np.pi / 2 + self.azimuth_limits[1]),
+                (0.0, 0.0)  # avoid numerical imprecision with np.cos(np.pi/2)
+                if self.azimuth_limits[0] == self.azimuth_limits[1]
+                else (
+                    radius * np.cos(-np.pi / 2 + self.azimuth_limits[0]),
+                    radius * np.cos(-np.pi / 2 + self.azimuth_limits[1]),
+                )
             )
             ylims_plane = (min(self.probe_geometry[:, 1]), max(self.probe_geometry[:, 1]))
             ylims = (
