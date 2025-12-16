@@ -301,7 +301,7 @@ class Scan(Parameters):
         "grid_type",
     )
     def grid_size_y(self):
-        """Grid height in pixels. For a cartesian grid, this is the lateral (x) pixels in the grid,
+        """Grid height in pixels. For a cartesian grid, this is the vertical (y) pixels in the grid,
         set to prevent aliasing if not provided. For a polar grid, this can be thought of as
         the number for rays in the azimuthal direction.
         """
