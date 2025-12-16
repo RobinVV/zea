@@ -32,21 +32,23 @@ set_mpl_style()
 if __name__ == "__main__":
     # Load data
     # INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/vincent/example-3d-data/carotid.hdf5"
-    INPUT_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/Carotid/test.hdf5"
+    INPUT_PATH = (
+        "/mnt/z/Ultrasound-BMd/data/oisin/3D_acquisitions/Carotid/12_12_25_carotid_focused_3d.hdf5"
+    )
     SAVE_PATH = "/mnt/z/Ultrasound-BMd/data/oisin/carotid_mesh/beamformed_4d_test.npy"
-    NUM_FRAMES = 1
+    NUM_FRAMES = 10
     log.info(f"Loading data from {log.yellow(INPUT_PATH)}")
 
     with zea.File(INPUT_PATH, mode="r") as file:
         file.summary()
-        rf_data_4d = file.load_data("raw_data", indices=list(range(NUM_FRAMES)))  # Load all frames
+        rf_data_4d = file.load_data("raw_data", indices=list(range(NUM_FRAMES)))
         scan = file.scan()
         probe = file.probe()
 
     scan.n_ch = 2
     # these params help a lot with contrast
-    scan.f_number = 1.5
-    scan.dynamic_range = (-45, 0)
+    # scan.f_number = 1.5
+    # scan.dynamic_range = (-45, 0)
 
     pipeline = Pipeline(
         [
@@ -67,7 +69,9 @@ if __name__ == "__main__":
     scan.grid_size_x = 128
     scan.grid_size_y = 128
     scan.grid_size_z = 128
-    # scan.zlims = (0.0, 20e-3)
+    scan.zlims = (0.0, 20e-3)
+    scan.ylims = (-10e-3, 10e-3)
+    scan.xlims = (-10e-3, 10e-3)
     parameters = pipeline.prepare_parameters(probe, scan)
 
     def beamform_3d_volume(rf_data_3d):
