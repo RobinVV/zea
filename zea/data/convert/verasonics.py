@@ -693,10 +693,10 @@ class VerasonicsFile(h5py.File):
     def is_baseband_mode(self):
         """
         If the data is captured in 'BS100BW' mode or 'BS50BW' mode:
-            - The data is stored as complex IQ data.
-            - The sampling frequency is halved.
-            - Two sequential samples are interpreted as a single complex sample.
-                Therefore, we need to halve the sampling frequency
+        - The data is stored as complex IQ data.
+        - The sampling frequency is halved.
+        - Two sequential samples are interpreted as a single complex sample.
+            Therefore, we need to halve the sampling frequency
         """
         return self.bandwidth_percent in (50, 100)
 
