@@ -97,7 +97,6 @@ data from the file and returns a ``DatasetElement``. Then pass the function to t
     )
 """  # noqa: E501
 
-import argparse
 import os
 import sys
 import traceback
@@ -108,6 +107,7 @@ import numpy as np
 
 from zea import log
 from zea.data.data_format import DatasetElement, generate_zea_dataset
+from zea.internal.device import init_device
 from zea.ops import log_compress, normalize
 from zea.utils import strtobool
 
@@ -691,12 +691,12 @@ class VerasonicsFile(h5py.File):
 
     @property
     def is_baseband_mode(self):
-        """
-        If the data is captured in 'BS100BW' mode or 'BS50BW' mode:
+        """If the data is captured in 'BS100BW' mode or 'BS50BW' mode.
+
         - The data is stored as complex IQ data.
         - The sampling frequency is halved.
         - Two sequential samples are interpreted as a single complex sample.
-            Therefore, we need to halve the sampling frequency
+          Therefore, we need to halve the sampling frequency.
         """
         return self.bandwidth_percent in (50, 100)
 
@@ -1046,7 +1046,10 @@ def convert_verasonics(args):
             - dst (str): Destination folder path.
             - frames (list[str]): MATLAB frames spec (e.g., ["all"], integers, or ranges like "4-8")
             - allow_accumulate (bool): Whether to allow accumulate mode.
+            - device (str): Device to use for processing.
     """
+
+    init_device(args.device)
 
     # Variable to indicate what to do with existing files.
     # Is set by the user in case these are found.
@@ -1204,34 +1207,3 @@ def convert_verasonics(args):
                     traceback.print_exc()
 
                     continue
-
-
-def get_parser():
-    parser = argparse.ArgumentParser(description="Convert Verasonics workspace(s) to a zea files.")
-    parser.add_argument("src", type=str, help="Source folder path")
-    parser.add_argument("dst", type=str, help="Destination folder path")
-    parser.add_argument(
-        "--frames",
-        default=["all"],
-        type=str,
-        nargs="+",
-        help="The frames to add to the file. This can be a list of integers, a range "
-        "of integers (e.g. 4-8), or 'all'.",
-    )
-    parser.add_argument(
-        "--allow_accumulate",
-        action="store_true",
-        help=(
-            "Sometimes, some transmits are already accumulated on the Verasonics system "
-            "(e.g. harmonic imaging through pulse inversion). In this case, the mode in the "
-            "Receive structure is set to 1 (accumulate). If this flag is set, such files "
-            "will be processed. Otherwise, an error is raised when such a mode is detected."
-        ),
-    )
-    return parser
-
-
-if __name__ == "__main__":
-    parser = get_parser()
-    args = parser.parse_args()
-    convert_verasonics(args)
