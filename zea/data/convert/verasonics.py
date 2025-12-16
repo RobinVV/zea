@@ -491,6 +491,21 @@ class VerasonicsFile(h5py.File):
     def is_new_save_raw_format(self):
         return "save_raw_version" in self.keys()
 
+    def get_image_raw_data_order(self, raw_data: np.ndarray):
+        """The order of frames in the RcvBuffer buffer.
+
+        Because of the circular buffer used in Verasonics, the frames in the RcvBuffer
+        buffer are not necessarily in the correct order. This function computes the
+        correct order of frames.
+        """
+        n_frames = raw_data.shape[0]
+        last_frame = int(
+            self.dereference_index(self["Resource"]["RcvBuffer"]["lastFrame"], 0)[()].item() - 1
+        )
+        first_frame = (last_frame + 1) % n_frames
+        indices = np.arange(first_frame, first_frame + n_frames) % n_frames
+        return indices
+
     def read_raw_data(self, event=None, frames="all"):
         """
         Read the raw data from the file.
@@ -516,6 +531,10 @@ class VerasonicsFile(h5py.File):
                 "In that case, we assume that the channel order in the data matches the "
                 "probe element order. Please verify that this is correct!"
             )
+
+        # Re-order frames such that sequence is correct
+        indices = self.get_image_raw_data_order(raw_data)
+        raw_data = raw_data[indices]
 
         # Select only the requested frames
         frame_indices = self.get_frame_indices(frames)
