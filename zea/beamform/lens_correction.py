@@ -1,5 +1,6 @@
 """Lens corrected delay computation for ultrasound beamforming."""
 
+import numpy as np
 from keras import ops
 
 
@@ -51,7 +52,7 @@ def calculate_lens_corrected_delays(
     assert probe_geometry.shape[0] == n_el
     assert t0_delays.shape[0] == n_tx
 
-    tx_delays = []
+    # Compute lens-corrected travel times from each element to each pixel
     rx_delays = compute_lens_corrected_travel_times(
         probe_geometry,
         grid,
@@ -60,12 +61,21 @@ def calculate_lens_corrected_delays(
         sound_speed,
         n_iter=n_iter,
     )
+
+    # Compute transmit delays
+    tx_delays = []
     for tx in range(n_tx):
-        # Add a large offset to elements that are not used in the transmit to
-        # diqualify them from being the closest element
-        apod_offset = ops.where(tx_apodizations[tx] == 0, 10.0, 0)
-        tx_min = ops.min(rx_delays + t0_delays[tx] + apod_offset, axis=-1) - initial_times[tx]
-        tx_delays.append(tx_min)
+        tx_delay = compute_lens_corrected_tx_delay(
+            grid,
+            t0_delays[tx],
+            tx_apodizations[tx],
+            rx_delays,
+            focus_distances[tx],
+            polar_angles[tx],
+            initial_times[tx],
+        )
+        tx_delays.append(tx_delay)
+
     tx_delays = ops.stack(tx_delays, axis=-1) + ops.take(t_peak, tx_waveform_indices)[None]
     tx_delays = ops.nan_to_num(tx_delays, nan=0.0, posinf=0.0, neginf=0.0)
     rx_delays = ops.nan_to_num(rx_delays, nan=0.0, posinf=0.0, neginf=0.0)
@@ -74,6 +84,60 @@ def calculate_lens_corrected_delays(
     rx_delays *= sampling_frequency
 
     return tx_delays, rx_delays
+
+
+def compute_lens_corrected_tx_delay(
+    grid,
+    t0_delays,
+    tx_apodization,
+    rx_delays,
+    focus_distance,
+    polar_angle,
+    initial_time,
+):
+    """Compute the transmit delay for a single transmit with lens correction.
+
+    This function adapts the logic from distance_Tx_generic to work with lens-corrected
+    travel times, properly handling focused and plane wave transmits.
+
+    Args:
+        grid (ndarray): The grid of shape (n_pixels, 3).
+        t0_delays (ndarray): The t0 delays for this transmit of shape (n_el,).
+        tx_apodization (ndarray): The transmit apodization for this transmit of shape (n_el,).
+        rx_delays (ndarray): The lens-corrected travel times from elements to pixels
+            of shape (n_pixels, n_el).
+        focus_distance (float): The focus distance for this transmit.
+        polar_angle (float): The polar angle for this transmit.
+        initial_time (float): The initial time for this transmit.
+
+    Returns:
+        ndarray: The transmit delay for this transmit of shape (n_pixels,).
+    """
+    # Add a large offset to elements that are not used in the transmit to
+    # disqualify them from being the closest element
+    offset = ops.where(tx_apodization == 0, np.inf, 0.0)
+
+    # Compute total travel time from t=0 to each pixel via each element
+    # rx_delays has shape (n_pixels, n_el)
+    # t0_delays has shape (n_el,)
+    total_times = rx_delays + t0_delays[None, :] + offset[None, :]
+
+    # Compute the z-coordinate of the focal point
+    focal_z = ops.cos(polar_angle) * focus_distance
+
+    # For pixels behind the virtual source (or for focused waves, before the focus),
+    # take the minimum time (first wavefront arrival)
+    # For pixels beyond the focus, take the maximum time (last wavefront contribution)
+    tx_delay = ops.where(
+        ops.cast(ops.sign(focus_distance), "float32") * (grid[:, 2] - focal_z) <= 0.0,
+        ops.min(total_times, axis=-1),
+        ops.max(total_times, axis=-1),
+    )
+
+    # Subtract the initial time offset for this transmit
+    tx_delay = tx_delay - initial_time
+
+    return tx_delay
 
 
 def compute_lens_corrected_travel_times(

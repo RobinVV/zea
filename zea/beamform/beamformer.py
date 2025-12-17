@@ -277,7 +277,6 @@ def calculate_delays(
 
     # Compute the delays [in samples] from the distances
     # The units here are ([m]/[m/s]-[s])*[1/s] resulting in a unitless quantity
-    # TODO: Add pulse width to transmit delays
     tx_delays = (
         tx_distances / sound_speed
         - initial_times[None]
