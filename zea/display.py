@@ -42,6 +42,7 @@ def compute_scan_convert_2d_coordinates(
     theta_range: Tuple[float, float],
     resolution: Union[float, None] = None,
     dtype: str = "float32",
+    distance_to_apex: float = 0.0,
 ):
     """Precompute coordinates for 2d scan conversion from polar coordinates"""
     assert len(rho_range) == 2, "rho_range should be a tuple of length 2"
@@ -68,7 +69,7 @@ def compute_scan_convert_2d_coordinates(
         resolution = ops.mean([sRT, d_rho])  # mm per pixel
 
     x_vec = ops.arange(x_lim[0], x_lim[1], resolution)
-    z_vec = ops.arange(z_lim[0], z_lim[1], resolution)
+    z_vec = ops.arange(z_lim[0] + distance_to_apex, z_lim[1], resolution)
 
     z_grid, x_grid = ops.meshgrid(z_vec, x_vec)
 

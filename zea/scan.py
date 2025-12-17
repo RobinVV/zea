@@ -240,12 +240,38 @@ class Scan(Parameters):
         if selected_transmits_input is not None:
             self.set_transmits(selected_transmits_input)
 
+    @property
+    def aperture_size(self):
+        """Calculate the aperture size (x,y,z) based on the probe geometry."""
+        if "probe_geometry" in self._params:
+            x_coords = self.probe_geometry[:, 0]
+            y_coords = self.probe_geometry[:, 1]
+            z_coords = self.probe_geometry[:, 2]
+            aperture_width = x_coords.max() - x_coords.min()
+            aperture_height = y_coords.max() - y_coords.min()
+            aperture_depth = z_coords.max() - z_coords.min()
+            return np.array([aperture_width, aperture_height, aperture_depth])
+        return None
+
+    @property
+    def distance_to_apex(self):
+        """Calculate the distance from the transducer to the apex of the pixel grid."""
+        if self.aperture_size is not None:
+            max_angle = np.max(np.abs(self.polar_limits))
+            distance_to_apex = (self.aperture_size[0] / 2) / np.tan(max_angle)
+            return distance_to_apex
+        return 0.0
+
     @cache_with_dependencies("xlims", "zlims", "grid_size_x", "grid_size_z", "grid_type")
     def grid(self):
         """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
             return polar_pixel_grid(
-                self.polar_limits, self.zlims, self.grid_size_z, self.grid_size_x
+                self.polar_limits,
+                self.zlims,
+                self.grid_size_z,
+                self.grid_size_x,
+                self.distance_to_apex,
             )
         elif self.grid_type == "cartesian":
             return cartesian_pixel_grid(
@@ -476,7 +502,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("polar_angles")
     def polar_limits(self):
-        """The limits of the polar angles."""
+        """The limits of the polar angles, used for polar grids."""
         value = self._params.get("polar_limits")
         if value is None and self.polar_angles is not None:
             value = self.polar_angles.min(), self.polar_angles.max()
@@ -622,7 +648,7 @@ class Scan(Parameters):
         Used for scan conversion."""
         value = self._params.get("rho_range")
         if value is None:
-            return self.zlims
+            return (self.zlims[0], self.zlims[1] + self.distance_to_apex)
         return value
 
     @cache_with_dependencies("polar_limits")
@@ -655,6 +681,7 @@ class Scan(Parameters):
     )
     def coordinates_3d(self):
         """The coordinates for scan conversion."""
+        # TODO: no grid_size_y... this is broken
         coords, _ = compute_scan_convert_3d_coordinates(
             (self.grid_size_z, self.grid_size_x),
             self.rho_range,
