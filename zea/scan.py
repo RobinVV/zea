@@ -158,7 +158,6 @@ class Scan(Parameters):
         phi_range (tuple, optional): Range of phi angles for 3D imaging.
         rho_range (tuple, optional): Range of rho (radial) distances for 3D imaging.
         fill_value (float, optional): Value to use for out-of-bounds pixels.
-            Defaults to 0.0.
         attenuation_coef (float, optional): Attenuation coefficient in dB/(MHz*cm).
             Defaults to 0.0.
         selected_transmits (None, str, int, list, slice, or np.ndarray, optional):
