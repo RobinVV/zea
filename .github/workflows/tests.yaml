@@ -120,17 +120,8 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 100
     steps:
-      - name: Clean workspace
-        run: |
-          if [ -d "${{ github.workspace }}" ]; then
-            docker run --rm -v "${{ github.workspace }}:/workspace" alpine:latest sh -c "rm -rf /workspace/*"
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Git
-        run: git config --global safe.directory $GITHUB_WORKSPACE
 
       - name: Run heavy Pytest
         run: |
