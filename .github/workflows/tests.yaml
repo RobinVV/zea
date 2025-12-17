@@ -126,6 +126,7 @@ jobs:
       - name: Run heavy Pytest
         run: |
           docker run --rm \
+          --user "$(id -u):$(id -g)" \
           -v "${{ github.workspace }}:/zea" \
           -w /zea \
           ${{ needs.image.outputs.docker_image }} \
@@ -141,6 +142,7 @@ jobs:
       - name: Run notebook tests with Pytest
         run: |
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}:/zea" \
             -w /zea \
             ${{ needs.image.outputs.docker_image }} \
