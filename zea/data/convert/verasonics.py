@@ -295,14 +295,19 @@ class VerasonicsFile(h5py.File):
         time_to_next_acq = np.array(time_to_next_acq)
         time_to_next_acq = np.reshape(time_to_next_acq, (-1, tx_order.size))
 
-        if np.any(modes == 0) and not allow_accumulate:
+        if np.any(modes == 1) and not allow_accumulate:
             raise ValueError(
-                "Some receive events are in accumulate mode (mode=0). "
+                "Some receive events are in accumulate mode (mode=1). "
                 "This indicates that the data is already accumulated on the Verasonics system. "
                 "Set allow_accumulate=True to allow this."
             )
-        elif np.any(modes == 0) and allow_accumulate:
+        elif np.any(modes == 1) and allow_accumulate:
             # We only keep the transmits that are in mode 0 (normal acquisition)
+            log.info(
+                "Data contains both receives in accumulate mode and replace mode.\n"
+                "Discarding transmits in accumulate mode (mode=1). "
+                "Keeping transmits in replace mode (mode=0)."
+            )
             tx_order = tx_order[modes == 0]
             rcv_order = rcv_order[modes == 0]
             time_to_next_acq = time_to_next_acq[:, modes == 0]
@@ -364,7 +369,10 @@ class VerasonicsFile(h5py.File):
         if "quadDecim" in self["Receive"]:
             quaddecim = self.dereference_index(self["Receive"]["quadDecim"], 0)
         else:
-            raise KeyError("Could not find 'quadDecim' in 'Receive' structure.")
+            # TODO: Verify if this is correct.
+            # On the Vantage NXT the quadDecim field is missing. It seems that it should be
+            # set to 1.0 (that decimSampleRate is the actual sampling frequency).
+            quaddecim = 1.0
 
         sampling_frequency = adc_rate / quaddecim * 1e6
         sampling_frequency = sampling_frequency.item()
@@ -521,6 +529,9 @@ class VerasonicsFile(h5py.File):
             # for now we only index frames as events
             raw_data = self.dereference_index(self["RcvData"], 0, subindex=event)
             raw_data = np.expand_dims(raw_data, axis=0)
+
+        # Convert the raw data to a numpy array to allow out-of-order indexing later
+        raw_data = np.array(raw_data, dtype=np.int16)
 
         # Reorder and select channels based on probe elements
         if self.is_new_save_raw_format:
@@ -778,12 +789,6 @@ class VerasonicsFile(h5py.File):
             image_data = self[image_data_ref][event]
             image_data = np.expand_dims(image_data, axis=0)
 
-        # Get the relevant dimensions
-        assert image_data.ndim == 4, (
-            f"Expected image data to have 4 dimensions, but got {image_data.ndim}"
-        )
-        image_data = np.squeeze(image_data, axis=1)
-
         # Re-order images such that sequence is correct
         indices = self.get_image_data_p_frame_order(image_data)
         image_data = image_data[indices, :, :]
@@ -791,9 +796,6 @@ class VerasonicsFile(h5py.File):
         # Normalize and log-compress the image data
         image_data = normalize(image_data, output_range=(0, 1), input_range=(0, None))
         image_data = log_compress(image_data)
-
-        # Reshape so that [n_frames, n_samples, n_lines]
-        image_data = np.transpose(image_data, (0, 2, 1))
 
         # Select only the requested frames
         frame_indices = self.get_frame_indices(frames)
@@ -837,7 +839,8 @@ class VerasonicsFile(h5py.File):
 
         # these are capable of handling multiple events
         raw_data = self.read_raw_data(event, frames=frames)
-        image = self.read_image_data_p(event, frames=frames)
+
+        verasonics_image_buffer = self.read_image_data_p(event, frames=frames)
 
         polar_angles = self.read_polar_angles(tx_order, event)
         azimuth_angles = self.read_azimuth_angles(tx_order, event)
@@ -868,6 +871,17 @@ class VerasonicsFile(h5py.File):
             unit="wavelengths",
         )
 
+        verasonics_image_buffer = DatasetElement(
+            dataset_name="verasonics_image_buffer",
+            data=verasonics_image_buffer,
+            description=(
+                "The Verasonics ImgDataP buffer. "
+                "WARNING: This buffer may skip frames compared to the raw data! "
+                "Use only for reference."
+            ),
+            unit="unitless",
+        )
+
         additional_elements = []
         for additional_function in additional_functions:
             additional_elements.append(additional_function(self))
@@ -882,7 +896,6 @@ class VerasonicsFile(h5py.File):
             "azimuth_angles": azimuth_angles,
             "bandwidth_percent": self.bandwidth_percent,
             "raw_data": raw_data,
-            "image": image,
             "center_frequency": self.center_frequency,
             "sound_speed": self.sound_speed,
             "initial_times": initial_times,
@@ -893,7 +906,11 @@ class VerasonicsFile(h5py.File):
             "waveforms_two_way": waveforms_two_way_list,
             "tgc_gain_curve": self.tgc_gain_curve,
             "element_width": self.element_width,
-            "additional_elements": [el_lens_correction, *additional_elements],
+            "additional_elements": [
+                el_lens_correction,
+                verasonics_image_buffer,
+                *additional_elements,
+            ],
         }
 
         return data
