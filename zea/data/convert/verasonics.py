@@ -104,11 +104,12 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from keras import ops
 
 from zea import log
 from zea.data.data_format import DatasetElement, generate_zea_dataset
+from zea.func import log_compress, normalize
 from zea.internal.device import init_device
-from zea.ops import log_compress, normalize
 from zea.utils import strtobool
 
 _VERASONICS_TO_ZEA_PROBE_NAMES = {
@@ -507,9 +508,16 @@ class VerasonicsFile(h5py.File):
         correct order of frames.
         """
         n_frames = raw_data.shape[0]
-        last_frame = int(
-            self.dereference_index(self["Resource"]["RcvBuffer"]["lastFrame"], 0)[()].item() - 1
-        )
+        try:
+            last_frame = int(
+                self.dereference_index(self["Resource"]["RcvBuffer"]["lastFrame"], 0)[()].item() - 1
+            )
+        except KeyError:
+            log.warning(
+                "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
+                "Assuming data is already in correct order."
+            )
+            return np.arange(n_frames)
         first_frame = (last_frame + 1) % n_frames
         indices = np.arange(first_frame, first_frame + n_frames) % n_frames
         return indices
@@ -750,19 +758,31 @@ class VerasonicsFile(h5py.File):
         Because of the circular buffer used in Verasonics, the frames in the ImgDataP
         buffer are not necessarily in the correct order. This function computes the
         correct order of frames.
+
+        Uses the first buffer, so does not support multiple buffers.
         """
+        FIRST_BUFFER = 0
         n_frames = image_data.shape[0]
-        first_frame = int(
-            self.dereference_index(self["Resource"]["ImageBuffer"]["firstFrame"], 0)[()].item() - 1
-        )
-        last_frame = int(
-            self.dereference_index(self["Resource"]["ImageBuffer"]["lastFrame"], 0)[()].item() - 1
-        )
-        indices = np.arange(first_frame, first_frame + n_frames) % n_frames
-        assert indices[-1] == last_frame, (
-            "The last frame index does not match the expected last frame index."
-        )
-        return indices
+        try:
+            first_frame = self.dereference_index(
+                self["Resource"]["ImageBuffer"]["firstFrame"], FIRST_BUFFER
+            )[()].item()
+            last_frame = self.dereference_index(
+                self["Resource"]["ImageBuffer"]["lastFrame"], FIRST_BUFFER
+            )[()].item()
+            first_frame -= 1  # make 0-based
+            last_frame -= 1  # make 0-based
+            indices = np.arange(first_frame, first_frame + n_frames) % n_frames
+            assert indices[-1] == last_frame, (
+                "The last frame index does not match the expected last frame index."
+            )
+            return indices
+        except KeyError:
+            log.warning(
+                "Could not find 'firstFrame' or 'lastFrame' in 'Resource/ImageBuffer'. "
+                "Assuming data is already in correct order."
+            )
+            return np.arange(n_frames)
 
     def read_image_data_p(self, event=None, frames="all"):
         """Reads the image data from the file.
@@ -796,6 +816,7 @@ class VerasonicsFile(h5py.File):
         # Normalize and log-compress the image data
         image_data = normalize(image_data, output_range=(0, 1), input_range=(0, None))
         image_data = log_compress(image_data)
+        image_data = ops.convert_to_numpy(image_data)
 
         # Select only the requested frames
         frame_indices = self.get_frame_indices(frames)

@@ -302,6 +302,14 @@ class File(h5py.File):
                     "(probably) stored wavelengths. Please update your file! "
                     "Converting to meters automatically for now."
                 )
+                assert "sound_speed" in scan_parameters, (
+                    "Cannot convert focus distances from wavelengths to meters "
+                    "because sound_speed is not defined in the scan parameters."
+                )
+                assert "center_frequency" in scan_parameters, (
+                    "Cannot convert focus distances from wavelengths to meters "
+                    "because center_frequency is not defined in the scan parameters."
+                )
                 wavelength = scan_parameters["sound_speed"] / scan_parameters["center_frequency"]
                 focus_distances = focus_distances * wavelength
                 scan_parameters["focus_distances"] = focus_distances

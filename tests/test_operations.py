@@ -18,7 +18,6 @@ from zea.func.ultrasound import (
     channels_to_complex,
     complex_to_channels,
     compute_time_to_peak_stack,
-    hilbert,
 )
 from zea.ops import Pipeline, Simulate
 from zea.probes import Probe
@@ -317,6 +316,8 @@ def test_hilbert_transform():
 
     import keras
 
+    from zea import func
+
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
@@ -330,7 +331,7 @@ def test_hilbert_transform():
 
     data = keras.ops.convert_to_tensor(data)
 
-    data_iq = hilbert(data, axis=-3)
+    data_iq = func.hilbert(data, axis=-3)
     assert keras.ops.dtype(data_iq) in [
         "complex64",
         "complex128",

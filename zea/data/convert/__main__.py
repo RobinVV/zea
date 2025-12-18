@@ -1,9 +1,40 @@
 import argparse
 
 
+def _add_parser_args_echonet(subparsers):
+    """Add Echonet specific arguments to the parser."""
+    echonet_parser = subparsers.add_parser("echonet", help="Convert Echonet dataset")
+    echonet_parser.add_argument("src", type=str, help="Source folder path")
+    echonet_parser.add_argument("dst", type=str, help="Destination folder path")
+    echonet_parser.add_argument(
+        "--split_path",
+        type=str,
+        help="Path to the split.yaml file containing the dataset split if a split should be copied",
+    )
+    echonet_parser.add_argument(
+        "--no_hyperthreading",
+        action="store_true",
+        help="Disable hyperthreading for multiprocessing",
+    )
+
+
+def _add_parser_args_camus(subparsers):
+    """Add CAMUS specific arguments to the parser."""
+    camus_parser = subparsers.add_parser("camus", help="Convert CAMUS dataset")
+    camus_parser.add_argument("src", type=str, help="Source folder path")
+    camus_parser.add_argument("dst", type=str, help="Destination folder path")
+    camus_parser.add_argument(
+        "--no_hyperthreading",
+        action="store_true",
+        help="Disable hyperthreading for multiprocessing",
+    )
+
+
 def _add_parser_args_echonetlvh(subparsers):
     """Add EchonetLVH specific arguments to the parser."""
     echonetlvh_parser = subparsers.add_parser("echonetlvh", help="Convert EchonetLVH dataset")
+    echonetlvh_parser.add_argument("src", type=str, help="Source folder path")
+    echonetlvh_parser.add_argument("dst", type=str, help="Destination folder path")
     echonetlvh_parser.add_argument(
         "--no_rejection",
         action="store_true",
@@ -36,12 +67,26 @@ def _add_parser_args_echonetlvh(subparsers):
         action="store_true",
         help="Force recomputation even if parameters already exist",
     )
+    echonetlvh_parser.add_argument(
+        "--no_hyperthreading",
+        action="store_true",
+        help="Disable hyperthreading for multiprocessing",
+    )
+
+
+def _add_parser_args_picmus(subparsers):
+    """Add PICMUS specific arguments to the parser."""
+    picmus_parser = subparsers.add_parser("picmus", help="Convert PICMUS dataset")
+    picmus_parser.add_argument("src", type=str, help="Source folder path")
+    picmus_parser.add_argument("dst", type=str, help="Destination folder path")
 
 
 def _add_parser_args_verasonics(subparsers):
     verasonics_parser = subparsers.add_parser(
         "verasonics", help="Convert Verasonics data to zea dataset"
     )
+    verasonics_parser.add_argument("src", type=str, help="Source folder path")
+    verasonics_parser.add_argument("dst", type=str, help="Destination folder path")
     verasonics_parser.add_argument(
         "--frames",
         default=["all"],
@@ -71,27 +116,11 @@ def _add_parser_args_verasonics(subparsers):
 def get_parser():
     """Build and parse command-line arguments for converting raw datasets to a zea dataset."""
     parser = argparse.ArgumentParser(description="Convert raw data to a zea dataset.")
-
-    # Common arguments:
-    parser.add_argument("src", type=str, help="Source folder path")
-    parser.add_argument("dst", type=str, help="Destination folder path")
-    parser.add_argument(
-        "--split_path",
-        type=str,
-        help="Path to the split.yaml file containing the dataset split if a split should be copied",
-    )
-    parser.add_argument(
-        "--no_hyperthreading",
-        action="store_true",
-        help="Disable hyperthreading for multiprocessing",
-    )
-
-    # Dataset specific arguments:
     subparsers = parser.add_subparsers(dest="dataset", required=True)
-    subparsers.add_parser("echonet", help="Convert Echonet dataset")
+    _add_parser_args_echonet(subparsers)
     _add_parser_args_echonetlvh(subparsers)
-    subparsers.add_parser("camus", help="Convert CAMUS dataset")
-    subparsers.add_parser("picmus", help="Convert PICMUS dataset")
+    _add_parser_args_camus(subparsers)
+    _add_parser_args_picmus(subparsers)
     _add_parser_args_verasonics(subparsers)
     return parser
 
