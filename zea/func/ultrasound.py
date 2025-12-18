@@ -498,3 +498,36 @@ def log_compress(data, eps=1e-16):
     eps = ops.convert_to_tensor(eps, dtype=data.dtype)
     data = ops.where(data == 0, eps, data)  # Avoid log(0)
     return 20 * ops.log10(data)
+
+
+def make_tgc_curve(n_ax, attenuation_coef, sampling_frequency, center_frequency, sound_speed=1540):
+    """
+    Create a Time Gain Compensation (TGC) curve to compensate for depth-dependent attenuation.
+
+    Args:
+        n_ax (int): Number of samples in the axial direction
+        attenuation_coef (float): Attenuation coefficient in dB/cm/MHz.
+            For example, typical value for soft tissue is around 0.5 to 0.75 dB/cm/MHz.
+        sampling_frequency (float): Sampling frequency in Hz
+        center_frequency (float): Center frequency in Hz
+        sound_speed (float): Speed of sound in m/s (default: 1540)
+
+    Returns:
+        np.ndarray: TGC gain curve of shape (n_ax,) in linear scale
+    """
+    # Time vector for each sample
+    t = np.arange(n_ax) / sampling_frequency  # seconds
+
+    # Distance traveled (round trip, so divide by 2)
+    dist = (t * sound_speed) / 2  # meters
+
+    # Convert distance to cm
+    dist_cm = dist * 100
+
+    # Attenuation in dB (two-way: transmit + receive)
+    attenuation_db = 2 * attenuation_coef * dist_cm * (center_frequency * 1e-6)
+
+    # Convert dB to linear scale (TGC gain curve)
+    tgc_gain_curve = 10 ** (attenuation_db / 20)
+
+    return tgc_gain_curve.astype(np.float32)

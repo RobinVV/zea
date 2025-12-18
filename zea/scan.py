@@ -109,6 +109,7 @@ class Scan(Parameters):
             Defaults to 1540.0.
         sampling_frequency (float): Sampling frequency in Hz.
         center_frequency (float): Center frequency of the transducer in Hz.
+            When you use a different transmit frequency, make sure to update this value.
         n_el (int): Number of elements in the transducer array.
         n_tx (int): Number of transmit events in the dataset.
         n_ax (int): Number of axial samples in the received signal.
