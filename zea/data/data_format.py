@@ -256,8 +256,6 @@ def _write_datasets(
         n_tx = _first_not_none_shape([raw_data, aligned_data], axis=1)
     if n_ax is None:
         n_ax = _first_not_none_shape([raw_data, aligned_data, beamformed_data], axis=-3)
-    if n_ax is None:
-        n_ax = _first_not_none_shape([envelope_data, image, image_sc], axis=-2)
     if n_el is None:
         n_el = _first_not_none_shape([raw_data], axis=-2)
     if n_ch is None:
