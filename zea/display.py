@@ -8,7 +8,7 @@ import scipy
 from keras import ops
 from PIL import Image
 
-from zea.tensor_ops import translate
+from zea.func.tensor import translate
 from zea.tools.fit_scan_cone import fit_and_crop_around_scan_cone
 
 
