@@ -40,7 +40,7 @@ def test_conversion_script(tmp_path_factory, dataset):
 
     create_test_data_for_dataset(dataset, src)
     subprocess.run(
-        [sys.executable, "-m", "zea.data.convert", str(src), str(dst), dataset],
+        [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst)],
         check=True,
         capture_output=True,
     )
@@ -56,9 +56,9 @@ def test_conversion_script(tmp_path_factory, dataset):
                 sys.executable,
                 "-m",
                 "zea.data.convert",
+                dataset,
                 str(src),
                 str(dst2),
-                dataset,
                 "--split_path",
                 str(dst),
                 "--no_hyperthreading",
