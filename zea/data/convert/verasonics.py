@@ -108,8 +108,8 @@ from keras import ops
 
 from zea import log
 from zea.data.data_format import DatasetElement, generate_zea_dataset
+from zea.func import log_compress, normalize
 from zea.internal.device import init_device
-from zea.ops import log_compress, normalize
 from zea.utils import strtobool
 
 _VERASONICS_TO_ZEA_PROBE_NAMES = {
