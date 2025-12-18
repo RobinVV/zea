@@ -2,6 +2,7 @@
 
 import csv
 import os
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -16,13 +17,15 @@ import yaml
 
 from zea.data.convert.images import convert_image_dataset
 from zea.data.convert.utils import load_avi, unzip
+from zea.data.file import File
+from zea.data.preset_utils import _hf_resolve_path
 from zea.io_lib import _SUPPORTED_IMG_TYPES
 
 from .. import DEFAULT_TEST_SEED
 
 
 @pytest.mark.parametrize(
-    "dataset", ["echonet", "camus", "picmus"]
+    "dataset", ["echonet", "camus", "picmus", "verasonics"]
 )  # Does not test 'echonetlvh' or 'verasonics' yet
 @pytest.mark.heavy
 def test_conversion_script(tmp_path_factory, dataset):
@@ -84,6 +87,7 @@ def create_test_data_for_dataset(dataset, src):
     Raises:
         ValueError: If the dataset name is unknown
     """
+    os.mkdir(src)
     if dataset == "echonet":
         create_echonet_test_data(src)
     elif dataset == "echonetlvh":
@@ -136,7 +140,6 @@ def create_echonet_test_data(src):
 
     """
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
-    os.mkdir(src)
     os.mkdir(src / "EchoNet-Dynamic")
     os.mkdir(src / "EchoNet-Dynamic" / "Videos")
 
@@ -185,7 +188,6 @@ def create_camus_test_data(src):
         src (Path): path to the source directory where test data will be created.
     """
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
-    os.mkdir(src)
     os.mkdir(src / "CAMUS_public")
     os.mkdir(src / "CAMUS_public" / "database_nifti")
     os.mkdir(src / "CAMUS_public" / "database_split")
@@ -242,7 +244,6 @@ def create_picmus_test_data(src):
     Args:
         src (Path): path to the source directory where test data will be created.
     """
-    os.mkdir(src)
     os.mkdir(src / "archive_to_download")
     os.mkdir(src / "archive_to_download" / "parent_folder")
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
@@ -276,7 +277,9 @@ def create_picmus_test_data(src):
 
 
 def create_verasonics_test_data(src):
-    raise NotImplementedError("Test data generation for Verasonics is not implemented yet.")
+    """For Verasonics we have a .mat file in huggingface."""
+    mat_file = _hf_resolve_path("hf://zeahub/pytest/verasonics_conversion_test_zea.mat")
+    shutil.copy(mat_file, src / mat_file.name)
 
 
 def verify_converted_echonet_test_data(dst):
@@ -336,8 +339,9 @@ def verify_converted_camus_test_data(dst):
 
         # Load the hdf5 file and check for expected datasets
         for h5_file in h5_files:
-            with h5py.File(h5_file, "r") as f:
+            with File(h5_file, "r") as f:
                 assert "scan" in f, f"Missing 'scan' in {h5_file}"
+                f.validate()
 
 
 def verify_converted_picmus_test_data(dst):
@@ -352,13 +356,20 @@ def verify_converted_picmus_test_data(dst):
 
     # Check that the files contain data
     for h5_file in h5_files:
-        with h5py.File(h5_file, "r") as f:
+        with File(h5_file, "r") as f:
             assert "data" in f, f"Missing 'data' in {h5_file}"
             assert "scan" in f, f"Missing 'scan' in {h5_file}"
+            f.validate()
 
 
 def verify_converted_verasonics_test_data(dst):
-    raise NotImplementedError("Verification for Verasonics conversion is not implemented yet.")
+    h5_files = list(dst.rglob("*.hdf5"))
+    assert len(h5_files) == 1, "Expected 1 converted hdf5 files."
+    h5_file = h5_files[0]
+    with File(h5_file, "r") as f:
+        assert "data" in f, f"Missing 'data' in {h5_file}"
+        assert "scan" in f, f"Missing 'scan' in {h5_file}"
+        f.validate()
 
 
 @pytest.mark.parametrize("image_type", _SUPPORTED_IMG_TYPES)
