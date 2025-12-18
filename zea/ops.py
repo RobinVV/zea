@@ -1876,6 +1876,85 @@ def envelope_detect(data, axis=-3):
     return data
 
 
+@ops_registry("multiply_and_sum")
+class MultiplyAndSum(Operation):
+    """Performs the operations for the Delay-Multiply-and-Sum beamformer except the delay.
+    The delay should be performed by the TOF correction operation.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(
+            input_data_type=DataTypes.ALIGNED_DATA,
+            output_data_type=DataTypes.BEAMFORMED_DATA,
+            **kwargs,
+        )
+
+    def process_image(self, data):
+        """Performs DMAS beamforming on tof-corrected input.
+
+        Args:
+            data (ops.Tensor): The TOF corrected input of shape `(n_tx, n_pix, n_el, n_ch)`
+
+        Returns:
+            ops.Tensor: The beamformed data of shape `(n_pix, n_ch)`
+        """
+
+        if not data.shape[-1] == 2:
+            raise ValueError(
+                "MultiplyAndSum operation requires IQ data with 2 channels. "
+                f"Got data with shape {data.shape}."
+            )
+
+        # Compute the correlation matrix
+        data = channels_to_complex(data)
+
+        data = self._multiply(data)
+        data = self._select_lower_triangle(data)
+        data = ops.sum(data, axis=(0, 2, 3))
+
+        data = complex_to_channels(data)
+
+        return data
+
+    def _select_lower_triangle(self, data):
+        """Select only the lower triangle of the correlation matrix."""
+        n_el = data.shape[3]
+        mask = ops.ones((n_el, n_el), dtype=data.dtype) - ops.eye(n_el, dtype=data.dtype)
+        data = data * mask[None, None, :, :] / 2
+        return data
+
+    def _multiply(self, data):
+        """Apply the DMAS multiplication step."""
+        channel_products = data[:, :, :, None] * data[:, :, None, :]
+
+        data = ops.sign(channel_products) * ops.cast(
+            ops.sqrt(ops.abs(channel_products)), data.dtype
+        )
+        return data
+
+    def call(self, grid=None, **kwargs):
+        """Performs DMAS beamforming on tof-corrected input.
+
+        Args:
+            tof_corrected_data (ops.Tensor): The TOF corrected input of shape
+                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+
+        Returns:
+            dict: Dictionary containing beamformed_data
+                of shape `(grid_size_z*grid_size_x, n_ch)`
+                with optional batch dimension.
+        """
+        data = kwargs[self.key]
+
+        if not self.with_batch_dim:
+            beamformed_data = self.process_image(data)
+        else:
+            # Apply process_image to each item in the batch
+            beamformed_data = ops.map(self.process_image, data)
+
+        return {self.output_key: beamformed_data}
+
+
 @ops_registry("envelope_detect")
 class EnvelopeDetect(Operation):
     """Envelope detection of RF signals."""
