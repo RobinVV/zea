@@ -37,8 +37,9 @@ def test_conversion_script(tmp_path_factory, dataset):
 
     create_test_data_for_dataset(dataset, src)
     subprocess.run(
-        [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst)],
+        [sys.executable, "-m", "zea.data.convert", str(src), str(dst), dataset],
         check=True,
+        capture_output=True,
     )
     verify_converted_test_dataset(dataset, dst)
 
@@ -52,14 +53,15 @@ def test_conversion_script(tmp_path_factory, dataset):
                 sys.executable,
                 "-m",
                 "zea.data.convert",
-                dataset,
                 str(src),
                 str(dst2),
+                dataset,
                 "--split_path",
                 str(dst),
                 "--no_hyperthreading",
             ],
             check=True,
+            capture_output=True,
         )
         with open(dst / "split.yaml", "r") as f:
             split_content1 = yaml.safe_load(f)
