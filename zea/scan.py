@@ -220,7 +220,7 @@ class Scan(Parameters):
         "t_peak": {"type": np.ndarray},
         # scan conversion parameters
         "theta_range": {"type": (tuple, list)},
-        "phi_range": {"type": (tuple, list)},
+        "phi_range": {"type": (tuple, list), "default": None},
         "rho_range": {"type": (tuple, list)},
         "fill_value": {"type": float},
         "resolution": {"type": float, "default": None},
@@ -241,7 +241,7 @@ class Scan(Parameters):
         if selected_transmits_input is not None:
             self.set_transmits(selected_transmits_input)
 
-    @property
+    @cache_with_dependencies("probe_geometry")
     def aperture_size(self):
         """Calculate the aperture size (x,y,z) based on the probe geometry."""
         if "probe_geometry" in self._params:
@@ -254,7 +254,7 @@ class Scan(Parameters):
             return np.array([aperture_width, aperture_height, aperture_depth])
         return None
 
-    @property
+    @cache_with_dependencies("polar_limits", "aperture_size")
     def distance_to_apex(self):
         """Calculate the distance from the transducer to the apex of the pixel grid."""
         if self.aperture_size is not None:
@@ -263,7 +263,15 @@ class Scan(Parameters):
             return distance_to_apex
         return 0.0
 
-    @cache_with_dependencies("xlims", "zlims", "grid_size_x", "grid_size_z", "grid_type")
+    @cache_with_dependencies(
+        "xlims",
+        "zlims",
+        "grid_size_x",
+        "grid_size_z",
+        "grid_type",
+        "polar_limits",
+        "distance_to_apex",
+    )
     def grid(self):
         """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
@@ -380,11 +388,6 @@ class Scan(Parameters):
     def n_tx_total(self):
         """The total number of transmits in the full dataset."""
         return self._params["n_tx"]
-
-    @property
-    def n_tx_selected(self):
-        """The number of currently selected transmits."""
-        return len(self.selected_transmits)
 
     @cache_with_dependencies("selected_transmits")
     def n_tx(self):
@@ -512,59 +515,59 @@ class Scan(Parameters):
             value = (value[0] - 0.15 * diff, value[1] + 0.15 * diff)
         return value
 
-    @cache_with_dependencies("selected_transmits")
+    @cache_with_dependencies("selected_transmits", "n_tx")
     def azimuth_angles(self):
         """Azimuth angles for each transmit event in radians
         of shape (n_tx,). These angles are often used in 3D imaging."""
         value = self._params.get("azimuth_angles")
         if value is None:
             log.warning("No azimuth angles provided, using zeros")
-            return np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx)
 
         return value[self.selected_transmits]
 
-    @cache_with_dependencies("selected_transmits", "n_el")
+    @cache_with_dependencies("selected_transmits", "n_el", "n_tx")
     def t0_delays(self):
         """Transmit delays in seconds of
         shape (n_tx, n_el), shifted such that the smallest delay is 0."""
         value = self._params.get("t0_delays")
         if value is None:
             log.warning("No transmit delays provided, using zeros")
-            return np.zeros((self.n_tx_selected, self.n_el))
+            return np.zeros((self.n_tx, self.n_el))
 
         return value[self.selected_transmits]
 
-    @cache_with_dependencies("selected_transmits")
+    @cache_with_dependencies("selected_transmits", "n_tx")
     def tx_apodizations(self):
         """Transmit apodizations of shape (n_tx, n_el)."""
         value = self._params.get("tx_apodizations")
         if value is None:
             log.warning("No transmit apodizations provided, using ones")
-            return np.ones((self.n_tx_selected, self.n_el))
+            return np.ones((self.n_tx, self.n_el))
 
         return value[self.selected_transmits]
 
-    @cache_with_dependencies("selected_transmits")
+    @cache_with_dependencies("selected_transmits", "n_tx")
     def focus_distances(self):
         """Focus distances in meters for each event of shape (n_tx,)."""
         value = self._params.get("focus_distances")
         if value is None:
             log.warning("No focus distances provided, using zeros")
-            return np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx)
 
         return value[self.selected_transmits]
 
-    @cache_with_dependencies("selected_transmits")
+    @cache_with_dependencies("selected_transmits", "n_tx")
     def initial_times(self):
         """Initial times in seconds for each event of shape (n_tx,)."""
         value = self._params.get("initial_times")
         if value is None:
             log.warning("No initial times provided, using zeros")
-            return np.zeros(self.n_tx_selected)
+            return np.zeros(self.n_tx)
 
         return value[self.selected_transmits]
 
-    @property
+    @cache_with_dependencies("waveforms_one_way", "waveforms_two_way")
     def n_waveforms(self):
         """The number of unique transmit waveforms."""
 
@@ -576,7 +579,7 @@ class Scan(Parameters):
 
         return 1
 
-    @property
+    @cache_with_dependencies("center_frequency", "n_waveforms")
     def t_peak(self):
         """The time of the peak of the pulse in seconds of shape (n_waveforms,)."""
         t_peak = self._params.get("t_peak")
@@ -603,12 +606,12 @@ class Scan(Parameters):
             return np.ones(self.n_ax)
         return value[: self.n_ax]
 
-    @cache_with_dependencies("selected_transmits")
+    @cache_with_dependencies("selected_transmits", "n_tx")
     def tx_waveform_indices(self):
         """Indices of the waveform used for each transmit event of shape (n_tx,)."""
         value = self._params.get("tx_waveform_indices")
         if value is None:
-            return np.zeros(self.n_tx_selected, dtype=int)
+            return np.zeros(self.n_tx, dtype=int)
 
         return value[self.selected_transmits]
 
@@ -643,7 +646,7 @@ class Scan(Parameters):
         """Flattened pfield for weighting of shape (n_pix, n_tx)."""
         return self.pfield.reshape(self.n_tx, -1).swapaxes(0, 1)
 
-    @cache_with_dependencies("zlims")
+    @cache_with_dependencies("zlims", "distance_to_apex")
     def rho_range(self):
         """A tuple specifying the range of rho values (min_rho, max_rho). Defined in mm.
         Used for scan conversion."""
@@ -661,7 +664,9 @@ class Scan(Parameters):
             return self.polar_limits
         return value
 
-    @cache_with_dependencies("rho_range", "theta_range", "resolution", "grid_size_z", "grid_size_x")
+    @cache_with_dependencies(
+        "rho_range", "theta_range", "resolution", "grid_size_z", "grid_size_x", "distance_to_apex"
+    )
     def coordinates_2d(self):
         """The coordinates for scan conversion."""
         coords, _ = compute_scan_convert_2d_coordinates(
@@ -669,6 +674,7 @@ class Scan(Parameters):
             self.rho_range,
             self.theta_range,
             self.resolution,
+            distance_to_apex=self.distance_to_apex,
         )
         return coords
 
@@ -692,13 +698,13 @@ class Scan(Parameters):
         )
         return coords
 
-    @property
+    @cache_with_dependencies("phi_range", "coordinates_2d", "coordinates_3d")
     def coordinates(self):
         """Get the coordinates for scan conversion, will be 3D if phi_range is set,
         otherwise 2D."""
         return self.coordinates_3d if getattr(self, "phi_range", None) else self.coordinates_2d
 
-    @property
+    @cache_with_dependencies("time_to_next_transmit")
     def pulse_repetition_frequency(self):
         """The pulse repetition frequency (PRF) [Hz]. Assumes a constant PRF."""
         if self.time_to_next_transmit is None:
