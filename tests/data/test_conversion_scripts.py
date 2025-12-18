@@ -26,7 +26,7 @@ from .. import DEFAULT_TEST_SEED
 
 @pytest.mark.parametrize(
     "dataset", ["echonet", "camus", "picmus", "verasonics"]
-)  # Does not test 'echonetlvh' or 'verasonics' yet
+)  # TODO: Does not test 'echonetlvh' yet!
 @pytest.mark.heavy
 def test_conversion_script(tmp_path_factory, dataset):
     """
@@ -364,7 +364,7 @@ def verify_converted_picmus_test_data(dst):
 
 def verify_converted_verasonics_test_data(dst):
     h5_files = list(dst.rglob("*.hdf5"))
-    assert len(h5_files) == 1, "Expected 1 converted hdf5 files."
+    assert len(h5_files) == 1, "Expected 1 converted hdf5 file."
     h5_file = h5_files[0]
     with File(h5_file, "r") as f:
         assert "data" in f, f"Missing 'data' in {h5_file}"
