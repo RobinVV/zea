@@ -138,4 +138,7 @@ def polar_pixel_grid(
     dirs_el = np.zeros(num_polar_pixels)
     dirs = np.vstack((dirs_az, dirs_el)).T
 
-    return radial_pixel_grid(rlims, dr, oris, dirs).transpose(1, 0, 2)
+    grid = radial_pixel_grid(rlims, dr, oris, dirs).transpose(1, 0, 2)
+
+    # In case of rounding errors, trim the grid to the correct number of radial pixels
+    return grid[:num_radial_pixels, :, :]

@@ -1186,16 +1186,16 @@ class DelayAndSum(Operation):
             **kwargs,
         )
 
-    def call(self, grid=None, **kwargs):
+    def call(self, **kwargs):
         """Performs DAS beamforming on tof-corrected input.
 
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
-                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+                `(n_tx, prod(grid.shape), n_el, n_ch)` with optional batch dimension.
 
         Returns:
             dict: Dictionary containing beamformed_data
-                of shape `(grid_size_z*grid_size_x, n_ch)`
+                of shape `(prod(grid.shape), n_ch)`
                 with optional batch dimension.
         """
         data = kwargs[self.key]
@@ -1264,12 +1264,12 @@ class DelayMultiplyAndSum(Operation):
         )
         return data
 
-    def call(self, grid=None, **kwargs):
+    def call(self, **kwargs):
         """Performs DMAS beamforming on tof-corrected input.
 
         Args:
             tof_corrected_data (ops.Tensor): The TOF corrected input of shape
-                `(n_tx, grid_size_z*grid_size_x, n_el, n_ch)` with optional batch dimension.
+                `(n_tx, prod(grid.shape), n_el, n_ch)` with optional batch dimension.
 
         Returns:
             dict: Dictionary containing beamformed_data
