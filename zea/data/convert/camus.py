@@ -25,8 +25,8 @@ from tqdm import tqdm
 from zea import log
 from zea.data.convert.utils import unzip
 from zea.data.data_format import generate_zea_dataset
+from zea.func.tensor import translate
 from zea.internal.utils import find_first_nonzero_index
-from zea.tensor_ops import translate
 
 
 def transform_sc_image_to_polar(image_sc, output_size=None, fit_outline=True):
@@ -133,7 +133,13 @@ def sitk_load(filepath: str | Path) -> Tuple[np.ndarray, Dict[str, Any]]:
         - Collection of metadata.
     """
     # Load image and save info
-    import SimpleITK as sitk
+    try:
+        import SimpleITK as sitk
+    except ImportError as exc:
+        raise ImportError(
+            "SimpleITK is not installed. "
+            "Please install it with `pip install SimpleITK` to convert CAMUS dataset."
+        ) from exc
 
     image = sitk.ReadImage(str(filepath))
 
