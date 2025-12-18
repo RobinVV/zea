@@ -92,6 +92,7 @@ def compute_scan_convert_2d_coordinates(
         "theta_range": theta_range,
         "d_rho": d_rho,
         "d_theta": d_theta,
+        "distance_to_apex": distance_to_apex,
     }
     return coordinates, parameters
 
