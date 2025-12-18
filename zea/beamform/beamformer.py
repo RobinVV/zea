@@ -5,7 +5,7 @@ import numpy as np
 from keras import ops
 
 from zea.beamform.lens_correction import calculate_lens_corrected_delays
-from zea.tensor_ops import vmap
+from zea.func.tensor import vmap
 
 
 def fnum_window_fn_rect(normalized_angle):
@@ -379,7 +379,7 @@ def complex_rotate(iq, theta):
 
         .. math::
 
-            x(t + \\Delta t) &= I'(t) \\cos(\\omega_c (t + \\Delta t)) 
+            x(t + \\Delta t) &= I'(t) \\cos(\\omega_c (t + \\Delta t))
             - Q'(t) \\sin(\\omega_c (t + \\Delta t))\\\\
             &=  \\overbrace{(I'(t)\\cos(\\theta)
             - Q'(t)\\sin(\\theta) )}^{I_\\Delta(t)} \\cos(\\omega_c t)\\\\

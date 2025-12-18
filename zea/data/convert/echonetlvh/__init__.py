@@ -30,7 +30,7 @@ from zea.data.convert.echonet import H5Processor
 from zea.data.convert.echonetlvh.precompute_crop import precompute_cone_parameters
 from zea.data.convert.utils import load_avi, unzip
 from zea.display import cartesian_to_polar_matrix
-from zea.tensor_ops import translate
+from zea.func.tensor import translate
 
 
 def overwrite_splits(source_dir):
