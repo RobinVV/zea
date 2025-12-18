@@ -172,7 +172,9 @@ class Scan(Parameters):
             Can be "cartesian" or "polar". Defaults to "cartesian".
         dynamic_range (tuple, optional): Dynamic range for image display.
             Defined in dB as (min_dB, max_dB). Defaults to (-60, 0).
-
+        distance_to_apex (float, optional): Distance from the transducer to the apex of the
+            pixel grid. This property is used for polar grids. Will be computed automatically
+            if not provided.
     """
 
     VALID_PARAMS = {
@@ -224,6 +226,7 @@ class Scan(Parameters):
         "rho_range": {"type": (tuple, list)},
         "fill_value": {"type": float},
         "resolution": {"type": float, "default": None},
+        "distance_to_apex": {"type": float},
     }
 
     def __init__(self, **kwargs):
@@ -257,6 +260,8 @@ class Scan(Parameters):
     @cache_with_dependencies("polar_limits", "aperture_size")
     def distance_to_apex(self):
         """Calculate the distance from the transducer to the apex of the pixel grid."""
+        if "distance_to_apex" in self._params:
+            return self._params["distance_to_apex"]
         if self.aperture_size is not None:
             max_angle = np.max(np.abs(self.polar_limits))
             distance_to_apex = (self.aperture_size[0] / 2) / np.tan(max_angle)
