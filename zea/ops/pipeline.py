@@ -1013,20 +1013,6 @@ class Map(Pipeline):
         for operation in self.operations:
             operation.with_batch_dim = False
 
-    @property
-    def valid_keys(self) -> set:
-        """Get a set of valid keys for the pipeline.
-        Adds the parameters that Map itself operates on (even if not used by operations
-        inside it)."""
-        return super().valid_keys.union(self.argnames)
-
-    @property
-    def needs_keys(self) -> set:
-        """Get a set of all input keys needed by the pipeline.
-        Adds the parameters that Map itself operates on (even if not used by operations
-        inside it)."""
-        return super().needs_keys.union(self.argnames)
-
     def jittable_call(self, **inputs):
         """Process input data through the pipeline."""
         if self._with_batch_dim:

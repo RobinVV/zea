@@ -97,12 +97,7 @@ class TOFCorrection(Operation):
     """Time-of-flight correction operation for ultrasound data."""
 
     # Define operation-specific static parameters
-    STATIC_PARAMS = [
-        "f_number",
-        "apply_lens_correction",
-        "grid_size_x",
-        "grid_size_z",
-    ]
+    STATIC_PARAMS = ["f_number", "apply_lens_correction"]
 
     def __init__(self, **kwargs):
         super().__init__(
