@@ -1,3 +1,23 @@
+"""
+Hierarchical Variational Auto-Encoder for image generation, posterior sampling and inference tasks.
+To try this model, simply load one of the available presets:
+
+.. doctest::
+
+    >>> from zea.models.hvae import HVAE
+
+    >>> model = HVAE.from_preset("hvae")  # doctest: +SKIP
+
+.. important::
+    This is a ``zea`` implementation of the model.
+    For the original code, see `here <https://github.com/swpenninga/hvae>`_.
+
+.. seealso::
+    A tutorial notebook where this model is used:
+    :doc:`../notebooks/models/hvae_model_example`.
+
+"""
+
 import pickle
 from keras import ops
 
@@ -21,18 +41,16 @@ class HVAE(DeepGenerativeModel):
     The lvh versions are trained on EchoNetLVH at 256x256 resolution with 3 channels.
     (video-frames as channel dimension)
     The ur(.) versions denote retraining with a UniformRandom agent with (.)/256 lines.
+
+    The network is built when the weights are loaded.
     """
 
     def __init__(self, name="hvae", version="lvh", **kwargs):
         """
-        Initialize the HVAE model.
-        Currently only checks that the version exists,
-        the network is not built until weights are loaded.
-
         Args:
             name (str): Name of the model.
             version (str): Version of the HVAE model to use.
-                Must be one of SUPPORTED_VERSIONS.
+                Supported versions are: {', '.join(SUPPORTED_VERSIONS)}.
         """
 
         super().__init__(name, **kwargs)
@@ -76,6 +94,7 @@ class HVAE(DeepGenerativeModel):
         Samples from the prior distribution.
         Args:
             n_samples (int): Number of samples to generate.
+
         Returns:
             samples (Tensor): Generated samples of shape (n_samples, 256, 256, 3) in [-1, 1].
         """
@@ -118,8 +137,10 @@ class HVAE(DeepGenerativeModel):
     def call(self, measurements):
         """
         Returns a reconstruction of the input, together with the latent samples and KL divergences.
+
         Args:
             measurements (tensor): Input measurements of shape [B, 256, 256, 3].
+
         Returns:
             recon (tensor): Reconstructed output of shape [B, 256, 256, 3].
             z_samples (list of tensors): Latent samples from the decoder.
@@ -140,6 +161,7 @@ class HVAE(DeepGenerativeModel):
             num_layers (float or int): If float, fraction of total layers to use from the top.
                 If int, number of layers to use from the top.
             n_samples (int): Number of posterior samples to generate.
+
         Returns:
             output (tensor): Posterior samples of shape [B, n_samples, 256, 256, 3].
         """
@@ -191,8 +213,10 @@ class HVAE(DeepGenerativeModel):
         Calculates the log density (ELBO) of the data under the model.
         Args:
             data (tensor): Input data of shape [B, 256, 256, 3].
+
         Returns:
             elbo (tensor): ELBO of the input data, averaged over the batch.
+
         """
         recon, _, kl = self.network.call(data)
         # elbo is averaged over batch dimension
