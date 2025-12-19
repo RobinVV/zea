@@ -454,17 +454,17 @@ class DiscMixLogistic:
         targets = ops.cast(ops.expand_dims(targets, -1), dtype=self.dt)  # B, H, W, C, 1
 
         logit_probs = logits[:, :, :, : self.num_mixtures]  # B, H, W, M * 1
-        l = logits[:, :, :, self.num_mixtures :]  # B, H, W, M*C*3
-        l = layers.Reshape([H, W, self.num_channels, 3 * self.num_mixtures])(l)  # B, H, W, C, 3*M
+        lg = logits[:, :, :, self.num_mixtures :]  # B, H, W, M*C*3
+        lg = layers.Reshape([H, W, self.num_channels, 3 * self.num_mixtures])(lg)  # B, H, W, C, 3*M
 
-        model_means = l[:, :, :, :, : self.num_mixtures]  # B, H, W, C, M
+        model_means = lg[:, :, :, :, : self.num_mixtures]  # B, H, W, C, M
 
         log_scales = self.min_mol_logscale + self.softplus(
-            l[:, :, :, :, self.num_mixtures : 2 * self.num_mixtures] - self.min_mol_logscale
+            lg[:, :, :, :, self.num_mixtures : 2 * self.num_mixtures] - self.min_mol_logscale
         )
 
         model_coeffs = ops.tanh(
-            l[:, :, :, :, 2 * self.num_mixtures : 3 * self.num_mixtures]
+            lg[:, :, :, :, 2 * self.num_mixtures : 3 * self.num_mixtures]
         )  # B, H, W, C, M
 
         # RGB AR

@@ -150,9 +150,9 @@ class VAE(Model):
 
         # Unpack parameters
         logit_probs = logits[:, :, :, : self.params.num_output_mixtures]  # B, H, W, M
-        l = logits[:, :, :, self.params.num_output_mixtures :]  # B, H, W, M*C*3
-        l = layers.Reshape([H, W, self.params.data_width, 3 * self.params.num_output_mixtures])(
-            l
+        lg = logits[:, :, :, self.params.num_output_mixtures :]  # B, H, W, M*C*3
+        lg = layers.Reshape([H, W, self.params.data_width, 3 * self.params.num_output_mixtures])(
+            lg
         )  # B, H, W, C, 3*M
 
         # sample mixture indicator from softmax
@@ -170,18 +170,18 @@ class VAE(Model):
         lambda_ = ops.expand_dims(lambda_, axis=3)  # B, H, W, 1, M
 
         means = ops.sum(
-            l[:, :, :, :, : self.params.num_output_mixtures] * lambda_, axis=-1
+            lg[:, :, :, :, : self.params.num_output_mixtures] * lambda_, axis=-1
         )  # B, H, W, C
 
         log_scales = self.min_mol_logscale + self.softplus(
-            l[:, :, :, :, self.params.num_output_mixtures : 2 * self.params.num_output_mixtures]
+            lg[:, :, :, :, self.params.num_output_mixtures : 2 * self.params.num_output_mixtures]
             - self.min_mol_logscale
         )  # B, H, W, C
         log_scales = ops.sum(log_scales * lambda_, axis=-1)  # B, H, W, C
 
         coeffs = ops.sum(
             ops.tanh(
-                l[
+                lg[
                     :,
                     :,
                     :,
@@ -219,8 +219,20 @@ class VAE(Model):
         print("------ Encoder ------")
         print(
             (
-                f"first 1x1 conv: [None, {self.params.enc_input_size[0], self.params.enc_input_size[0], self.params.data_width}]"
-                f" -> [None, {self.params.enc_input_size[0], self.params.enc_input_size[0], self.encoder.first_conv.weights[0].shape[-1]}]"
+                f"first 1x1 conv: [None, {
+                    (
+                        self.params.enc_input_size[0],
+                        self.params.enc_input_size[0],
+                        self.params.data_width,
+                    )
+                }]"
+                f" -> [None, {
+                    (
+                        self.params.enc_input_size[0],
+                        self.params.enc_input_size[0],
+                        self.encoder.first_conv.weights[0].shape[-1],
+                    )
+                } ]"
             )
         )
         for stage_num, stage in enumerate(self.encoder.stages.layers):
@@ -231,8 +243,10 @@ class VAE(Model):
             stage_params += stage.pool.count_params()
             print(
                 (
-                    f"stage:{stage_num:2} - input_size:{stage.input_size:3} - in_width:{stage.in_width:3}"
-                    f" - middle_width:{stage.middle_width:3} - #blocks:{stage.num_blocks:2} - ksize:{kernel_size:2} - #params:{stage_params:,d}"
+                    f"stage:{stage_num:2} - input_size:{stage.input_size:3}\
+                    - in_width:{stage.in_width:3}"
+                    f" - middle_width:{stage.middle_width:3} - #blocks:{stage.num_blocks:2}\
+                    - ksize:{kernel_size:2} - #params:{stage_params:,d}"
                 )
             )
         print("------ Decoder ------")
@@ -256,8 +270,10 @@ class VAE(Model):
 
             print(
                 (
-                    f"stage:{self.params.num_stages - stage_num - 1:2} - input_size:{stage.input_size:3} - in_width:{stage.in_width:3}"
-                    f" - middle_width:{stage.middle_width:3} - #layers:{stage.num_blocks:2} - z_ch:{stage.zdim:3} - #params:{stage_params:,d}"
+                    f"stage:{self.params.num_stages - stage_num - 1:2}\
+                    - input_size:{stage.input_size:3} - in_width:{stage.in_width:3}"
+                    f" - middle_width:{stage.middle_width:3} - #layers:{stage.num_blocks:2}\
+                    - z_ch:{stage.zdim:3} - #params:{stage_params:,d}"
                 )
             )
         output_blocks_params = 0
@@ -266,9 +282,16 @@ class VAE(Model):
         print(
             (
                 f"--- Output ---\n"
-                f"blocks   - input_size:{self.decoder.output_shape[1]:3} - in_width:{self.params.z_out_width:3} - middle_width:{self.params.z_out_middle_width:3} - #blocks:{self.decoder.num_output_blocks:2} - ksize:{self.params.kernelsizes[str(self.params.dec_input_size[-1])]:2} - #params:{output_blocks_params:,d}\n"
-                f"last 3x3 conv: [None, {stage.input_size, stage.input_size, self.params.z_out_width}]"
-                f" -> [None, {stage.input_size, stage.input_size, self.decoder.last_conv.weights[0].shape[-1]}]"
+                f"blocks   - input_size:{self.decoder.output_shape[1]:3}\
+                - in_width:{self.params.z_out_width:3}\
+                - middle_width:{self.params.z_out_middle_width:3}\
+                - #blocks:{self.decoder.num_output_blocks:2}\
+                - ksize:{self.params.kernelsizes[str(self.params.dec_input_size[-1])]:2}\
+                - #params:{output_blocks_params:,d}\n"
+                f"last 3x3 conv: [None,\
+                {stage.input_size, stage.input_size, self.params.z_out_width}]"
+                f" -> [None, \
+                {stage.input_size, stage.input_size, self.decoder.last_conv.weights[0].shape[-1]}]"
             )
         )
         print("------  Flows  ------")
@@ -282,7 +305,11 @@ class VAE(Model):
                         stage_params += block.flows.count_params()
                 if self.params.flow_type == "sylvester":
                     print(
-                        f"stage:{self.params.num_stages - stage_num - 1:2} - input_size:{stage.input_size:3} - eff_zdim:{stage.zdim * stage.input_size * stage.input_size:5} - #flows:{stage.num_flows:2} - num_ortho_vecs:{stage.num_ortho_vecs:2} - flow_in_ch:{stage.flow_in_ch:2} - #params:{stage_params:,d}"
+                        f"stage:{self.params.num_stages - stage_num - 1:2}\
+                        - input_size:{stage.input_size:3}\
+                        - eff_zdim:{stage.zdim * stage.input_size * stage.input_size:5}\
+                        - #flows:{stage.num_flows:2} - num_ortho_vecs:{stage.num_ortho_vecs:2}\
+                        - flow_in_ch:{stage.flow_in_ch:2} - #params:{stage_params:,d}"
                     )
                 else:
                     channels = 0
@@ -298,7 +325,13 @@ class VAE(Model):
                             n_levels = stage.blocks.layers[0].flows.n_levels
                             use_flow = True
                     print(
-                        f"stage:{self.params.num_stages - stage_num - 1:2} - input_size:{stage.input_size:3} - eff_zdim:{stage.zdim * stage.input_size * stage.input_size:5} - flow:{use_flow:1} - width: {channels:3} - #flows_per_level:{flows_per_level} - splitfirst: {split_first:1} - n_levels: {n_levels:2} - #params:{stage_params:,d}"
+                        f"stage:{self.params.num_stages - stage_num - 1:2} \
+                        - input_size:{stage.input_size:3} \
+                        - eff_zdim:{stage.zdim * stage.input_size * stage.input_size:5}\
+                        - flow:{use_flow:1} - width: {channels:3}\
+                        - #flows_per_level:{flows_per_level}\
+                        - splitfirst: {split_first:1}\
+                        - n_levels: {n_levels:2} - #params:{stage_params:,d}"
                     )
             print(f"flow_type:      {self.params.flow_type}")
             if self.params.flow_type == "conv_sylvester":
@@ -404,47 +437,6 @@ class Decoder(layers.Layer):
             dec_stage.build()
         for out_block in self.output_blocks.layers:
             out_block.build()
-
-    def depthwise_attention_call(self, activations):
-        """
-        Depthwise attention is not implemented in this code snippet.
-        """
-        z_stages = []
-        kl_stages = []
-
-        if self.init_zeros:
-            x = ops.zeros(
-                shape=(
-                    ops.shape(activations[0][0])[0],
-                    self.init_shape[0],
-                    self.init_shape[1],
-                    self.init_shape[2],
-                )
-            )
-        else:
-            b = ops.shape(activations[0][0])[0]
-            x = ops.repeat(self.init_bias, b, axis=0)
-
-        # vp and kp get overwritten in first call, theyre placeholders
-        vp = ops.zeros(1)
-        kp = ops.zeros(1)
-
-        # pack top-down stream as x, vp, kp
-        x = (x, vp, kp)
-
-        # We give multiple activations to each decoder stage, to have
-        # v^q_>l and k^q_>l
-        # activations are 32x32, 16x16, 8x8, etc.
-        # we convert a list with different resolutions to a
-        # list containing tensors of same resolution with dimension (layers)
-        activations = prepare_activations(activations)
-
-        for dec_stage, act in zip(self.stages.layers, reversed(activations)):
-            # First stage gets [32x32, 16x16, ..., 1x1], last stage gets [32x32]
-            x, z, kl = dec_stage(x, act)
-            z_stages += [z]
-            kl_stages += [kl]
-        return x, z_stages, kl_stages
 
     def call(self, activations):
         """
@@ -644,11 +636,6 @@ class DecoderStage(layers.Layer):
             unpool=True,
             data_size=params.enc_input_size[0],
         )
-        if self.use_depthwise_attention:
-            self.attn_pool = AttentionUnpool(
-                input_size=self.input_size,
-                data_size=params.enc_input_size[0],
-            )
 
     def build(self):
         for dec_block in self.blocks.layers:
@@ -878,8 +865,6 @@ class DecBlock(layers.Layer):
             )
 
         q_out_width = self.zdim * 2
-        if self.flow_type == "sylvester":
-            q_out_width += self.flow_in_ch
         # Block that takes activations from encoder
         self.q = Block(
             input_size=self.input_size,
@@ -896,27 +881,7 @@ class DecBlock(layers.Layer):
             use_attention=use_spatial_attention,
             attention_width=sa_width,
         )
-        if self.use_flow:
-            if self.flow_type == "sylvester":
-                self.flows = OrthogonalSylvesterStack(
-                    num_flows=self.num_flows,
-                    num_ortho_vecs=self.num_ortho_vecs,
-                    z_ch=self.zdim,
-                    build_shape=[1, self.input_size, self.input_size, self.flow_in_ch],
-                    model_depth=model_depth,
-                )
-            elif self.flow_type == "conv_sylvester":
-                self.flows = ConvSylvester(
-                    input_size=(self.input_size, self.input_size, self.zdim),
-                    flows_per_level=convsylv_flows_per_stage,
-                    spectral_norm=spectral_norm,
-                    sylv_channels=convsylv_channels,
-                    split_first=convsylv_splitfirst,
-                    stage_limit=convsylv_stage_limit,
-                )
-            self.kl = flow_kl()
-        else:
-            self.kl = GaussianAnalyticalKL()
+        self.kl = GaussianAnalyticalKL()
 
         self.p = Block(
             input_size=self.input_size,
@@ -977,89 +942,18 @@ class DecBlock(layers.Layer):
 
     def sample(self, x, act):
         # Calculate all attention outputs
-        if self.use_depthwise_attention:
-            x, vp, kp = x
-            vq, kq = act
-
-            queries = self.queries(x)
-
-            if not self.first_block:
-                qq, qp = ops.split(queries, 2, axis=3)
-                if self.combine_queries:
-                    for i, query in enumerate(ops.split(qp, self.num_queries, axis=-1)):
-                        attn = attention_block(query, kp, vp)
-                        if i == 0:
-                            attn_p = attn
-                        else:
-                            attn_p = ops.concatenate([attn_p, attn], axis=-1)
-                    attn_p = self.queries_comb_p(attn_p)
-                else:
-                    attn_p = attention_block(qp, kp, vp)
-                attn_p += ops.gelu(attn_p)
-            else:
-                qq, qp = queries, None
-
-            if ops.shape(vq)[-1] > 1:
-                if self.combine_queries:
-                    for i, query in enumerate(ops.split(qq, self.num_queries, axis=-1)):
-                        attn = attention_block(query, kq[:, :, :, :, :-1], vq[:, :, :, :, :-1])
-                        if i == 0:
-                            attn_q = attn
-                        else:
-                            attn_q = ops.concatenate([attn_q, attn], axis=-1)
-                    attn_q = self.queries_comb_q(attn_q)
-                else:
-                    attn_q = attention_block(qq, kq[:, :, :, :, :-1], vq[:, :, :, :, :-1])
-                attn_q += ops.gelu(attn_q)
-            else:
-                attn_q = ops.zeros_like(x)
-            q_out = self.q(
-                ops.concatenate([x, vq[:, :, :, :, -1] + self.gamma_q * attn_q], axis=-1)
-            )
-        else:
-            q_out = self.q(ops.concatenate([x, act], axis=-1))
-
-        if self.flow_type == "sylvester":
-            qm, q_std, h = (
-                q_out[:, :, :, : self.zdim],
-                q_out[:, :, :, self.zdim : self.zdim * 2],
-                q_out[:, :, :, self.zdim * 2 :],
-            )
-        else:
-            qm, q_std = ops.split(q_out, 2, axis=3)
-            h = None
+        q_out = self.q(ops.concatenate([x, act], axis=-1))
+        qm, q_std = ops.split(q_out, 2, axis=3)
+        h = None
 
         # calculate prior (mu_p, variance_p, and residual)
-        if self.use_depthwise_attention:
-            if self.first_block:
-                prior = self.p(x)
-            else:
-                prior = self.p(x + self.gamma_p * attn_p)
-            pm, p_std, vpl, kpl = (
-                prior[:, :, :, : self.zdim],
-                prior[:, :, :, self.zdim : self.zdim * 2],
-                prior[:, :, :, self.zdim * 2 : self.zdim * 2 + self.in_width],
-                prior[:, :, :, self.zdim * 2 + self.in_width :],
-            )
-
-            x = ops.add(x, vpl)  # (B, H, W, in_width)
-
-            if self.first_block:
-                vp = ops.expand_dims(vpl, axis=-1)
-                kp = ops.expand_dims(kpl, axis=-1)
-            else:
-                vp = ops.concatenate([vp, ops.expand_dims(vpl, axis=-1)], axis=-1)
-                kp = ops.concatenate([kp, ops.expand_dims(kpl, axis=-1)], axis=-1)
-            x = (x, vp, kp)
-
-        else:
-            prior = self.p(x)
-            pm, p_std, vpl = (
-                prior[:, :, :, : self.zdim],
-                prior[:, :, :, self.zdim : self.zdim * 2],
-                prior[:, :, :, self.zdim * 2 :],
-            )
-            x = ops.add(x, vpl)
+        prior = self.p(x)
+        pm, p_std, vpl = (
+            prior[:, :, :, : self.zdim],
+            prior[:, :, :, self.zdim : self.zdim * 2],
+            prior[:, :, :, self.zdim * 2 :],
+        )
+        x = ops.add(x, vpl)
 
         q_std = self.sp(q_std)
         p_std = self.sp(p_std)
@@ -1078,42 +972,7 @@ class DecBlock(layers.Layer):
 
     def sample_uncond(self, x, t=1):
         if self.use_depthwise_attention:
-            x, vp, kp = x
-            if not self.first_block:
-                queries = self.queries(x)
-                _, qp = ops.split(queries, 2, axis=3)
-                if self.combine_queries:
-                    for i, query in enumerate(ops.split(qp, self.num_queries, axis=-1)):
-                        attn = attention_block(query, kp, vp)
-                        if i == 0:
-                            attn_p = attn
-                        else:
-                            attn_p = ops.concatenate([attn_p, attn], axis=-1)
-                    attn_p = self.queries_comb_p(attn_p)
-                else:
-                    attn_p = attention_block(qp, kp, vp)
-                attn_p += ops.gelu(attn_p)
-
-                prior = self.p(x + self.gamma_p * attn_p)
-            else:
-                prior = self.p(x)
-
-            pm, p_std, vpl, kpl = (
-                prior[:, :, :, : self.zdim],
-                prior[:, :, :, self.zdim : self.zdim * 2],
-                prior[:, :, :, self.zdim * 2 : self.zdim * 2 + self.in_width],
-                prior[:, :, :, self.zdim * 2 + self.in_width :],
-            )
-
-            x = ops.add(x, vpl)  # (B, H, W, in_width)
-
-            if self.first_block:
-                vp = ops.expand_dims(vpl, axis=-1)
-                kp = ops.expand_dims(kpl, axis=-1)
-            else:
-                vp = ops.concatenate([vp, ops.expand_dims(vpl, axis=-1)], axis=-1)
-                kp = ops.concatenate([kp, ops.expand_dims(kpl, axis=-1)], axis=-1)
-            x = (x, vp, kp)
+            pass
         else:
             prior = self.p(x)
             pm, p_std, vpl = (
