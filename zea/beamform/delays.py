@@ -64,11 +64,11 @@ def compute_t0_delays_focused(
 
     Args:
         origins (np.ndarray): The origin of the focused transmit of shape (n_tx, 3,).
-        focus_distance (float): The distance to the focus.
+        focus_distances (np.ndarray): The distance to the focus for each transmit of shape (n_tx,).
         probe_geometry (np.ndarray): The positions of the elements in the array of
             shape (element, 3).
-        polar_angles (np.ndarray): The polar angles of the planewave in radians of shape (n_tx,).
-        azimuth_angles (np.ndarray, optional): The azimuth angles of the planewave in
+        polar_angles (np.ndarray): The polar angles in radians of shape (n_tx,).
+        azimuth_angles (np.ndarray, optional): The azimuth angles in
             radians of shape (n_tx,).
         sound_speed (float, optional): The speed of sound. Defaults to 1540.
 
@@ -84,6 +84,9 @@ def compute_t0_delays_focused(
     )
     assert probe_geometry.shape[1] == 3 and probe_geometry.ndim == 2, (
         f"probe_geometry must have shape (element, 3). Got shape {probe_geometry.shape}."
+    )
+    assert focus_distances.shape == (n_tx,), (
+        f"focus_distances must have length n_tx = {n_tx}. Got length {len(focus_distances)}."
     )
 
     # Convert single angles to arrays for broadcasting
@@ -107,7 +110,7 @@ def compute_t0_delays_focused(
     )
 
     # Add a new dimension for broadcasting
-    # The shape is now (n_tx, n_el, 3)
+    # The shape is now (n_tx, 1, 3)
     v = np.expand_dims(v, axis=1)
 
     # Compute the location of the virtual source by adding the focus distance
