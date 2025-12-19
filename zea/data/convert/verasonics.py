@@ -77,7 +77,7 @@ data from the file and returns a ``DatasetElement``. Then pass the function to t
 .. code-block:: python
 
     def read_max_high_voltage(file):
-        lens_correction = file["Trans"]["lensCorrection"][0, 0].item()
+        lens_correction = file["Trans"]["lensCorrection"][:].item()
         return lens_correction
 
 
@@ -157,6 +157,24 @@ class VerasonicsFile(h5py.File):
                 return self[reference][subindex]
         else:
             return dataset
+
+    def dereference_all(self, dataset, func=None):
+        """Dereference all elements in a dataset.
+
+        Args:
+            dataset (h5py.Dataset): The dataset to dereference.
+            func (callable, optional): A function to apply to each dereferenced element.
+
+        Returns:
+            np.ndarray: The dereferenced data.
+        """
+        size = self.get_reference_size(dataset)
+        dereferenced_data = []
+        for i in range(size):
+            element = self.dereference_index(dataset, i)
+            element = func(element) if func is not None else element
+            dereferenced_data.append(element)
+        return dereferenced_data
 
     @staticmethod
     def get_reference_size(dataset):
@@ -462,18 +480,12 @@ class VerasonicsFile(h5py.File):
     @property
     def end_samples(self):
         """The index of the last sample for each receive event."""
-        length = self["Receive"]["endSample"].shape[0]
-        return np.concatenate(
-            [self.dereference_index(self["Receive"]["endSample"], i) for i in range(length)]
-        )
+        return np.concatenate(self.dereference_all(self["Receive"]["endSample"])).squeeze()
 
     @property
     def start_samples(self):
         """The index of the first sample for each receive event."""
-        length = self["Receive"]["startSample"].shape[0]
-        return np.concatenate(
-            [self.dereference_index(self["Receive"]["startSample"], i) for i in range(length)]
-        )
+        return np.concatenate(self.dereference_all(self["Receive"]["startSample"])).squeeze()
 
     @property
     def n_ax(self):
@@ -594,13 +606,26 @@ class VerasonicsFile(h5py.File):
     def center_frequency(self):
         """Center frequency of the probe from the file in Hz."""
 
-        return self["Trans"]["frequency"][0, 0] * 1e6
+        return self["Trans"]["frequency"][:].item() * 1e6
+
+    @property
+    def demodulation_frequency(self):
+        """Demodulation frequency of the probe from the file in Hz."""
+
+        demod_freq = self.dereference_all(self["Receive"]["demodFrequency"])
+        demod_freq = np.unique(demod_freq)
+        assert demod_freq.size == 1, (
+            f"Multiple demodulation frequencies found in file: {demod_freq}. "
+            "We do not support this case."
+        )
+
+        return demod_freq.item() * 1e6
 
     @property
     def sound_speed(self):
         """Speed of sound in the medium in m/s."""
 
-        return self["Resource"]["Parameters"]["speedOfSound"][0, 0].item()
+        return self["Resource"]["Parameters"]["speedOfSound"][:].item()
 
     def read_initial_times(self, rcv_order):
         """Reads the initial times from the file.
@@ -650,9 +675,13 @@ class VerasonicsFile(h5py.File):
         focus_distances = []
         for n in tx_order:
             if event is None:
-                focus_distance = self.dereference_index(self["TX"]["focus"], n)[0, 0]
+                focus_distance = self.dereference_index(self["TX"]["focus"], n)[:].item()
             else:
-                focus_distance = self.dereference_index(self["TX_Agent"]["focus"], n, event)[0, 0]
+                focus_distance = self.dereference_index(
+                    self["TX_Agent"]["focus"],
+                    n,
+                    event,
+                )[:].item()
             focus_distances.append(focus_distance)
 
         # Convert focus distances from wavelengths to meters
@@ -703,10 +732,27 @@ class VerasonicsFile(h5py.File):
     @property
     def bandwidth_percent(self):
         """Receive bandwidth as a percentage of center frequency."""
-        bandwidth_percent = self.dereference_index(self["Receive"]["sampleMode"], 0)
-        bandwidth_percent = self.decode_string(bandwidth_percent)
-        bandwidth_percent = int(bandwidth_percent[2:-2])
-        return bandwidth_percent
+        SUPPORTED_SAMPLE_MODES = ["NS200BW", "BS100BW", "BS67BW", "BS50BW"]
+
+        # For all unique sample modes
+        bandwidth_percent = self.dereference_all(
+            self["Receive"]["sampleMode"], func=self.decode_string
+        )
+        bandwidth_percent = set(bandwidth_percent)
+
+        # Ensure only a single bandwidth mode is used
+        assert len(bandwidth_percent) == 1, (
+            f"Multiple bandwidth modes found in file: {bandwidth_percent}. "
+            "We do not support this case."
+        )
+        bandwidth_percent = bandwidth_percent.pop()
+
+        # Check if the bandwidth mode is supported, and extract the percentage
+        assert bandwidth_percent in SUPPORTED_SAMPLE_MODES, (
+            f"Unexpected bandwidth mode '{bandwidth_percent}' in file."
+            f"Expected one of {SUPPORTED_SAMPLE_MODES}"
+        )
+        return int(bandwidth_percent[2:-2])
 
     @property
     def is_baseband_mode(self):
@@ -722,7 +768,7 @@ class VerasonicsFile(h5py.File):
     @property
     def lens_correction(self):
         """The lens correction: 1 way delay in wavelengths thru lens"""
-        lens_correction = self["Trans"]["lensCorrection"][0, 0].item()
+        lens_correction = self["Trans"]["lensCorrection"][:].item()
         return lens_correction
 
     @property
@@ -801,7 +847,7 @@ class VerasonicsFile(h5py.File):
             return None
 
         # Get the dataset reference
-        image_data_ref = self["ImgDataP"][0, 0]
+        image_data_ref = self["ImgDataP"][:].item()
         # Dereference the dataset
         if event is None:
             image_data = self[image_data_ref][:]
@@ -827,7 +873,7 @@ class VerasonicsFile(h5py.File):
     @property
     def element_width(self):
         """The element width in meters from the file."""
-        element_width = self["Trans"]["elementWidth"][:][0, 0]
+        element_width = self["Trans"]["elementWidth"][:].item()
 
         # Convert the probe element width to meters
         if self.probe_unit == "mm":
@@ -918,6 +964,7 @@ class VerasonicsFile(h5py.File):
             "bandwidth_percent": self.bandwidth_percent,
             "raw_data": raw_data,
             "center_frequency": self.center_frequency,
+            "demodulation_frequency": self.demodulation_frequency,
             "sound_speed": self.sound_speed,
             "initial_times": initial_times,
             "probe_name": self.probe_name,
@@ -946,7 +993,9 @@ class VerasonicsFile(h5py.File):
             frame_indices (np.ndarray): The frame indices.
         """
         # Read the number of frames from the file
-        n_frames = int(self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], 0)[0][0])
+        n_frames = int(
+            self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], 0)[:].item()
+        )
 
         if isinstance(frames, str) and frames == "all":
             # Create an array of all frame-indices

@@ -198,6 +198,7 @@ def _write_datasets(
     probe_geometry=None,
     sampling_frequency=None,
     center_frequency=None,
+    demodulation_frequency=None,
     initial_times=None,
     t0_delays=None,
     tx_apodizations=None,
@@ -395,6 +396,14 @@ def _write_datasets(
 
     _add_dataset(
         group_name=scan_group_name,
+        name="demodulation_frequency",
+        data=demodulation_frequency,
+        description="The demodulation frequency in Hz.",
+        unit="Hz",
+    )
+
+    _add_dataset(
+        group_name=scan_group_name,
         name="initial_times",
         data=initial_times,
         description=(
@@ -561,6 +570,7 @@ def generate_zea_dataset(
     probe_geometry=None,
     sampling_frequency=None,
     center_frequency=None,
+    demodulation_frequency=None,
     initial_times=None,
     t0_delays=None,
     sound_speed=None,
@@ -601,6 +611,7 @@ def generate_zea_dataset(
         probe_geometry (np.ndarray): The probe geometry of shape (n_el, 3).
         sampling_frequency (float): The sampling frequency in Hz.
         center_frequency (float): The center frequency in Hz.
+        demodulation_frequency (float): The demodulation frequency in Hz.
         initial_times (list): The times when the A/D converter starts sampling
             in seconds of shape (n_tx,). This is the time between the first element
             firing and the first recorded sample.
@@ -658,6 +669,7 @@ def generate_zea_dataset(
         "probe_geometry": probe_geometry,
         "sampling_frequency": sampling_frequency,
         "center_frequency": center_frequency,
+        "demodulation_frequency": demodulation_frequency,
         "initial_times": initial_times,
         "t0_delays": t0_delays,
         "sound_speed": sound_speed,
