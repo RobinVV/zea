@@ -59,7 +59,7 @@ def compute_pfield(
         bandwidth_percent (float): Bandwidth of the probe, pulse-echo 6dB fractional bandwidth (%)
         n_el (int): Number of elements in the probe.
         probe_geometry (array): Geometry of the probe elements.
-        tx_apodizations (array): Transmit apodization values.
+        tx_apodizations (array): Transmit apodizations of shape (n_tx, n_el).
         grid (array): Grid points where the pressure field is computed
             of shape (grid_size_z, grid_size_x, 3).
         t0_delays (array): Transmit delays for each transmit event.
