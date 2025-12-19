@@ -816,6 +816,8 @@ class VerasonicsFile(h5py.File):
             last_frame = self.dereference_index(
                 self["Resource"]["ImageBuffer"]["lastFrame"], FIRST_BUFFER
             )[()].item()
+            first_frame = int(first_frame)
+            last_frame = int(last_frame)
             first_frame -= 1  # make 0-based
             last_frame -= 1  # make 0-based
             indices = np.arange(first_frame, first_frame + n_frames) % n_frames
