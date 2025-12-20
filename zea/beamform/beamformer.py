@@ -62,6 +62,7 @@ def tof_correction(
     focus_distances,
     t_peak,
     tx_waveform_indices,
+    origins,
     apply_lens_correction=False,
     lens_thickness=1e-3,
     lens_sound_speed=1000,
@@ -134,6 +135,7 @@ def tof_correction(
         polar_angles,
         t_peak,
         tx_waveform_indices,
+        origins,
         apply_lens_correction,
         lens_thickness,
         lens_sound_speed,
@@ -207,6 +209,7 @@ def calculate_delays(
     polar_angles,
     t_peak,
     tx_waveform_indices,
+    origins,
     apply_lens_correction=False,
     lens_thickness=None,
     lens_sound_speed=None,
@@ -292,7 +295,7 @@ def calculate_delays(
         )
 
     # Compute transmit delays
-    tx_delays = vmap(transmit_delays, in_axes=(None, 0, 0, None, 0, 0, 0), out_axes=1)(
+    tx_delays = vmap(transmit_delays, in_axes=(None, 0, 0, None, 0, 0, 0, None, 0), out_axes=1)(
         grid,
         t0_delays,
         tx_apodizations,
@@ -300,6 +303,8 @@ def calculate_delays(
         focus_distances,
         polar_angles,
         initial_times,
+        None,
+        origins,
     )
 
     # Add the offset to the transmit peak time
@@ -465,6 +470,8 @@ def transmit_delays(
     focus_distance,
     polar_angle,
     initial_time,
+    azimuth_angle=None,
+    origin=None,
 ):
     """
     Computes the transmit delay from transmission to each pixel in the grid.
@@ -484,9 +491,12 @@ def transmit_delays(
         focus_distance (float): The focus distance in meters.
         polar_angle (float): The polar angle in radians.
         initial_time (float): The initial time for this transmit in seconds.
+        azimuth_angle (float, optional): The azimuth angle in radians. Defaults to 0.0.
+        origin (ops.Tensor, optional): The origin of the transmit beam of shape (3,).
+            If None, defaults to (0, 0, 0). Defaults to None.
 
     Returns:
-        Tensor: The transmit delays of shape `(n_pix, n_el)`.
+        Tensor: The transmit delays of shape `(n_pix,)`.
     """
     # Add a large offset for elements that are not used in the transmit to
     # disqualify them from being the closest element
@@ -497,15 +507,52 @@ def transmit_delays(
     # t0_delays has shape (n_el,)
     total_times = rx_delays + t0_delays[None, :]
 
-    # Compute the z-coordinate of the focal point
-    focal_z = ops.cos(polar_angle) * focus_distance
+    if azimuth_angle is None:
+        azimuth_angle = ops.zeros_like(polar_angle)
+
+    # Compute the 3D position of the focal point
+    # The beam direction vector
+    beam_direction = ops.stack(
+        [
+            ops.sin(polar_angle) * ops.cos(azimuth_angle),
+            ops.sin(polar_angle) * ops.sin(azimuth_angle),
+            ops.cos(polar_angle),
+        ]
+    )
+
+    # Set origin to (0, 0, 0) if not provided
+    if origin is None:
+        origin = ops.zeros(3, dtype=grid.dtype)
+
+    # Compute focal point position: origin + focus_distance * beam_direction
+    # For negative focus_distance (diverging/virtual source), this is behind the origin
+    focal_point = origin + focus_distance * beam_direction  # shape (3,)
+
+    # Compute the position of each pixel relative to the focal point
+    pixel_relative_to_focus = grid - focal_point[None, :]  # shape (n_pix, 3)
+
+    # Project onto the beam direction to determine if pixel is before or after focus
+    # Positive projection means pixel is in the direction of beam propagation (beyond focus)
+    # Negative projection means pixel is behind the focus (before focus)
+    projection_along_beam = ops.sum(
+        pixel_relative_to_focus * beam_direction[None, :], axis=-1
+    )  # shape (n_pix,)
+
+    # For focused waves (positive focus_distance):
+    #   - Use min time for pixels before focus (projection < 0)
+    #   - Use max time for pixels beyond focus (projection > 0)
+    # For diverging waves (negative focus_distance, virtual source):
+    #   - The sign of focus_distance flips the logic
+    #   - Use min time for pixels between transducer and virtual source
+    #   - Use max time for pixels beyond transducer
+    is_before_focus = ops.cast(ops.sign(focus_distance), "float32") * projection_along_beam < 0.0
 
     # Compute the effective time of the pixels to the wavefront by computing the
-    # smallest time over all elements (first wavefront arrival) for pixels behind
-    # the virtual source (or before the focus for focused waves), and the largest
-    # time (last wavefront contribution) for pixels beyond the focus.
+    # smallest time over all elements (first wavefront arrival) for pixels before
+    # the focus, and the largest time (last wavefront contribution) for pixels
+    # beyond the focus.
     tx_delay = ops.where(
-        ops.cast(ops.sign(focus_distance), "float32") * (grid[:, 2] - focal_z) <= 0.0,
+        is_before_focus,
         ops.min(total_times + offset[None, :], axis=-1),
         ops.max(total_times - offset[None, :], axis=-1),
     )
