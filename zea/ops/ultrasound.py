@@ -893,3 +893,79 @@ class ReshapeGrid(Operation):
         data = kwargs[self.key]
         reshaped_data = reshape_axis(data, grid.shape[:-1], self.axis + int(self.with_batch_dim))
         return {self.output_key: reshaped_data}
+
+
+@ops_registry("apply_window")
+class ApplyWindow(Operation):
+    """Apply a window function to the input data along a specific axis.
+
+    This operation can be used to zero out the end and/or beginning of the signal and apply a window
+    of some size to transition from the zeroed region to the unmodified region.
+
+    The axis is divided into five regions:
+    [start (zero)] - [size (window)] - [middle (unmodified)] - [size (window)] - [end (zero)]
+    """
+
+    STATIC_PARAMS = ["axis", "size", "window_type", "start", "end"]
+
+    def __init__(self, axis=-3, size=64, start=32, end=-1, window_type="hanning", **kwargs):
+        """
+        Args:
+            axis (int): Axis along which to apply the window.
+            size (int): Size of the window to apply at the start and end regions.
+            start (int): Number of samples to zero out at the beginning of the axis.
+            end (int): Number of samples to zero out at the end of the axis. If
+                negative, counts from the end of the axis.
+            window_type (str): Type of window to apply. Supported types are "hanning" and "linear".
+        """
+        super().__init__(**kwargs)
+        self.axis = axis
+        self.size = size
+        self.start = start
+        self.end = end
+        self.window_type = window_type
+        self.window = self._get_window(self.window_type, size, "float32")
+
+    def _get_window(self, window_type, size, dtype):
+        if window_type == "hanning":
+            window = ops.hanning(size * 2)
+        elif window_type == "linear":
+            window = ops.concatenate(
+                [ops.linspace(0.0, 1.0, size), ops.linspace(1.0, 0.0, size)], axis=0
+            )
+        else:
+            raise ValueError(f"Unsupported window type: {window_type}")
+        return ops.cast(window, dtype)
+
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        dtype = data.dtype
+        axis = self.axis if self.axis >= 0 else ops.ndim(data) + self.axis
+        length = ops.shape(data)[axis]
+
+        end = length + self.end if self.end < 0 else self.end
+
+        assert end < length, "end must be less than the length of the axis."
+        assert self.size * 2 + self.start < end, (
+            "size and start are too large for the given end position."
+        )
+
+        window = self.window
+
+        ones = ops.ones((length,), dtype=dtype)
+        mask = ops.concatenate(
+            [
+                ops.zeros((self.start,), dtype=dtype),
+                window[: self.size],
+                ones[self.size + self.start : end - self.size],
+                window[self.size :],
+                ops.zeros((length - end,), dtype=dtype),
+            ],
+            axis=0,
+        )
+
+        shape = [1] * ops.ndim(data)
+        shape[axis] = length
+        mask = ops.reshape(mask, shape)
+
+        return {self.output_key: data * mask}

@@ -27,6 +27,7 @@ from zea.ops.base import (
 )
 from zea.ops.tensor import Normalize
 from zea.ops.ultrasound import (
+    ApplyWindow,
     Demodulate,
     EnvelopeDetect,
     LogCompress,
@@ -211,6 +212,7 @@ class Pipeline:
 
         # Add the demodulate operation
         if not baseband:
+            operations.append(ApplyWindow())
             operations.append(Demodulate())
 
         # Add beamforming ops
