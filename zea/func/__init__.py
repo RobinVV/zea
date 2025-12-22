@@ -52,6 +52,7 @@ from .ultrasound import (
     get_band_pass_filter,
     get_low_pass_iq_filter,
     hilbert,
+    log_compress,
     upmix,
 )
 
@@ -104,4 +105,5 @@ __all__ = [
     "get_low_pass_iq_filter",
     "hilbert",
     "upmix",
+    "log_compress",
 ]
