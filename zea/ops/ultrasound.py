@@ -947,7 +947,7 @@ class ApplyWindow(Operation):
         if not self.size * 2 + self.start < end:
             raise ValueError("size and start are too large for the given end position.")
 
-        window = self.window
+        window = ops.cast(self.window, dtype)
 
         ones = ops.ones((length,), dtype=dtype)
         mask = ops.concatenate(
