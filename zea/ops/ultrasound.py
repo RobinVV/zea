@@ -35,6 +35,7 @@ from zea.ops.tensor import (
     GaussianBlur,
 )
 from zea.simulator import simulate_rf
+from zea.utils import canonicalize_axis
 
 
 @ops_registry("simulate_rf")
@@ -903,7 +904,7 @@ class ApplyWindow(Operation):
 
     STATIC_PARAMS = ["axis", "size", "window_type", "start", "end"]
 
-    def __init__(self, axis=-3, size=64, start=32, end=-1, window_type="hanning", **kwargs):
+    def __init__(self, axis=-3, size=64, start=16, end=-1, window_type="hanning", **kwargs):
         """
         Args:
             axis (int): Axis along which to apply the window.
@@ -935,12 +936,13 @@ class ApplyWindow(Operation):
     def call(self, **kwargs):
         data = kwargs[self.key]
         dtype = data.dtype
-        axis = self.axis if self.axis >= 0 else ops.ndim(data) + self.axis
+        axis = canonicalize_axis(self.axis, ops.ndim(data))
+
         length = ops.shape(data)[axis]
+        start = canonicalize_axis(self.start, length)
+        end = canonicalize_axis(self.end, length)
 
-        end = length + self.end if self.end < 0 else self.end
-
-        assert end < length, "end must be less than the length of the axis."
+        assert start <= end, "start must be <= than end."
         assert self.size * 2 + self.start < end, (
             "size and start are too large for the given end position."
         )
@@ -950,9 +952,9 @@ class ApplyWindow(Operation):
         ones = ops.ones((length,), dtype=dtype)
         mask = ops.concatenate(
             [
-                ops.zeros((self.start,), dtype=dtype),
+                ops.zeros((start,), dtype=dtype),
                 window[: self.size],
-                ones[self.size + self.start : end - self.size],
+                ones[self.size + start : end - self.size],
                 window[self.size :],
                 ops.zeros((length - end,), dtype=dtype),
             ],
