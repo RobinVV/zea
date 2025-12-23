@@ -337,7 +337,18 @@ class VerasonicsFile(h5py.File):
             )
             tx_order = tx_order[modes == 0]
             rcv_order = rcv_order[modes == 0]
-            time_to_next_acq = time_to_next_acq[:, modes == 0]
+
+            if time_to_next_acq[:, modes == 0].shape != time_to_next_acq[:, modes == 1].shape:
+                # We could choose to just drop the `time_to_next_transmit` key in this case.
+                # Or think of a better handling for accumulate mode.
+                # But for now we raise an error.
+                raise ValueError(
+                    "Cannot currently handle different number of time_to_next_acq values "
+                    "for mode 0 and mode 1 transmits."
+                )
+            else:
+                log.info("Adding time to next acquisition for mode 0 and mode 1 transmits.")
+                time_to_next_acq = time_to_next_acq[:, modes == 0] + time_to_next_acq[:, modes == 1]
 
         if event is not None:
             time_to_next_acq = time_to_next_acq[event]
@@ -382,7 +393,7 @@ class VerasonicsFile(h5py.File):
         t0_delays = np.stack(t0_delays_list, axis=0)
         apodizations = np.stack(tx_apodizations_list, axis=0)
 
-        # Convert the t0_delays to meters
+        # Convert the t0_delays to seconds
         t0_delays = t0_delays * self.wavelength / self.sound_speed
 
         return t0_delays, apodizations
