@@ -802,6 +802,7 @@ def _assert_scan_keys_present(file: File):
         elif key in (
             "sampling_frequency",
             "center_frequency",
+            "demodulation_frequency",
             "n_frames",
             "n_tx",
             "n_el",
@@ -817,7 +818,7 @@ def _assert_scan_keys_present(file: File):
 
         else:
             correct_shape = None
-            log.warning(f"No validation has been defined for {log.orange(key)}.")
+            log.debug(f"No validation has been defined for {log.orange(key)}.")
 
         if correct_shape is not None:
             assert shape_file == correct_shape, (
