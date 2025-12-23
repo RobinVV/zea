@@ -552,3 +552,26 @@ def test_beamformers(beamformer, expected_shape):
         with pytest.raises(ValueError):
             data = keras.ops.zeros((1, 3, 7, 4, 1))
             operation(data=data)
+
+
+@pytest.mark.parametrize(
+    "axis, size, start, end, window_type",
+    [
+        (0, 64, 64, 32, "hanning"),
+        (1, 32, 32, 16, "linear"),
+    ],
+)
+def test_apply_window(axis, size, start, end, window_type):
+    """Test ApplyWindow operation."""
+    operation = ops.ultrasound.ApplyWindow(
+        axis=axis, size=size, start=start, end=end, window_type=window_type
+    )
+
+    data = keras.ops.ones((256, 128, 64))
+    data_out = operation(data=data)["data"]
+    if axis == 0:
+        assert data_out[:start, :, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
+        assert data_out[-end:, :, :].numpy().sum() == 0.0, "End region not zeroed correctly."
+    elif axis == 1:
+        assert data_out[:, :start, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
+        assert data_out[:, -end:, :].numpy().sum() == 0.0, "End region not zeroed correctly."
