@@ -150,7 +150,7 @@ class VerasonicsFile(h5py.File):
             if event is not None:
                 reference = dataset[index, event]
             else:
-                reference = dataset[index, 0]
+                reference = dataset[index].item()
             if subindex is None:
                 return self[reference][:]
             else:
@@ -189,6 +189,11 @@ class VerasonicsFile(h5py.File):
         """Decode a string dataset."""
         return "".join([chr(c) for c in dataset.squeeze()])
 
+    @staticmethod
+    def cast_to_integer(dataset):
+        """Cast a h5py dataset to an integer."""
+        return int(dataset[:].item())
+
     @property
     def probe_unit(self):
         """The unit the probe dimensions are defined in."""
@@ -222,7 +227,9 @@ class VerasonicsFile(h5py.File):
 
         return self.sound_speed / self.center_frequency
 
-    def read_transmit_events(self, event=None, frames="all", allow_accumulate=False):
+    def read_transmit_events(
+        self, event=None, frames="all", allow_accumulate=False, buffer_index=0
+    ):
         """Read the events from the file and finds the order in which transmits and receives
         appear in the events.
 
@@ -233,6 +240,7 @@ class VerasonicsFile(h5py.File):
                 on the Verasonics system (e.g. harmonic imaging through pulse inversion).
                 In this case, the mode in the Receive structure is set to 1 (accumulate).
                 If this flag is set to False, an error is raised when such a mode is detected.
+            buffer_index (int, optional): The buffer index to read from. Defaults to 0.
 
         Returns:
             tuple: (tx_order, rcv_order, time_to_next_acq)
@@ -251,7 +259,7 @@ class VerasonicsFile(h5py.File):
         time_to_next_acq = []
         modes = []
 
-        frame_indices = self.get_frame_indices(frames)
+        frame_indices = self.get_frame_indices(frames, buffer_index)
 
         for i in range(num_events):
             # Get the tx
@@ -280,8 +288,8 @@ class VerasonicsFile(h5py.File):
             mode = int(mode.item())
 
             # Check in the Receive structure if this is still the first frame
-            framenum_ref = self["Receive"]["framenum"][event_rcv, 0]
-            framenum = self[framenum_ref][:].item()
+            framenum = self.dereference_index(self["Receive"]["framenum"], event_rcv)
+            framenum = self.cast_to_integer(framenum)
 
             # Only add the event to the list if it is the first frame since we assume
             # that all frames have the same transmits and receives
@@ -308,10 +316,10 @@ class VerasonicsFile(h5py.File):
                     value = value * 1e-6
                     time_to_next_acq.append(value)
 
-        modes = np.array(modes)
-        tx_order = np.array(tx_order)
-        rcv_order = np.array(rcv_order)
-        time_to_next_acq = np.array(time_to_next_acq)
+        modes = np.stack(modes)
+        tx_order = np.stack(tx_order)
+        rcv_order = np.stack(rcv_order)
+        time_to_next_acq = np.stack(time_to_next_acq)
         time_to_next_acq = np.reshape(time_to_next_acq, (-1, tx_order.size))
 
         if np.any(modes == 1) and not allow_accumulate:
@@ -512,18 +520,20 @@ class VerasonicsFile(h5py.File):
     def is_new_save_raw_format(self):
         return "save_raw_version" in self.keys()
 
-    def get_image_raw_data_order(self, raw_data: np.ndarray):
+    def get_image_raw_data_order(self, buffer_index=0):
         """The order of frames in the RcvBuffer buffer.
 
         Because of the circular buffer used in Verasonics, the frames in the RcvBuffer
         buffer are not necessarily in the correct order. This function computes the
         correct order of frames.
         """
-        n_frames = raw_data.shape[0]
+        n_frames = self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], buffer_index)
+        n_frames = self.cast_to_integer(n_frames)
         try:
-            last_frame = int(
-                self.dereference_index(self["Resource"]["RcvBuffer"]["lastFrame"], 0)[()].item() - 1
+            last_frame = self.dereference_index(
+                self["Resource"]["RcvBuffer"]["lastFrame"], buffer_index
             )
+            last_frame = self.cast_to_integer(last_frame) - 1
         except KeyError:
             log.warning(
                 "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
@@ -534,7 +544,7 @@ class VerasonicsFile(h5py.File):
         indices = np.arange(first_frame, first_frame + n_frames) % n_frames
         return indices
 
-    def read_raw_data(self, event=None, frames="all"):
+    def read_raw_data(self, event=None, frames="all", buffer_index=0):
         """
         Read the raw data from the file.
 
@@ -544,14 +554,14 @@ class VerasonicsFile(h5py.File):
 
         # Read the raw data from the file
         if event is None:
-            raw_data = self.dereference_index(self["RcvData"], 0)
+            raw_data = self.dereference_index(self["RcvData"], buffer_index)
         else:
             # for now we only index frames as events
-            raw_data = self.dereference_index(self["RcvData"], 0, subindex=event)
+            raw_data = self.dereference_index(self["RcvData"], buffer_index, subindex=event)
             raw_data = np.expand_dims(raw_data, axis=0)
 
         # Convert the raw data to a numpy array to allow out-of-order indexing later
-        raw_data = np.array(raw_data, dtype=np.int16)
+        raw_data = np.asarray(raw_data, dtype=np.int16)
 
         # Reorder and select channels based on probe elements
         if self.is_new_save_raw_format:
@@ -564,11 +574,11 @@ class VerasonicsFile(h5py.File):
             )
 
         # Re-order frames such that sequence is correct
-        indices = self.get_image_raw_data_order(raw_data)
+        indices = self.get_image_raw_data_order(buffer_index)
         raw_data = raw_data[indices]
 
         # Select only the requested frames
-        frame_indices = self.get_frame_indices(frames)
+        frame_indices = self.get_frame_indices(frames, buffer_index)
         raw_data = raw_data[frame_indices]
 
         # Trim the raw data to the final sample in the buffer
@@ -643,7 +653,7 @@ class VerasonicsFile(h5py.File):
 
             initial_times.append(2 * start_depth * self.wavelength / self.sound_speed)
 
-        return np.array(initial_times).astype(np.float32)
+        return np.stack(initial_times).astype(np.float32)
 
     @property
     def probe_name(self):
@@ -685,7 +695,7 @@ class VerasonicsFile(h5py.File):
             focus_distances.append(focus_distance)
 
         # Convert focus distances from wavelengths to meters
-        focus_distances = np.array(focus_distances) * self.wavelength
+        focus_distances = np.stack(focus_distances) * self.wavelength
 
         return focus_distances
 
@@ -768,8 +778,8 @@ class VerasonicsFile(h5py.File):
     @property
     def lens_correction(self):
         """The lens correction: 1 way delay in wavelengths thru lens"""
-        lens_correction = self["Trans"]["lensCorrection"][:].item()
-        return lens_correction
+
+        return self["Trans"]["lensCorrection"][:].item()
 
     @property
     def tgc_gain_curve(self):
@@ -798,25 +808,26 @@ class VerasonicsFile(h5py.File):
 
         return gain_curve
 
-    def get_image_data_p_frame_order(self, image_data: np.ndarray, buffer_index=0):
+    def get_image_data_p_frame_order(self, buffer_index=0):
         """The order of frames in the ImgDataP buffer.
 
         Because of the circular buffer used in Verasonics, the frames in the ImgDataP
         buffer are not necessarily in the correct order. This function computes the
         correct order of frames.
         """
-        n_frames = image_data.shape[0]
+        n_frames = self.dereference_index(
+            self["Resource"]["ImageBuffer"]["numFrames"], buffer_index
+        )
+        n_frames = self.cast_to_integer(n_frames)
         try:
             first_frame = self.dereference_index(
                 self["Resource"]["ImageBuffer"]["firstFrame"], buffer_index
-            )[()].item()
+            )
             last_frame = self.dereference_index(
                 self["Resource"]["ImageBuffer"]["lastFrame"], buffer_index
-            )[()].item()
-            first_frame = int(first_frame)
-            last_frame = int(last_frame)
-            first_frame -= 1  # make 0-based
-            last_frame -= 1  # make 0-based
+            )
+            first_frame = self.cast_to_integer(first_frame) - 1  # make 0-based
+            last_frame = self.cast_to_integer(last_frame) - 1  # make 0-based
             indices = np.arange(first_frame, first_frame + n_frames) % n_frames
             assert indices[-1] == last_frame, (
                 "The last frame index does not match the expected last frame index."
@@ -855,7 +866,7 @@ class VerasonicsFile(h5py.File):
             image_data = np.expand_dims(image_data, axis=0)
 
         # Re-order images such that sequence is correct
-        indices = self.get_image_data_p_frame_order(image_data, buffer_index)
+        indices = self.get_image_data_p_frame_order(buffer_index)
         image_data = image_data[indices, :, :]
 
         # Normalize and log-compress the image data
@@ -864,7 +875,7 @@ class VerasonicsFile(h5py.File):
         image_data = ops.convert_to_numpy(image_data)
 
         # Select only the requested frames
-        frame_indices = self.get_frame_indices(frames)
+        frame_indices = self.get_frame_indices(frames, buffer_index)
         image_data = image_data[frame_indices]
 
         return image_data
@@ -883,7 +894,12 @@ class VerasonicsFile(h5py.File):
         return element_width
 
     def read_verasonics_file(
-        self, event=None, additional_functions=None, frames="all", allow_accumulate=False
+        self,
+        event=None,
+        additional_functions=None,
+        frames="all",
+        allow_accumulate=False,
+        buffer_index=0,
     ):
         """Reads data from a .mat Verasonics output file.
 
@@ -893,13 +909,21 @@ class VerasonicsFile(h5py.File):
             additional_functions (list, optional): A list of functions that read additional
                 data from the file. Each function should take the file as input and return a
                 `DatasetElement`. Defaults to None.
+            frames (str or list of int, optional): The frames to add to the file. This can be
+                a list of integers, a range of integers (e.g. 4-8), or 'all'. Defaults to
+                'all'.
+            allow_accumulate (bool, optional): Sometimes, some transmits are already accumulated
+                on the Verasonics system (e.g. harmonic imaging through pulse inversion).
+                In this case, the mode in the Receive structure is set to 1 (accumulate).
+                If this flag is set to False, an error is raised when such a mode is detected.
+            buffer_index (int, optional): The buffer index to read from. Defaults to 0.
         """
 
         if additional_functions is None:
             additional_functions = []
 
         tx_order, rcv_order, time_to_next_transmit = self.read_transmit_events(
-            frames=frames, allow_accumulate=allow_accumulate
+            frames=frames, allow_accumulate=allow_accumulate, buffer_index=buffer_index
         )
         initial_times = self.read_initial_times(rcv_order)
 
@@ -982,7 +1006,7 @@ class VerasonicsFile(h5py.File):
 
         return data
 
-    def get_frame_indices(self, frames):
+    def get_frame_indices(self, frames, buffer_index=0):
         """Creates a numpy array of frame indices from the file and the frames argument.
 
         Args:
@@ -992,15 +1016,14 @@ class VerasonicsFile(h5py.File):
             frame_indices (np.ndarray): The frame indices.
         """
         # Read the number of frames from the file
-        n_frames = int(
-            self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], 0)[:].item()
-        )
+        n_frames = self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], buffer_index)
+        n_frames = self.cast_to_integer(n_frames)
 
         if isinstance(frames, str) and frames == "all":
             # Create an array of all frame-indices
             frame_indices = np.arange(n_frames)
         else:
-            frame_indices = np.array(frames)
+            frame_indices = np.asarray(frames)
             frame_indices.sort()
 
         if np.any(frame_indices >= n_frames):
