@@ -130,6 +130,7 @@ class Scan(Parameters):
         tx_apodizations (np.ndarray): Transmit apodizations of shape (n_tx, n_el).
         focus_distances (np.ndarray): Distance from the origin point on the transducer to where the
             beam comes to focus for each transmit in meters of shape (n_tx,).
+        transmit_origins (np.ndarray): Transmit origins of shape (n_tx, 3).
         initial_times (np.ndarray): Initial times in seconds for each event of shape (n_tx,).
         bandwidth_percent (float, optional): Bandwidth as percentage of center
             frequency. Defaults to 200.0.
@@ -214,6 +215,7 @@ class Scan(Parameters):
         "t0_delays": {"type": np.ndarray},
         "tx_apodizations": {"type": np.ndarray},
         "focus_distances": {"type": np.ndarray},
+        "transmit_origins": {"type": np.ndarray},
         "initial_times": {"type": np.ndarray},
         "time_to_next_transmit": {"type": np.ndarray},
         "tgc_gain_curve": {"type": np.ndarray},
@@ -560,6 +562,16 @@ class Scan(Parameters):
         if value is None:
             log.warning("No focus distances provided, using zeros")
             return np.zeros(self.n_tx)
+
+        return value[self.selected_transmits]
+
+    @cache_with_dependencies("selected_transmits", "n_tx")
+    def transmit_origins(self):
+        """Transmit origins of shape (n_tx, 3)."""
+        value = self._params.get("transmit_origins")
+        if value is None:
+            log.warning("No transmit origins provided, using zeros")
+            return np.zeros((self.n_tx, 3))
 
         return value[self.selected_transmits]
 

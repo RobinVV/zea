@@ -62,7 +62,7 @@ def tof_correction(
     focus_distances,
     t_peak,
     tx_waveform_indices,
-    origins,
+    transmit_origins,
     apply_lens_correction=False,
     lens_thickness=1e-3,
     lens_sound_speed=1000,
@@ -88,6 +88,7 @@ def tof_correction(
             Shape `(n_waveforms,)`.
         tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
             transmit of shape `(n_tx,)`.
+        transmit_origins (ops.Tensor): Transmit origins of shape (n_tx, 3).
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             time-of-flights. This makes it slower, but more accurate in the near-field.
             Defaults to False.
@@ -135,7 +136,7 @@ def tof_correction(
         polar_angles,
         t_peak,
         tx_waveform_indices,
-        origins,
+        transmit_origins,
         apply_lens_correction,
         lens_thickness,
         lens_sound_speed,
@@ -209,7 +210,7 @@ def calculate_delays(
     polar_angles,
     t_peak,
     tx_waveform_indices,
-    origins,
+    transmit_origins,
     apply_lens_correction=False,
     lens_thickness=None,
     lens_sound_speed=None,
@@ -248,6 +249,7 @@ def calculate_delays(
             `(n_waveforms,)`.
         tx_waveform_indices (Tensor): The indices of the waveform used for each
             transmit of shape `(n_tx,)`.
+        transmit_origins (Tensor): Transmit origins of shape (n_tx, 3).
         apply_lens_correction (bool, optional): Whether to apply lens correction to
             time-of-flights. This makes it slower, but more accurate in the near-field.
             Defaults to False.
@@ -304,7 +306,7 @@ def calculate_delays(
         polar_angles,
         initial_times,
         None,
-        origins,
+        transmit_origins,
     )
 
     # Add the offset to the transmit peak time
@@ -471,7 +473,7 @@ def transmit_delays(
     polar_angle,
     initial_time,
     azimuth_angle=None,
-    origin=None,
+    transmit_origin=None,
 ):
     """
     Computes the transmit delay from transmission to each pixel in the grid.
@@ -492,7 +494,7 @@ def transmit_delays(
         polar_angle (float): The polar angle in radians.
         initial_time (float): The initial time for this transmit in seconds.
         azimuth_angle (float, optional): The azimuth angle in radians. Defaults to 0.0.
-        origin (ops.Tensor, optional): The origin of the transmit beam of shape (3,).
+        transmit_origin (ops.Tensor, optional): The origin of the transmit beam of shape (3,).
             If None, defaults to (0, 0, 0). Defaults to None.
 
     Returns:
@@ -521,12 +523,12 @@ def transmit_delays(
     )
 
     # Set origin to (0, 0, 0) if not provided
-    if origin is None:
-        origin = ops.zeros(3, dtype=grid.dtype)
+    if transmit_origin is None:
+        transmit_origin = ops.zeros(3, dtype=grid.dtype)
 
     # Compute focal point position: origin + focus_distance * beam_direction
     # For negative focus_distance (diverging/virtual source), this is behind the origin
-    focal_point = origin + focus_distance * beam_direction  # shape (3,)
+    focal_point = transmit_origin + focus_distance * beam_direction  # shape (3,)
 
     # Compute the position of each pixel relative to the focal point
     pixel_relative_to_focus = grid - focal_point[None, :]  # shape (n_pix, 3)

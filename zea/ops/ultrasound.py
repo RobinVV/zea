@@ -121,7 +121,7 @@ class TOFCorrection(Operation):
         probe_geometry,
         t_peak,
         tx_waveform_indices,
-        origins,
+        transmit_origins,
         apply_lens_correction=None,
         lens_thickness=None,
         lens_sound_speed=None,
@@ -145,6 +145,7 @@ class TOFCorrection(Operation):
             t_peak (float): Time to peak of the transmit pulse
             tx_waveform_indices (ops.Tensor): Index of the transmit waveform for each
                 transmit. (All zero if there is only one waveform)
+            transmit_origins (ops.Tensor): Transmit origins of shape (n_tx, 3)
             apply_lens_correction (bool): Whether to apply lens correction
             lens_thickness (float): Lens thickness
             lens_sound_speed (float): Sound speed in the lens
@@ -169,7 +170,7 @@ class TOFCorrection(Operation):
             "focus_distances": focus_distances,
             "t_peak": t_peak,
             "tx_waveform_indices": tx_waveform_indices,
-            "origins": origins,
+            "transmit_origins": transmit_origins,
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,

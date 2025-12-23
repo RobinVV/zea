@@ -203,6 +203,7 @@ def _write_datasets(
     t0_delays=None,
     tx_apodizations=None,
     focus_distances=None,
+    transmit_origins=None,
     polar_angles=None,
     azimuth_angles=None,
     bandwidth_percent=None,
@@ -262,7 +263,9 @@ def _write_datasets(
     if n_ch is None:
         n_ch = _first_not_none_shape([raw_data, aligned_data, beamformed_data], axis=-1)
     if n_tx is None:
-        n_tx = _first_not_none_shape([t0_delays, focus_distances, polar_angles], axis=0)
+        n_tx = _first_not_none_shape(
+            [t0_delays, focus_distances, polar_angles, transmit_origins], axis=0
+        )
     if n_el is None:
         n_el = _first_not_none_shape([t0_delays], axis=1)
     if n_el is None:
@@ -449,6 +452,18 @@ def _write_datasets(
 
     _add_dataset(
         group_name=scan_group_name,
+        name="transmit_origins",
+        data=transmit_origins,
+        description=(
+            "The transmit origins in meters of the transmit beams "
+            "of shape (n_tx, 3). This is the (x, y, z) position "
+            "from which the beam is transmitted."
+        ),
+        unit="m",
+    )
+
+    _add_dataset(
+        group_name=scan_group_name,
         name="polar_angles",
         data=polar_angles,
         description=("The polar angles of the transmit beams in radians of shape (n_tx,)."),
@@ -578,6 +593,7 @@ def generate_zea_dataset(
     probe_name=None,
     description="No description was supplied",
     focus_distances=None,
+    transmit_origins=None,
     polar_angles=None,
     azimuth_angles=None,
     tx_apodizations=None,
@@ -621,6 +637,7 @@ def generate_zea_dataset(
         probe_name (str): The name of the probe.
         description (str): The description of the dataset.
         focus_distances (np.ndarray): The focus distances of shape (n_tx, n_el).
+        transmit_origins (np.ndarray): The transmit origins of shape (n_tx, 3).
         polar_angles (np.ndarray): The polar angles (radians) of shape (n_el,).
         azimuth_angles (np.ndarray): The azimuth angles (radians) of shape (n_tx,).
         tx_apodizations (np.ndarray): The transmit delays for each element defining
@@ -677,6 +694,7 @@ def generate_zea_dataset(
         "probe_name": probe_name,
         "description": description,
         "focus_distances": focus_distances,
+        "transmit_origins": transmit_origins,
         "polar_angles": polar_angles,
         "azimuth_angles": azimuth_angles,
         "tx_apodizations": tx_apodizations,

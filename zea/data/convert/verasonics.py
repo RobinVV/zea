@@ -710,6 +710,20 @@ class VerasonicsFile(h5py.File):
 
         return focus_distances
 
+    def read_transmit_origins(self, tx_order, event=None):
+        origins = []
+        for n in tx_order:
+            if event is None:
+                origin = self.dereference_index(self["TX"]["Origin"], n)[:].item()
+            else:
+                origin = self.dereference_index(self["TX_Agent"]["Origin"], n, event)[:].item()
+            origins.append(origin)
+
+        # Convert origins from wavelengths to meters
+        origins = np.stack(origins) * self.wavelength
+
+        return origins
+
     @property
     def _probe_geometry_is_ordered_ula(self):
         """Checks if the probe geometry is ordered as a uniform linear array (ULA)."""
@@ -947,6 +961,7 @@ class VerasonicsFile(h5py.File):
         azimuth_angles = self.read_azimuth_angles(tx_order, event)
         t0_delays, tx_apodizations = self.read_t0_delays_apod(tx_order, event)
         focus_distances = self.read_focus_distances(tx_order, event)
+        transmit_origins = self.read_transmit_origins(tx_order, event)
 
         tx_waveform_indices, waveforms_one_way_list, waveforms_two_way_list = self.read_waveforms(
             tx_order, event
@@ -1003,6 +1018,7 @@ class VerasonicsFile(h5py.File):
             "initial_times": initial_times,
             "probe_name": self.probe_name,
             "focus_distances": focus_distances,
+            "transmit_origins": transmit_origins,
             "tx_waveform_indices": tx_waveform_indices,
             "waveforms_one_way": waveforms_one_way_list,
             "waveforms_two_way": waveforms_two_way_list,
