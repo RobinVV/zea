@@ -909,9 +909,10 @@ class ApplyWindow(Operation):
         Args:
             axis (int): Axis along which to apply the window.
             size (int): Size of the window to apply at the start and end regions.
-            start (int): Number of samples to zero out at the beginning of the axis.
-            end (int): Number of samples to zero out at the end of the axis. If
-                negative, counts from the end of the axis.
+            start (int): Index to stop zeroing out at the beginning of the axis. If 0, no zeroing
+                at the beginning.
+            end (int): Index to start zeroing out at the end of the axis. If -1, no zeroing at the
+                end.
             window_type (str): Type of window to apply. Supported types are "hanning" and "linear".
         """
         super().__init__(**kwargs)
