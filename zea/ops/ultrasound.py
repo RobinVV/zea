@@ -904,7 +904,7 @@ class ApplyWindow(Operation):
 
     STATIC_PARAMS = ["axis", "size", "window_type", "start", "end"]
 
-    def __init__(self, axis=-3, size=64, start=16, end=-1, window_type="hanning", **kwargs):
+    def __init__(self, axis=-3, size=32, start=16, end=-1, window_type="hanning", **kwargs):
         """
         Args:
             axis (int): Axis along which to apply the window.
