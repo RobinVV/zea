@@ -441,7 +441,8 @@ def _write_datasets(
         data=focus_distances,
         description=(
             "The transmit focus distances in meters of "
-            "shape (n_tx,). For planewaves this is set to Inf."
+            "shape (n_tx,). This is the distance from the origin point on the transducer to where "
+            "the beam comes to focus. For planewaves this is set to Inf."
         ),
         unit="m",
     )

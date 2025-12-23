@@ -108,7 +108,7 @@ The ``zea`` toolbox uses a custom data format based on the HDF5 standard to stor
    * - ``scan/tx_apodizations``
      - Transmit apodization values, shape [n_tx, n_el].
    * - ``scan/focus_distances``
-     - Transmit focus distances in meters, shape [n_tx].
+     - Distance from the origin point on the transducer to where the beam comes to focus for each transmit, in meters, shape [n_tx].
    * - ``scan/polar_angles``
      - Polar angles of transmit beams in radians, shape [n_tx].
    * - ``scan/azimuth_angles``

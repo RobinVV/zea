@@ -128,7 +128,8 @@ class Scan(Parameters):
         t0_delays (np.ndarray): Transmit delays in seconds of
             shape (n_tx, n_el), shifted such that the smallest delay is 0.
         tx_apodizations (np.ndarray): Transmit apodizations of shape (n_tx, n_el).
-        focus_distances (np.ndarray): Focus distances in meters for each event of shape (n_tx,).
+        focus_distances (np.ndarray): Distance from the origin point on the transducer to where the
+            beam comes to focus for each transmit in meters of shape (n_tx,).
         initial_times (np.ndarray): Initial times in seconds for each event of shape (n_tx,).
         bandwidth_percent (float, optional): Bandwidth as percentage of center
             frequency. Defaults to 200.0.
