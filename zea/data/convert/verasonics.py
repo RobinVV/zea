@@ -798,23 +798,20 @@ class VerasonicsFile(h5py.File):
 
         return gain_curve
 
-    def get_image_data_p_frame_order(self, image_data: np.ndarray):
+    def get_image_data_p_frame_order(self, image_data: np.ndarray, buffer_index=0):
         """The order of frames in the ImgDataP buffer.
 
         Because of the circular buffer used in Verasonics, the frames in the ImgDataP
         buffer are not necessarily in the correct order. This function computes the
         correct order of frames.
-
-        Uses the first buffer, so does not support multiple buffers.
         """
-        FIRST_BUFFER = 0
         n_frames = image_data.shape[0]
         try:
             first_frame = self.dereference_index(
-                self["Resource"]["ImageBuffer"]["firstFrame"], FIRST_BUFFER
+                self["Resource"]["ImageBuffer"]["firstFrame"], buffer_index
             )[()].item()
             last_frame = self.dereference_index(
-                self["Resource"]["ImageBuffer"]["lastFrame"], FIRST_BUFFER
+                self["Resource"]["ImageBuffer"]["lastFrame"], buffer_index
             )[()].item()
             first_frame = int(first_frame)
             last_frame = int(last_frame)
@@ -832,7 +829,7 @@ class VerasonicsFile(h5py.File):
             )
             return np.arange(n_frames)
 
-    def read_image_data_p(self, event=None, frames="all"):
+    def read_image_data_p(self, event=None, frames="all", buffer_index=0):
         """Reads the image data from the file.
 
         Uses the ``ImgDataP`` buffer, which is used for spatial filtering
@@ -849,7 +846,7 @@ class VerasonicsFile(h5py.File):
             return None
 
         # Get the dataset reference
-        image_data_ref = self["ImgDataP"][:].item()
+        image_data_ref = self["ImgDataP"][:].squeeze()[buffer_index]
         # Dereference the dataset
         if event is None:
             image_data = self[image_data_ref][:]
@@ -858,7 +855,7 @@ class VerasonicsFile(h5py.File):
             image_data = np.expand_dims(image_data, axis=0)
 
         # Re-order images such that sequence is correct
-        indices = self.get_image_data_p_frame_order(image_data)
+        indices = self.get_image_data_p_frame_order(image_data, buffer_index)
         image_data = image_data[indices, :, :]
 
         # Normalize and log-compress the image data
