@@ -557,8 +557,8 @@ def test_beamformers(beamformer, expected_shape):
 @pytest.mark.parametrize(
     "axis, size, start, end, window_type",
     [
-        (0, 64, 64, -32, "hanning"),
-        (1, 32, 32, -16, "linear"),
+        (0, 64, 64, 32, "hanning"),
+        (1, 32, 32, 16, "linear"),
     ],
 )
 def test_apply_window(axis, size, start, end, window_type):
