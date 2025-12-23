@@ -731,17 +731,18 @@ class Scan(Parameters):
         Uses the time it took to do all transmits (per frame). So if you only use some portion
         of the transmits, the fps will still be calculated based on all.
         """
-        if self.time_to_next_transmit is None:
+        time_to_next_transmit = self._params.get("time_to_next_transmit")
+        if time_to_next_transmit is None:
             log.warning("Time to next transmit is not set, cannot compute fps")
             return None
 
         # Check if fps is constant
-        uniq = np.unique(self.time_to_next_transmit, axis=0)  # frame axis
+        uniq = np.unique(time_to_next_transmit, axis=0)  # frame axis
         if uniq.shape[0] != 1:
             log.warning("Time to next transmit is not constant")
 
         # Compute fps
-        time = np.mean(np.sum(self.time_to_next_transmit, axis=1))
+        time = np.mean(np.sum(time_to_next_transmit, axis=1))
         fps = 1 / time
         return fps
 
