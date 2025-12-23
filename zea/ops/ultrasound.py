@@ -904,26 +904,34 @@ class ApplyWindow(Operation):
 
     STATIC_PARAMS = ["axis", "size", "window_type", "start", "end"]
 
-    def __init__(self, axis=-3, size=32, start=16, end=-1, window_type="hanning", **kwargs):
+    def __init__(self, axis=-3, size=32, start=16, end=0, window_type="hanning", **kwargs):
         """
         Args:
             axis (int): Axis along which to apply the window.
             size (int): Size of the window to apply at the start and end regions.
-            start (int): Index to stop zeroing out at the beginning of the axis. If 0, no zeroing
-                at the beginning.
-            end (int): Index to start zeroing out at the end of the axis. If -1, no zeroing at the
-                end.
+            start (int): Number of elements to zero at the end.
+            end (int): Number of elements to zero at the end.
             window_type (str): Type of window to apply. Supported types are "hanning" and "linear".
         """
         super().__init__(**kwargs)
         self.axis = axis
-        self.size = size
-        self.start = start
-        self.end = end
+        self.size = int(size)
+        self.start = int(start)
+        self.end = int(end)
+        self._check_inputs()
         self.window_type = window_type
         self.window = self._get_window(self.window_type, size, "float32")
 
-    def _get_window(self, window_type, size, dtype):
+    def _check_inputs(self):
+        if self.start < 0:
+            raise ValueError("start must be >= 0.")
+        if self.end < 0:
+            raise ValueError("end must be >= 0.")
+        if self.size < 0:
+            raise ValueError("size must be >= 0.")
+
+    @staticmethod
+    def _get_window(window_type, size, dtype):
         if window_type == "hanning":
             window = ops.hanning(size * 2)
         elif window_type == "linear":
@@ -940,24 +948,20 @@ class ApplyWindow(Operation):
         axis = canonicalize_axis(self.axis, ops.ndim(data))
 
         length = ops.shape(data)[axis]
-        start = canonicalize_axis(self.start, length)
-        end = canonicalize_axis(self.end, length)
 
-        if end < start:
-            raise ValueError("end must be >= start.")
-        if not self.size * 2 + self.start < end:
-            raise ValueError("size and start are too large for the given end position.")
+        if self.start + self.size * 2 + self.end > length:
+            raise ValueError("start, size, and end are larger than the axis length.")
 
         window = ops.cast(self.window, dtype)
 
         ones = ops.ones((length,), dtype=dtype)
         mask = ops.concatenate(
             [
-                ops.zeros((start,), dtype=dtype),
+                ops.zeros((self.start,), dtype=dtype),
                 window[: self.size],
-                ones[self.size + start : end - self.size],
+                ones[self.size + self.start : -(self.end + self.size)],
                 window[self.size :],
-                ops.zeros((length - end,), dtype=dtype),
+                ops.zeros((self.end,), dtype=dtype),
             ],
             axis=0,
         )
