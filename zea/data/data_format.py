@@ -235,7 +235,7 @@ def _write_datasets(
         if data is None:
             return
 
-        data = np.array(data)
+        data = np.asarray(data)
 
         # Create the group if it does not exist
         if group_name not in dataset:
@@ -648,7 +648,8 @@ def generate_zea_dataset(
             to False if storing images.
         overwrite (bool): Whether to overwrite the file if it already exists. Defaults to False.
         enable_compression (bool): Whether to enable gzip compression for datasets.
-            Defaults to True.
+            Defaults to True. Compression reduces disk space at the cost of increased
+            write time.
 
     """
     # check if all args are lists
