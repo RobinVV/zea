@@ -571,7 +571,7 @@ def test_apply_window(axis, size, start, end, window_type):
     data_out = operation(data=data)["data"]
     if axis == 0:
         assert data_out[:start, :, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
-        assert data_out[end:, :, :].numpy().sum() == 0.0, "End region not zeroed correctly."
+        assert data_out[-end:, :, :].numpy().sum() == 0.0, "End region not zeroed correctly."
     elif axis == 1:
         assert data_out[:, :start, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
-        assert data_out[:, end:, :].numpy().sum() == 0.0, "End region not zeroed correctly."
+        assert data_out[:, -end:, :].numpy().sum() == 0.0, "End region not zeroed correctly."
