@@ -942,10 +942,10 @@ class ApplyWindow(Operation):
         start = canonicalize_axis(self.start, length)
         end = canonicalize_axis(self.end, length)
 
-        assert start <= end, "start must be <= than end."
-        assert self.size * 2 + self.start < end, (
-            "size and start are too large for the given end position."
-        )
+        if end < start:
+            raise ValueError("end must be >= start.")
+        if not self.size * 2 + self.start < end:
+            raise ValueError("size and start are too large for the given end position.")
 
         window = self.window
 
