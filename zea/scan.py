@@ -245,6 +245,7 @@ class Scan(Parameters):
     @cache_with_dependencies(
         "xlims",
         "zlims",
+        "ylims",
         "grid_size_x",
         "grid_size_z",
         "sound_speed",
