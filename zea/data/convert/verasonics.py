@@ -711,13 +711,21 @@ class VerasonicsFile(h5py.File):
         return focus_distances
 
     def read_transmit_origins(self, tx_order, event=None):
+        """Reads the transmit origins from the file.
+
+        Args:
+            tx_order (list): The order in which the transmits appear in the events.
+
+        Returns:
+            origins (np.ndarray): The transmit origins of shape (n_tx, 3) in meters.
+        """
         origins = []
         for n in tx_order:
             if event is None:
-                origin = self.dereference_index(self["TX"]["Origin"], n)[:].item()
+                origin = self.dereference_index(self["TX"]["Origin"], n)
             else:
-                origin = self.dereference_index(self["TX_Agent"]["Origin"], n, event)[:].item()
-            origins.append(origin)
+                origin = self.dereference_index(self["TX_Agent"]["Origin"], n, event)
+            origins.append(origin.squeeze())
 
         # Convert origins from wavelengths to meters
         origins = np.stack(origins) * self.wavelength
