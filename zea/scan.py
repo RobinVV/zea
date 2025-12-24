@@ -92,7 +92,6 @@ from zea.display import (
     compute_scan_convert_2d_coordinates,
     compute_scan_convert_3d_coordinates,
 )
-from zea.internal.core import DEFAULT_DYNAMIC_RANGE
 from zea.internal.parameters import Parameters, cache_with_dependencies
 
 
@@ -191,7 +190,7 @@ class Scan(Parameters):
         "lens_thickness": {"type": float},
         "grid_type": {"type": str, "default": "cartesian"},
         "polar_limits": {"type": (tuple, list)},
-        "dynamic_range": {"type": (tuple, list), "default": DEFAULT_DYNAMIC_RANGE},
+        "dynamic_range": {"type": (tuple, list)},
         "selected_transmits": {"type": (type(None), str, int, list, slice, np.ndarray)},
         # acquisition parameters
         "sound_speed": {"type": float, "default": 1540.0},
