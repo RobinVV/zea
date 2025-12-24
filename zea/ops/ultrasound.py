@@ -334,31 +334,24 @@ class Demodulate(Operation):
             input_data_type=DataTypes.RAW_DATA,
             output_data_type=DataTypes.RAW_DATA,
             jittable=True,
-            additional_output_keys=[
-                "demodulation_frequency",
-                "center_frequency",
-                "n_ch",
-            ],
+            additional_output_keys=["center_frequency", "n_ch"],
             **kwargs,
         )
         self.axis = axis
 
-    def call(self, center_frequency=None, sampling_frequency=None, **kwargs):
+    def call(self, demodulation_frequency=None, sampling_frequency=None, **kwargs):
         data = kwargs[self.key]
-
-        demodulation_frequency = center_frequency
 
         # Split the complex signal into two channels
         iq_data_two_channel = demodulate(
             data=data,
-            center_frequency=center_frequency,
+            demodulation_frequency=demodulation_frequency,
             sampling_frequency=sampling_frequency,
             axis=self.axis,
         )
 
         return {
             self.output_key: iq_data_two_channel,
-            "demodulation_frequency": demodulation_frequency,
             "center_frequency": 0.0,
             "n_ch": 2,
         }
@@ -815,12 +808,7 @@ class UpMix(Operation):
         )
         self.upsampling_rate = upsampling_rate
 
-    def call(
-        self,
-        sampling_frequency=None,
-        center_frequency=None,
-        **kwargs,
-    ):
+    def call(self, sampling_frequency=None, demodulation_frequency=None, **kwargs):
         data = kwargs[self.key]
 
         if data.shape[-1] == 1:
@@ -829,7 +817,7 @@ class UpMix(Operation):
         elif data.shape[-1] == 2:
             data = channels_to_complex(data)
 
-        data = upmix(data, sampling_frequency, center_frequency, self.upsampling_rate)
+        data = upmix(data, sampling_frequency, demodulation_frequency, self.upsampling_rate)
         data = ops.expand_dims(data, axis=-1)
         return {self.output_key: data}
 

@@ -108,12 +108,11 @@ class Scan(Parameters):
         sound_speed (float, optional): Speed of sound in the medium in m/s.
             Defaults to 1540.0.
         sampling_frequency (float): Sampling frequency in Hz.
-        center_frequency (float): Center frequency of the transducer in Hz.
-            When you use a different transmit frequency, make sure to update this value.
+        center_frequency (float): Transmit center frequency in Hz.
+        demodulation_frequency (float, optional): Demodulation frequency in Hz.
         n_el (int): Number of elements in the transducer array.
         n_tx (int): Number of transmit events in the dataset.
         n_ax (int): Number of axial samples in the received signal.
-        n_ch (int, optional): Number of channels (1 for RF, 2 for IQ data).
         xlims (tuple of float): Lateral (x) limits of the imaging region in
             meters (min, max).
         ylims (tuple of float, optional): Elevation (y) limits of the imaging
@@ -134,7 +133,6 @@ class Scan(Parameters):
         initial_times (np.ndarray): Initial times in seconds for each event of shape (n_tx,).
         bandwidth_percent (float, optional): Bandwidth as percentage of center
             frequency. Defaults to 200.0.
-        demodulation_frequency (float, optional): Demodulation frequency in Hz.
         time_to_next_transmit (np.ndarray): The time between subsequent
             transmit events of shape (n_frames, n_tx).
         tgc_gain_curve (np.ndarray): Time gain compensation (TGC) curve of shape (n_ax,).
@@ -202,7 +200,6 @@ class Scan(Parameters):
         "n_el": {"type": int},
         "n_tx": {"type": int},
         "n_ax": {"type": int},
-        "n_ch": {"type": int},
         "bandwidth_percent": {"type": float, "default": 200.0},
         "demodulation_frequency": {"type": float},
         "element_width": {"type": float},
@@ -335,7 +332,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("sound_speed", "center_frequency")
     def wavelength(self):
-        """Calculate the wavelength based on sound speed and center frequency."""
+        """Calculate the wavelength based on sound speed and transmit center frequency."""
         return self.sound_speed / self.center_frequency
 
     @cache_with_dependencies("zlims", "polar_limits", "probe_geometry")
@@ -500,14 +497,13 @@ class Scan(Parameters):
 
         raise ValueError(f"Unsupported selection type: {type(selection)}")
 
-    @cache_with_dependencies("n_ch", "center_frequency")
+    @cache_with_dependencies("center_frequency")
     def demodulation_frequency(self):
-        """The demodulation frequency."""
+        """The demodulation frequency in Hz."""
         if self._params.get("demodulation_frequency") is not None:
             return self._params["demodulation_frequency"]
 
-        # Default behavior based on n_ch
-        return self.center_frequency if self.n_ch == 2 else 0.0
+        return self.center_frequency
 
     @cache_with_dependencies("selected_transmits")
     def polar_angles(self):
@@ -655,7 +651,7 @@ class Scan(Parameters):
         """Compute or return the pressure field (pfield) for weighting."""
         pfield = compute_pfield(
             sound_speed=self.sound_speed,
-            center_frequency=self.center_frequency,
+            center_frequency=self.center_frequency,  # TODO: or demodulation_frequency?
             bandwidth_percent=self.bandwidth_percent,
             n_el=self.n_el,
             probe_geometry=self.probe_geometry,

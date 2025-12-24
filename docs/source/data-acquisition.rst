@@ -47,6 +47,7 @@ The ``zea`` toolbox uses a custom data format based on the HDF5 standard to stor
          ├── probe_geometry
          ├── sampling_frequency
          ├── center_frequency
+         ├── demodulation_frequency
          ├── initial_times
          ├── t0_delays
          ├── tx_apodizations
@@ -100,7 +101,9 @@ The ``zea`` toolbox uses a custom data format based on the HDF5 standard to stor
    * - ``scan/sampling_frequency``
      - Sampling frequency of the data acquisition (in Hz).
    * - ``scan/center_frequency``
-     - Center frequency of the transducer (in Hz).
+     - Center frequency of the transmit waveform in Hz.
+   * - ``scan/demodulation_frequency``
+     - The demodulation frequency of the data in Hz. This is the assumed center frequency of the transmit waveform used to demodulate the rf data to iq data.
    * - ``scan/initial_times``
      - Time (in seconds) when the A/D converter starts sampling for each transmit, shape [n_tx].
    * - ``scan/t0_delays``

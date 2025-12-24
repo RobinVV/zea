@@ -55,7 +55,7 @@ def compute_pfield(
 
     Args:
         sound_speed (float): Speed of sound in the medium.
-        center_frequency (float): Center frequency of the probe in Hz.
+        center_frequency (float): Center frequency of the transmit pulse in Hz.
         bandwidth_percent (float): Bandwidth of the probe, pulse-echo 6dB fractional bandwidth (%)
         n_el (int): Number of elements in the probe.
         probe_geometry (array): Geometry of the probe elements.

@@ -11,7 +11,7 @@ from zea.func.tensor import (
 def demodulate_not_jitable(
     rf_data,
     sampling_frequency=None,
-    center_frequency=None,
+    demodulation_frequency=None,
     bandwidth=None,
     filter_coeff=None,
 ):
@@ -29,8 +29,7 @@ def demodulate_not_jitable(
             second to last axis is fast-time axis.
         sampling_frequency (float): the sampling frequency of the RF signals (in Hz).
             Only not necessary when filter_coeff is provided.
-        center_frequency (float, optional): represents the center frequency (in Hz).
-            Defaults to None.
+        demodulation_frequency (float, optional): Modulation frequency (in Hz).
         bandwidth (float, optional): Bandwidth of RF signal in % of center
             frequency. Defaults to None.
             The bandwidth in % is defined by:
@@ -67,7 +66,7 @@ def demodulate_not_jitable(
         t = t + t0
 
         # Estimate center frequency
-        if center_frequency is None:
+        if demodulation_frequency is None:
             # Keep a maximum of 100 randomly selected scanlines
             idx = np.arange(n_el)
             if n_el > 100:
@@ -80,19 +79,19 @@ def demodulate_not_jitable(
             P = P[: n_ax // 2]
             # Carrier frequency
             idx = np.sum(np.arange(n_ax // 2) * P) / np.sum(P)
-            center_frequency = idx * sampling_frequency / n_ax
+            demodulation_frequency = idx * sampling_frequency / n_ax
 
         # Normalized cut-off frequency
         if bandwidth is None:
-            Wn = min(2 * center_frequency / sampling_frequency, 0.5)
-            bandwidth = center_frequency * Wn
+            Wn = min(2 * demodulation_frequency / sampling_frequency, 0.5)
+            bandwidth = demodulation_frequency * Wn
         else:
             assert np.isscalar(bandwidth), "The signal bandwidth (in %) must be a scalar."
             assert (bandwidth > 0) & (bandwidth <= 200), (
                 "The signal bandwidth (in %) must be within the interval of ]0,200]."
             )
             # bandwidth in Hz
-            bandwidth = center_frequency * bandwidth / 100
+            bandwidth = demodulation_frequency * bandwidth / 100
             Wn = bandwidth / sampling_frequency
         assert (Wn > 0) & (Wn <= 1), (
             "The normalized cutoff frequency is not within the interval of (0,1). "
@@ -100,7 +99,7 @@ def demodulate_not_jitable(
         )
 
         # Down-mixing of the RF signals
-        carrier = np.exp(-1j * 2 * np.pi * center_frequency * t)
+        carrier = np.exp(-1j * 2 * np.pi * demodulation_frequency * t)
         # add the singleton dimensions
         carrier = np.reshape(carrier, (*[1] * (n_dim - 2), n_ax, 1))
         iq_data = rf_data * carrier
@@ -114,10 +113,10 @@ def demodulate_not_jitable(
 
         # Display a warning message if harmful aliasing is suspected
         # the RF signal is undersampled
-        if sampling_frequency < (2 * center_frequency + bandwidth):
+        if sampling_frequency < (2 * demodulation_frequency + bandwidth):
             # lower and higher frequencies of the bandpass signal
-            fL = center_frequency - bandwidth / 2
-            fH = center_frequency + bandwidth / 2
+            fL = demodulation_frequency - bandwidth / 2
+            fH = demodulation_frequency + bandwidth / 2
             n = fH // (fH - fL)
             harmless_aliasing = any(
                 (2 * fH / np.arange(1, n) <= sampling_frequency)
@@ -135,7 +134,7 @@ def demodulate_not_jitable(
     return iq_data
 
 
-def upmix(iq_data, sampling_frequency, center_frequency, upsampling_rate=6):
+def upmix(iq_data, sampling_frequency, demodulation_frequency, upsampling_rate=6):
     """Upsamples and upmixes complex base-band signals (IQ) to RF.
 
     Args:
@@ -143,7 +142,7 @@ def upmix(iq_data, sampling_frequency, center_frequency, upsampling_rate=6):
             to last axis is fast-time axis.
         sampling_frequency (float): the sampling frequency of the input IQ signal (in Hz).
             resulting sampling_frequency of RF data is upsampling_rate times higher.
-        center_frequency (float, optional): represents the center frequency (in Hz).
+        demodulation_frequency (float, optional): modulation frequency (in Hz).
 
     Returns:
         rf_data (ndarray): output real valued rf data.
@@ -177,8 +176,8 @@ def upmix(iq_data, sampling_frequency, center_frequency, upsampling_rate=6):
 
     # Up-mixing of the IQ signals
     t = ops.cast(t, dtype="complex64")
-    center_frequency = ops.cast(center_frequency, dtype="complex64")
-    carrier = ops.exp(1j * 2 * np.pi * center_frequency * t)
+    demodulation_frequency = ops.cast(demodulation_frequency, dtype="complex64")
+    carrier = ops.exp(1j * 2 * np.pi * demodulation_frequency * t)
     carrier = ops.reshape(carrier, (*[1] * (n_dim - 2), n_ax_up, 1))
 
     rf_data = iq_data_upsampled * carrier
@@ -363,7 +362,7 @@ def hilbert(x, N: int = None, axis=-1):
     return x
 
 
-def demodulate(data, center_frequency, sampling_frequency, axis=-3):
+def demodulate(data, demodulation_frequency, sampling_frequency, axis=-3):
     """Demodulates the input data to baseband. The function computes the analytical
     signal (the signal with negative frequencies removed) and then shifts the spectrum
     of the signal to baseband by multiplying with a complex exponential. Where the
@@ -373,7 +372,7 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
 
     Args:
         data (ops.Tensor): The input data to demodulate of shape `(..., axis, ..., 1)`.
-        center_frequency (float): The center frequency of the signal.
+        demodulation_frequency (float): The center frequency of the signal.
         sampling_frequency (float): The sampling frequency of the signal.
         axis (int, optional): The axis along which to demodulate. Defaults to -3.
 
@@ -393,13 +392,18 @@ def demodulate(data, center_frequency, sampling_frequency, axis=-3):
     frequency_indices_shaped_like_rf = frequency_indices[indexing]
 
     # Cast to complex64
-    center_frequency = ops.cast(center_frequency, dtype="complex64")
+    demodulation_frequency = ops.cast(demodulation_frequency, dtype="complex64")
     sampling_frequency = ops.cast(sampling_frequency, dtype="complex64")
     frequency_indices_shaped_like_rf = ops.cast(frequency_indices_shaped_like_rf, dtype="complex64")
 
     # Shift to baseband
     phasor_exponent = (
-        -1j * 2 * np.pi * center_frequency * frequency_indices_shaped_like_rf / sampling_frequency
+        -1j
+        * 2
+        * np.pi
+        * demodulation_frequency
+        * frequency_indices_shaped_like_rf
+        / sampling_frequency
     )
     iq_data_signal_complex = analytical_signal * ops.exp(phasor_exponent)
 

@@ -317,11 +317,11 @@ def get_pulse_spectrum_fn(center_frequency, n_period=3.0):
     return spectrum_fn
 
 
-def get_transducer_bandwidth_fn(center_frequency, bandwidth):
+def get_transducer_bandwidth_fn(probe_center_frequency, bandwidth):
     """Computes the spectrum of a probe with a center frequency and bandwidth.
 
     Args:
-        center_frequency (float): The center frequency of the probe.
+        probe_center_frequency (float): The center frequency of the probe.
         bandwidth (float): The bandwidth of the probe.
 
     Returns
@@ -330,7 +330,7 @@ def get_transducer_bandwidth_fn(center_frequency, bandwidth):
     """
 
     def bandwidth_fn(f):
-        return hann_unnormalized(ops.abs(f) - center_frequency, bandwidth)
+        return hann_unnormalized(ops.abs(f) - probe_center_frequency, bandwidth)
 
     return bandwidth_fn
 

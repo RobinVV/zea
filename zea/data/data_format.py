@@ -393,7 +393,7 @@ def _write_datasets(
         group_name=scan_group_name,
         name="center_frequency",
         data=center_frequency,
-        description="The center frequency in Hz.",
+        description="The center frequency of the transmit pulse in Hz.",
         unit="Hz",
     )
 
@@ -627,7 +627,7 @@ def generate_zea_dataset(
             of shape (n_frames, output_size_z, output_size_x).
         probe_geometry (np.ndarray): The probe geometry of shape (n_el, 3).
         sampling_frequency (float): The sampling frequency in Hz.
-        center_frequency (float): The center frequency in Hz.
+        center_frequency (float): The center frequency of the transmit pulse in Hz.
         demodulation_frequency (float): The demodulation frequency in Hz.
         initial_times (list): The times when the A/D converter starts sampling
             in seconds of shape (n_tx,). This is the time between the first element

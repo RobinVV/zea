@@ -225,7 +225,7 @@ class VerasonicsFile(h5py.File):
     def wavelength(self):
         """Wavelength of the probe from the file in meters."""
 
-        return self.sound_speed / self.center_frequency
+        return self.sound_speed / self.probe_center_frequency
 
     def read_transmit_events(
         self, event=None, frames="all", allow_accumulate=False, buffer_index=0
@@ -624,10 +624,43 @@ class VerasonicsFile(h5py.File):
         return raw_data
 
     @property
-    def center_frequency(self):
+    def probe_center_frequency(self):
         """Center frequency of the probe from the file in Hz."""
 
         return self["Trans"]["frequency"][:].item() * 1e6
+
+    def read_center_frequency(self, waveform_index):
+        """Center frequency of the transmit from the file in Hz."""
+
+        tw_type = self.dereference_index(self["TW"]["type"], waveform_index)
+        tw_type = self.decode_string(tw_type)
+        if tw_type == "parametric":
+            center_freq, _, _, _ = self.dereference_index(
+                self["TW"]["Parameters"], waveform_index
+            ).squeeze()
+        else:
+            raise ValueError(
+                f"Unsupported waveform type '{tw_type}' for center frequency extraction."
+            )
+
+        return center_freq.item() * 1e6  # Convert MHz to Hz
+
+    def read_center_frequencies(self, tx_waveform_indices):
+        """Center frequencies of the transmits from the file in Hz."""
+
+        center_frequencies = []
+        for waveform_index in tx_waveform_indices:
+            center_frequency = self.read_center_frequency(waveform_index)
+            center_frequencies.append(center_frequency)
+
+        center_frequencies = np.stack(center_frequencies)
+        center_frequencies = np.unique(center_frequencies)
+        if center_frequencies.size != 1:
+            raise ValueError(
+                "Multiple center frequencies found in file: "
+                f"{center_frequencies}. We do not support this case at the moment."
+            )
+        return center_frequencies.item()
 
     @property
     def demodulation_frequency(self):
@@ -974,6 +1007,7 @@ class VerasonicsFile(h5py.File):
         tx_waveform_indices, waveforms_one_way_list, waveforms_two_way_list = self.read_waveforms(
             tx_order, event
         )
+        center_frequency = self.read_center_frequencies(tx_waveform_indices)
         focus_distances = self.planewave_focal_distance_to_inf(
             focus_distances, t0_delays, tx_apodizations
         )
@@ -1020,7 +1054,7 @@ class VerasonicsFile(h5py.File):
             "azimuth_angles": azimuth_angles,
             "bandwidth_percent": self.bandwidth_percent,
             "raw_data": raw_data,
-            "center_frequency": self.center_frequency,
+            "center_frequency": center_frequency,
             "demodulation_frequency": self.demodulation_frequency,
             "sound_speed": self.sound_speed,
             "initial_times": initial_times,

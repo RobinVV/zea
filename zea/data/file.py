@@ -300,7 +300,9 @@ class File(h5py.File):
                 log.warning(
                     f"We have detected that focus distances in '{self.path}' are "
                     "(probably) stored wavelengths. Please update your file! "
-                    "Converting to meters automatically for now."
+                    "Converting to meters automatically for now, but this assumes that "
+                    "`center_frequency` is the probe center frequency which is not always "
+                    "the case!"
                 )
                 assert "sound_speed" in scan_parameters, (
                     "Cannot convert focus distances from wavelengths to meters "
