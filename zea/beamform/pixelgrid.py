@@ -78,7 +78,7 @@ def radial_pixel_grid(rlims, dr, oris, dirs):
     The position along the ray is defined by its limits (rlims) and spacing (dr).
 
     Args:
-        rlims (tuple): Radial limits of pixel grid ([rmin, rmax])
+        rlims (tuple): Radial limits of pixel grid ([rmin, rmax]) with respect to each ray origin
         dr (float): Pixel spacing in radius
         oris (np.ndarray): Origin of each ray in Cartesian coordinates (x, y, z)
             with shape (nrays, 3)

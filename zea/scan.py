@@ -365,12 +365,19 @@ class Scan(Parameters):
             return [0, self.sound_speed * self.n_ax / self.sampling_frequency / 2]
         return zlims
 
-    @cache_with_dependencies("xlims", "zlims")
+    @cache_with_dependencies("grid", "grid_type", "distance_to_apex")
     def extent(self):
         """The extent of the beamforming grid in the format (xmin, xmax, zmax, zmin).
         Can be directly used with `plt.imshow(x, extent=scan.extent)` for visualization.
         """
-        return np.array([self.xlims[0], self.xlims[1], self.zlims[1], self.zlims[0]])
+        xlims = (self.grid[:, :, 0].min(), self.grid[:, :, 0].max())
+        zlims = (self.grid[:, :, 2].min(), self.grid[:, :, 2].max())
+
+        # For polar grids, adjust zlims to account for distance to apex
+        if self.grid_type == "polar":
+            zlims = (zlims[0] + self.distance_to_apex, zlims[1])
+
+        return np.array([xlims[0], xlims[1], zlims[1], zlims[0]])
 
     @cache_with_dependencies("grid")
     def flatgrid(self):
