@@ -416,6 +416,9 @@ class Scan(Parameters):
                 - None: Use all transmits
                 - "all": Use all transmits
                 - "center": Use only the center transmit
+                - "focused": Use only focused transmits
+                - "unfocused": Use only unfocused transmits
+                - "plane": Use only plane wave transmits
                 - int: Select this many evenly spaced transmits
                 - list/array: Use these specific transmit indices
                 - slice: Use transmits specified by the slice (e.g., slice(0, 10, 2))
@@ -449,6 +452,39 @@ class Scan(Parameters):
         # Handle "center" - use center transmit
         if selection == "center":
             self._selected_transmits = [n_tx_total // 2]
+            self._invalidate("selected_transmits")
+            return self
+
+        if selection == "focused":
+            value = self._params.get("focus_distances")
+            if value is None:
+                raise ValueError("No focus distances provided, cannot select focused transmits")
+            idx = np.where(value > 0)[0]
+            if len(idx) == 0:
+                raise ValueError("No focused transmits found.")
+            self._selected_transmits = idx
+            self._invalidate("selected_transmits")
+            return self
+
+        if selection == "unfocused":
+            value = self._params.get("focus_distances")
+            if value is None:
+                raise ValueError("No focus distances provided, cannot select unfocused transmits")
+            idx = np.where(value < 0)[0]
+            if len(idx) == 0:
+                raise ValueError("No unfocused transmits found.")
+            self._selected_transmits = idx
+            self._invalidate("selected_transmits")
+            return self
+
+        if selection == "plane":
+            value = self._params.get("focus_distances")
+            if value is None:
+                raise ValueError("No focus distances provided, cannot select plane wave transmits")
+            idx = np.concatenate([np.where(value == 0)[0], np.where(value == np.inf)[0]])
+            if len(idx) == 0:
+                raise ValueError("No plane wave transmits found.")
+            self._selected_transmits = idx
             self._invalidate("selected_transmits")
             return self
 
