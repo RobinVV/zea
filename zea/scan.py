@@ -241,7 +241,9 @@ class Scan(Parameters):
         if selected_transmits_input is not None:
             self.set_transmits(selected_transmits_input)
 
-    @cache_with_dependencies("xlims", "zlims", "grid_size_x", "grid_size_z", "grid_type")
+    @cache_with_dependencies(
+        "xlims", "ylims", "zlims", "grid_size_x", "grid_size_y", "grid_size_z", "grid_type", "is_3d"
+    )
     def grid(self):
         """The beamforming grid of shape (grid_size_z, grid_size_x, 3)."""
         if self.grid_type == "polar":
@@ -283,7 +285,6 @@ class Scan(Parameters):
         "ylims",
         "wavelength",
         "pixels_per_wavelength",
-        "grid_type",
     )
     def grid_size_y(self):
         """Grid height in pixels. For a cartesian grid, this is the vertical (y) pixels in the grid,
