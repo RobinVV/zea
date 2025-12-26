@@ -61,6 +61,7 @@ Example Usage
     ...     grid_size_z=256,
     ...     xlims=(-0.02, 0.02),
     ...     zlims=(0.0, 0.06),
+    ...     ylims=(0.0, 0.0),
     ...     center_frequency=6.25e6,
     ...     sound_speed=1540.0,
     ...     sampling_frequency=25e6,

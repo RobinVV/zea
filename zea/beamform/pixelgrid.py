@@ -118,13 +118,13 @@ def cartesian_pixel_grid(
         # meshgrid with z (first axis) and x (second axis) to get (nz, nx)
         z_grid, x_grid = np.meshgrid(z, x, indexing="ij")
         y_grid = np.zeros_like(x_grid)
-        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)  # (nz, nx, 3)
+        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)
         return grid
     else:
         # 3D: user requested output shape (grid_size_z, grid_size_x, grid_size_y, 3)
         # so we meshgrid in the order (z, x, y) which yields arrays with shape (nz, nx, ny)
         z_grid, x_grid, y_grid = np.meshgrid(z, x, y, indexing="ij")
-        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)  # (nz, nx, ny, 3)
+        grid = np.stack((x_grid, y_grid, z_grid), axis=-1)
         return grid
 
 
