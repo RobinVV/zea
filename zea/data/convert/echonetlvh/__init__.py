@@ -33,23 +33,28 @@ from zea.display import cartesian_to_polar_matrix
 from zea.func.tensor import translate
 
 
-def overwrite_splits(source_dir):
+def overwrite_splits(source_dir, rejection_path=None):
     """
-    Overwrite MeasurementsList.csv splits based on manual_rejections.txt
+    Overwrite MeasurementsList.csv splits based on manual_rejections.txt or another
+    txt file specifying which hashes to reject.
 
     Args:
         source_dir: Source directory containing MeasurementsList.csv and manual_rejections.txt
+        rejection_path: Path to the rejection txt file. If None, defaults to ./manual_rejections.txt
     Returns:
         None
     """
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    rejection_path = os.path.join(current_dir, "manual_rejections.txt")
+    if rejection_path is None:
+        rejection_path = os.path.join(current_dir, "manual_rejections.txt")
     try:
         with open(rejection_path) as f:
             rejected_hashes = [line.strip() for line in f]
     except FileNotFoundError:
         log.warning(f"{rejection_path} not found, skipping rejections.")
         return
+
+    expected_num_rejections = len(rejected_hashes)
 
     csv_path = Path(source_dir) / "MeasurementsList.csv"
     temp_path = Path(source_dir) / "MeasurementsList_temp.csv"
@@ -67,9 +72,9 @@ def overwrite_splits(source_dir):
                     row["split"] = "rejected"
                     rejection_counter += 1
                 writer.writerow(row)
-            # assert rejection_counter == 278, (
-            #     f"Expected 278 rejections, but applied only {rejection_counter}."
-            # )
+            assert rejection_counter == expected_num_rejections, (
+                f"Expected {expected_num_rejections} rejections, but applied only {rejection_counter}."
+            )
     except FileNotFoundError:
         log.warning(f"{csv_path} not found, skipping rejections.")
         return
