@@ -24,9 +24,7 @@ from zea.io_lib import _SUPPORTED_IMG_TYPES
 from .. import DEFAULT_TEST_SEED
 
 
-@pytest.mark.parametrize(
-    "dataset", ["echonet", "camus", "picmus", "verasonics"]
-)  # TODO: Does not test 'echonetlvh' yet!
+@pytest.mark.parametrize("dataset", ["echonet", "echonetlvh", "camus", "picmus", "verasonics"])
 @pytest.mark.heavy
 def test_conversion_script(tmp_path_factory, dataset):
     """
@@ -38,9 +36,11 @@ def test_conversion_script(tmp_path_factory, dataset):
     src = base / "src"
     dst = base / "dst"
 
-    create_test_data_for_dataset(dataset, src)
+    extra_args = create_test_data_for_dataset(dataset, src)
+
     subprocess.run(
-        [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst)],
+        [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst), *extra_args],
+        env=create_env_for_dataset(dataset),
         check=True,
         capture_output=True,
     )
@@ -76,22 +76,30 @@ def test_conversion_script(tmp_path_factory, dataset):
             )
 
 
+def create_env_for_dataset(dataset):
+    env = os.environ.copy()
+    if dataset == "echonetlvh":
+        env["KERAS_BACKEND"] = "jax"
+    return env
+
+
 def create_test_data_for_dataset(dataset, src):
     """
     Selects the function that generates test data based on the provided dataset
 
-    Args:
+    Args:x
         dataset (str): string containing name of the dataset
         src (Path): path to the source directory where test data will be created
 
     Raises:
         ValueError: If the dataset name is unknown
     """
+    extra_args = []
     os.mkdir(src)
     if dataset == "echonet":
         create_echonet_test_data(src)
     elif dataset == "echonetlvh":
-        create_echonetlvh_test_data(src)
+        extra_args = create_echonetlvh_test_data(src)
     elif dataset == "camus":
         create_camus_test_data(src)
     elif dataset == "picmus":
@@ -100,6 +108,7 @@ def create_test_data_for_dataset(dataset, src):
         create_verasonics_test_data(src)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
+    return extra_args
 
 
 def verify_converted_test_dataset(dataset, dst):
@@ -169,7 +178,173 @@ def create_echonet_test_data(src):
 
 
 def create_echonetlvh_test_data(src):
-    raise NotImplementedError("Test data generation for EchoNetLVH is not implemented yet.")
+    """
+    Creates test AVI files with scan cone structure for EchoNet-LVH dataset.
+
+    The test data includes:
+    - A MeasurementsList.csv with split assignments and measurement coordinates
+    - AVI files in Batch1 folder containing scan-converted images (with scan cone)
+    - Padding around the scan cone that should be cropped by conversion
+
+    Args:
+        src (Path): path to the source directory where test data will be created.
+    """
+    extra_args = []
+    extra_args.append("--no_hyperthreading")
+
+    from zea.display import scan_convert_2d
+
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+
+    # Create directory structure (all 4 batch folders required by unzip check)
+    os.mkdir(src / "Batch1")
+    os.mkdir(src / "Batch2")
+    os.mkdir(src / "Batch3")
+    os.mkdir(src / "Batch4")
+
+    # Define test files with their splits
+    test_files = [
+        ("0X1111111111111111", "train"),
+        ("0X2222222222222222", "train"),
+        ("0X3333333333333333", "val"),
+        ("0X4444444444444444", "test"),
+    ]
+
+    # Create a test rejections file with one entry
+    rejection_path = src / "test_rejections.txt"
+    with open(rejection_path, "w") as f:
+        f.write("0X2222222222222222\n")
+
+    # Add the rejection_path to extra_args for CLI
+    extra_args.extend(["--rejection_path", str(rejection_path)])
+
+    # Parameters for scan conversion
+    polar_shape = (64, 48)  # (n_rho, n_theta)
+    rho_range = (0.0, 60.0)  # mm
+    theta_range = (-np.pi / 4, np.pi / 4)  # radians
+
+    # Padding to add around scan cone (should be cropped by conversion)
+    pad_top = 10
+    pad_bottom = 8
+    pad_left = 15
+    pad_right = 12
+
+    # Generate a reference frame to determine output dimensions
+    ref_polar = np.ones(polar_shape, dtype=np.float32)
+    ref_cartesian, _ = scan_convert_2d(
+        ref_polar,
+        rho_range=rho_range,
+        theta_range=theta_range,
+        resolution=1.0,
+    )
+    ref_cartesian = np.array(ref_cartesian)
+    cart_height, cart_width = ref_cartesian.shape
+
+    # Final image dimensions after padding
+    final_width = cart_width + pad_left + pad_right
+    final_height = cart_height + pad_top + pad_bottom
+
+    n_frames = 5
+    fps = 30
+
+    # Create MeasurementsList.csv
+    csv_path = src / "MeasurementsList.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+        fieldnames = [
+            "Unnamed: 0",
+            "HashedFileName",
+            "Calc",
+            "CalcValue",
+            "Frame",
+            "X1",
+            "X2",
+            "Y1",
+            "Y2",
+            "Frames",
+            "FPS",
+            "Width",
+            "Height",
+            "split",
+        ]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        row_idx = 0
+        for filename, split in test_files:
+            # Write multiple measurement rows per file (like real dataset)
+            for calc_type in ["LVPWd", "LVIDs", "LVIDd", "IVSd"]:
+                # Generate coordinates within the padded image bounds
+                x1 = pad_left + rng.integers(10, cart_width // 2)
+                x2 = x1 + rng.integers(10, 30)
+                y1 = pad_top + rng.integers(10, cart_height // 2)
+                y2 = y1 + rng.integers(20, 50)
+
+                writer.writerow(
+                    {
+                        "Unnamed: 0": row_idx,
+                        "HashedFileName": filename,
+                        "Calc": calc_type,
+                        "CalcValue": rng.uniform(1.0, 5.0),
+                        "Frame": rng.integers(0, n_frames),
+                        "X1": float(x1),
+                        "X2": float(x2),
+                        "Y1": float(y1),
+                        "Y2": float(y2),
+                        "Frames": n_frames,
+                        "FPS": fps,
+                        "Width": float(final_width),
+                        "Height": final_height,
+                        "split": split,
+                    }
+                )
+                row_idx += 1
+
+    # Create AVI files with scan cone structure
+    for filename, _ in test_files:
+        frames = []
+        for _ in range(n_frames):
+            # Create a simple polar image with radial gradient and noise
+            rho_vals = np.linspace(0, 1, polar_shape[0])[:, None]
+            theta_vals = np.linspace(-1, 1, polar_shape[1])[None, :]
+
+            # Radial gradient with some angular variation
+            polar_img = (rho_vals * 0.7 + 0.3) * (1 - 0.2 * np.abs(theta_vals))
+            polar_img = polar_img + rng.normal(0, 0.05, polar_shape)
+            polar_img = np.clip(polar_img, 0, 1).astype(np.float32)
+
+            # Scan convert to create Cartesian image with scan cone
+            cartesian_img, _ = scan_convert_2d(
+                polar_img,
+                rho_range=rho_range,
+                theta_range=theta_range,
+                resolution=1.0,
+            )
+            cartesian_img = np.array(cartesian_img)
+
+            # Add padding around the scan cone
+            padded_img = np.pad(
+                cartesian_img,
+                ((pad_top, pad_bottom), (pad_left, pad_right)),
+                mode="constant",
+                constant_values=0,
+            )
+
+            # Scale to uint8
+            padded_img = (padded_img * 255).astype(np.uint8)
+            frames.append(padded_img)
+
+        # Save as AVI
+        avi_path = src / "Batch1" / f"{filename}.avi"
+        with imageio.get_writer(avi_path, fps=fps, codec="ffv1") as writer:
+            for frame in frames:
+                writer.append_data(frame)
+
+    # Verify files were created
+    assert len(list((src / "Batch1").glob("*.avi"))) == len(test_files), (
+        "Failed to create test EchoNetLVH AVI files."
+    )
+    assert csv_path.exists(), "Failed to create MeasurementsList.csv"
+    return extra_args
 
 
 def create_camus_test_data(src):
@@ -312,7 +487,103 @@ def verify_converted_echonet_test_data(dst):
 
 
 def verify_converted_echonetlvh_test_data(dst):
-    raise NotImplementedError("Verification for EchoNetLVH conversion is not implemented yet.")
+    """
+    Verify that the converted EchoNet-LVH test dataset has the correct structure.
+
+    Checks:
+    - HDF5 files exist in train/val/test directories
+    - Files contain required datasets (scan, image, image_sc)
+    - Cone parameters CSV was generated with valid crop bounds
+
+    Args:
+        dst (Path): path to the destination directory where converted test data is located.
+    """
+    # Expected files per split
+    expected_splits = {
+        "train": [
+            "0X1111111111111111.hdf5",
+            # "0X2222222222222222.hdf5" # This one was rejected
+        ],
+        "val": ["0X3333333333333333.hdf5"],
+        "test": ["0X4444444444444444.hdf5"],
+    }
+
+    # Verify HDF5 files exist in correct splits
+    for split, expected_files in expected_splits.items():
+        split_dir = dst / split
+        assert split_dir.exists(), f"Missing directory: {split_dir}"
+
+        h5_files = list(split_dir.rglob("*.hdf5"))
+        h5_filenames = [f.name for f in h5_files]
+
+        assert set(h5_filenames) == set(expected_files), (
+            f"Mismatch in converted hdf5 files for split {split}. "
+            f"Expected: {expected_files}, Got: {h5_filenames}"
+        )
+
+        # Verify each HDF5 file has required content
+        for h5_file in h5_files:
+            with File(h5_file, "r") as f:
+                assert "scan" in f, f"Missing 'scan' in {h5_file}"
+                assert "data" in f, f"Missing 'data' in {h5_file}"
+                assert "image" in f["data"], f"Missing 'image' (polar) in {h5_file}"
+                assert "image_sc" in f["data"], f"Missing 'image_sc' (scan converted) in {h5_file}"
+
+                # Verify image dimensions
+                image = f["data"]["image"][:]
+                image_sc = f["data"]["image_sc"][:]
+
+                assert image.ndim == 3, f"Polar image should be of shape (F, H, W) in {h5_file}"
+                assert image_sc.ndim == 3, (
+                    f"Scan converted image should be of shape (F, H, W) in {h5_file}"
+                )
+
+                # Validate the file
+                f.validate()
+
+    # Verify cone parameters CSV was generated
+    cone_params_csv = dst / "cone_parameters.csv"
+    assert cone_params_csv.exists(), "Missing cone_parameters.csv"
+
+    # Verify cone parameters content
+    with open(cone_params_csv, "r", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        cone_rows = list(reader)
+
+        # Should have parameters for all test files
+        expected_avi_files = [
+            "0X1111111111111111.avi",
+            # "0X2222222222222222.avi", # This one was rejected
+            "0X3333333333333333.avi",
+            "0X4444444444444444.avi",
+        ]
+
+        successful_files = [
+            row["avi_filename"] for row in cone_rows if row.get("status") == "success"
+        ]
+
+        for expected_file in expected_avi_files:
+            assert expected_file in successful_files, f"Missing cone parameters for {expected_file}"
+
+        # Verify cone parameter fields are present and valid
+        for row in cone_rows:
+            if row.get("status") == "success":
+                # Check required fields exist
+                for field in ["crop_left", "crop_right", "crop_top", "crop_bottom"]:
+                    assert field in row and row[field], f"Missing {field} for {row['avi_filename']}"
+
+                # Verify crop bounds are valid (right > left, bottom > top)
+                crop_left = float(row["crop_left"])
+                crop_right = float(row["crop_right"])
+                crop_top = float(row["crop_top"])
+                crop_bottom = float(row["crop_bottom"])
+
+                assert crop_right > crop_left, (
+                    f"Invalid horizontal crop bounds for {row['avi_filename']}"
+                )
+                assert crop_bottom > crop_top, (
+                    f"Invalid vertical crop bounds for {row['avi_filename']}"
+                )
 
 
 def verify_converted_camus_test_data(dst):
