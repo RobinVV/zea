@@ -366,14 +366,14 @@ def crop_and_center_cone(image, cone_params):
 
 
 def fit_and_crop_around_scan_cone(
-    image, image_range, min_cone_half_angle_deg=20, threshold=15, return_params=False
+    image, image_range=(0, 255), min_cone_half_angle_deg=20, threshold=15, return_params=False
 ):
     """
     Detect scan cone in ultrasound image and return cropped/padded image with centered apex.
 
     Args:
         image: numpy array (2D grayscale image)
-        image_range: tuple (vmin, vmax) for display scaling
+        image_range: tuple (vmin, vmax) for display scaling (default: (0, 255))
         min_cone_half_angle_deg: Minimum expected half-angle of the cone in degrees (default: 20)
         threshold: Threshold for binary image - pixels above this are considered data.
             This is always on a scale of 0-255 (default: 15).
