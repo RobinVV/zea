@@ -208,7 +208,6 @@ def test_2d_x_increases_along_axis_1():
     grid = cartesian_pixel_grid(
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
-        ylims=None,
         grid_size_x=64,
         grid_size_z=128,
     )
@@ -221,7 +220,6 @@ def test_2d_z_increases_along_axis_0():
     grid = cartesian_pixel_grid(
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
-        ylims=None,
         grid_size_x=64,
         grid_size_z=128,
     )
@@ -256,7 +254,6 @@ def test_2d_uniform_spacing():
     grid = cartesian_pixel_grid(
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
-        ylims=None,
         grid_size_x=64,
         grid_size_z=128,
     )
@@ -295,7 +292,6 @@ def test_2d_spacing_matches_dx_dz():
     grid = cartesian_pixel_grid(
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
-        ylims=None,
         dx=dx,
         dz=dz,
     )
@@ -337,7 +333,6 @@ def test_2d_grid_various_xlim_signs(xlims, expected_sign):
     grid = cartesian_pixel_grid(
         xlims=xlims,
         zlims=(0.0, 0.06),
-        ylims=None,
         grid_size_x=64,
         grid_size_z=128,
     )
@@ -361,7 +356,6 @@ def test_2d_grid_various_sizes(grid_size_x, grid_size_z):
     grid = cartesian_pixel_grid(
         xlims=(-0.02, 0.02),
         zlims=(0.0, 0.06),
-        ylims=None,
         grid_size_x=grid_size_x,
         grid_size_z=grid_size_z,
     )
