@@ -47,14 +47,17 @@ def overwrite_splits(source_dir, rejection_path=None):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     if rejection_path is None:
         rejection_path = os.path.join(current_dir, "manual_rejections.txt")
+        expected_num_rejections = 278
+    else:
+        # unknown number of rejections for custom rejection file.
+        # NOTE: this is used for testing, where we want to use a dummy rejections file
+        expected_num_rejections = -1
     try:
         with open(rejection_path) as f:
             rejected_hashes = [line.strip() for line in f]
     except FileNotFoundError:
         log.warning(f"{rejection_path} not found, skipping rejections.")
         return
-
-    expected_num_rejections = len(rejected_hashes)
 
     csv_path = Path(source_dir) / "MeasurementsList.csv"
     temp_path = Path(source_dir) / "MeasurementsList_temp.csv"
@@ -72,9 +75,10 @@ def overwrite_splits(source_dir, rejection_path=None):
                     row["split"] = "rejected"
                     rejection_counter += 1
                 writer.writerow(row)
-            assert rejection_counter == expected_num_rejections, (
-                f"Expected {expected_num_rejections} rejections, but applied only {rejection_counter}."
-            )
+            if expected_num_rejections != -1:
+                assert rejection_counter == expected_num_rejections, (
+                    f"Expected {expected_num_rejections} rejections, but applied only {rejection_counter}."
+                )
     except FileNotFoundError:
         log.warning(f"{csv_path} not found, skipping rejections.")
         return
@@ -288,9 +292,7 @@ class LVHProcessor(H5Processor):
         split = self.get_split(avi_file, sequence)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
 
-        angle = (
-            cone_params["opening_angle"] / 2
-        )  # angular field spans (-angle, +angle) if cone_params else 60.0
+        angle = cone_params["opening_angle"] / 2  # angular field spans (-angle, +angle)
         polar_im_set = self.cart2pol_batched(sequence, angle)
 
         zea_dataset = {
@@ -480,7 +482,7 @@ def convert_echonetlvh(args):
 
     # Overwrite the splits if manual rejections are provided
     if not args.no_rejection:
-        overwrite_splits(args.src)
+        overwrite_splits(args.src, getattr(args, "rejection_path", None))
 
     # Check that cone parameters exist
     cone_params_csv = Path(args.dst) / "cone_parameters.csv"
