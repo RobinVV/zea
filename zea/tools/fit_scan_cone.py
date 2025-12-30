@@ -320,7 +320,9 @@ def crop_and_center_cone(image, cone_params):
         numpy array of the cropped and centered image with the cone apex at the top center
     """
     # Get crop boundaries
-    crop_left = cone_params["crop_left"]
+    crop_left = (
+        cone_params["crop_left"] + 1
+    )  # correct for indexing being inclusive at the start but exclusive at the end
     crop_right = cone_params["crop_right"]
     crop_top = cone_params["crop_top"]
     crop_bottom = cone_params["crop_bottom"]
