@@ -190,7 +190,6 @@ def create_echonetlvh_test_data(src):
         src (Path): path to the source directory where test data will be created.
     """
     extra_args = []
-    extra_args.append("--no_hyperthreading")
 
     from zea.display import scan_convert_2d
 
