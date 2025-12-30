@@ -202,12 +202,12 @@ def create_echonetlvh_test_data(src):
     os.mkdir(src / "Batch3")
     os.mkdir(src / "Batch4")
 
-    # Define test files with their splits
+    # Define test files with their splits and polar shapes (some odd, some even width)
     test_files = [
-        ("0X1111111111111111", "train"),
-        ("0X2222222222222222", "train"),
-        ("0X3333333333333333", "val"),
-        ("0X4444444444444444", "test"),
+        ("0X1111111111111111", "train", (64, 49)),  # Odd width
+        ("0X2222222222222222", "train", (64, 48)),  # (will be rejected)
+        ("0X3333333333333333", "val", (64, 48)),  # Even width
+        ("0X4444444444444444", "test", (64, 48)),
     ]
 
     # Create a test rejections file with one entry
@@ -218,8 +218,7 @@ def create_echonetlvh_test_data(src):
     # Add the rejection_path to extra_args for CLI
     extra_args.extend(["--rejection_path", str(rejection_path)])
 
-    # Parameters for scan conversion
-    polar_shape = (64, 48)  # (n_rho, n_theta)
+    # Common parameters for scan conversion
     rho_range = (0.0, 60.0)  # mm
     theta_range = (-np.pi / 4, np.pi / 4)  # radians
 
@@ -228,21 +227,6 @@ def create_echonetlvh_test_data(src):
     pad_bottom = 8
     pad_left = 15
     pad_right = 12
-
-    # Generate a reference frame to determine output dimensions
-    ref_polar = np.ones(polar_shape, dtype=np.float32)
-    ref_cartesian, _ = scan_convert_2d(
-        ref_polar,
-        rho_range=rho_range,
-        theta_range=theta_range,
-        resolution=1.0,
-    )
-    ref_cartesian = np.array(ref_cartesian)
-    cart_height, cart_width = ref_cartesian.shape
-
-    # Final image dimensions after padding
-    final_width = cart_width + pad_left + pad_right
-    final_height = cart_height + pad_top + pad_bottom
 
     n_frames = 5
     fps = 30
@@ -270,7 +254,22 @@ def create_echonetlvh_test_data(src):
         writer.writeheader()
 
         row_idx = 0
-        for filename, split in test_files:
+        for filename, split, polar_shape in test_files:
+            # Generate a reference frame to determine output dimensions for this file
+            ref_polar = np.ones(polar_shape, dtype=np.float32)
+            ref_cartesian, _ = scan_convert_2d(
+                ref_polar,
+                rho_range=rho_range,
+                theta_range=theta_range,
+                resolution=1.0,
+            )
+            ref_cartesian = np.array(ref_cartesian)
+            cart_height, cart_width = ref_cartesian.shape
+
+            # Final image dimensions after padding
+            final_width = cart_width + pad_left + pad_right
+            final_height = cart_height + pad_top + pad_bottom
+
             # Write multiple measurement rows per file (like real dataset)
             for calc_type in ["LVPWd", "LVIDs", "LVIDd", "IVSd"]:
                 # Generate coordinates within the padded image bounds
@@ -300,7 +299,17 @@ def create_echonetlvh_test_data(src):
                 row_idx += 1
 
     # Create AVI files with scan cone structure
-    for filename, _ in test_files:
+    for filename, _, polar_shape in test_files:
+        # Generate a reference frame to determine output dimensions for this file
+        ref_polar = np.ones(polar_shape, dtype=np.float32)
+        ref_cartesian, _ = scan_convert_2d(
+            ref_polar,
+            rho_range=rho_range,
+            theta_range=theta_range,
+            resolution=1.0,
+        )
+        ref_cartesian = np.array(ref_cartesian)
+
         frames = []
         for _ in range(n_frames):
             # Create a simple polar image with radial gradient and noise
