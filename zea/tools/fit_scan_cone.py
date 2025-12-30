@@ -11,6 +11,7 @@ This module provides functionality to:
 """
 
 import argparse
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -238,10 +239,10 @@ def detect_cone_parameters(image, min_cone_half_angle_deg=20, threshold=15):
     padding_x = 0
     padding_y = 0
 
-    crop_left = int(left_x_bottom) - padding_x
-    crop_right = int(right_x_bottom) + padding_x
-    crop_top = int(apex_y) - padding_y
-    crop_bottom = int(sector_bottom)
+    crop_left = math.ceil(left_x_bottom) - padding_x
+    crop_right = math.ceil(right_x_bottom) + padding_x
+    crop_top = math.ceil(apex_y) - padding_y
+    crop_bottom = math.ceil(sector_bottom)
 
     # Calculate final dimensions
     new_width = crop_right - crop_left
