@@ -87,7 +87,7 @@ def create_test_data_for_dataset(dataset, src):
     """
     Selects the function that generates test data based on the provided dataset
 
-    Args:x
+    Args:
         dataset (str): string containing name of the dataset
         src (Path): path to the source directory where test data will be created
 
