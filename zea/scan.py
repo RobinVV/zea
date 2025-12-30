@@ -342,7 +342,7 @@ class Scan(Parameters):
 
     @cache_with_dependencies("zlims", "grid_type", "azimuth_limits", "probe_geometry")
     def ylims(self):
-        """The x-limits of the beamforming grid [m]. If not explicitly set, it is computed based
+        """The y-limits of the beamforming grid [m]. If not explicitly set, it is computed based
         on the azimuth limits and probe geometry.
         """
         ylims = self._params.get("ylims")
