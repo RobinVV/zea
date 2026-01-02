@@ -531,6 +531,28 @@ class VerasonicsFile(h5py.File):
     def is_new_save_raw_format(self):
         return "save_raw_version" in self.keys()
 
+    def load_first_frames_txt(self):
+        """
+        In some cases, you might have forgotten to save the `lastFrame` field in the
+        `RcvBuffer` structure. In that case, we can try to load the `first_frames.txt`
+        file in the same directory as the .mat file. This file should contain the first frame index
+        for each .mat file in the directory, seperated by a space.
+        """
+
+        data = {}
+        path = Path(self.filename)
+        first_frames_txt = path.parent / "first_frames.txt"
+        if first_frames_txt.exists():
+            with open(first_frames_txt, "r") as f:
+                for line in f:
+                    filename, first_frame_idx = line.strip().split()
+                    data[filename] = int(first_frame_idx)
+
+            if path.stem in data:
+                return data[path.stem]
+            elif path.name in data:
+                return data[path.name]
+
     def get_image_raw_data_order(self, buffer_index=0):
         """The order of frames in the RcvBuffer buffer.
 
@@ -545,13 +567,18 @@ class VerasonicsFile(h5py.File):
                 self["Resource"]["RcvBuffer"]["lastFrame"], buffer_index
             )
             last_frame = self.cast_to_integer(last_frame) - 1
+            first_frame = (last_frame + 1) % n_frames
         except KeyError:
-            log.warning(
-                "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
-                "Assuming data is already in correct order."
-            )
-            return np.arange(n_frames)
-        first_frame = (last_frame + 1) % n_frames
+            first_frame = self.load_first_frames_txt()
+            if first_frame is None:
+                log.warning(
+                    "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
+                    "Assuming data is already in correct order."
+                )
+                return np.arange(n_frames)
+            else:
+                log.info(f"Loaded first frame index {first_frame} from 'first_frames.txt'.")
+
         indices = np.arange(first_frame, first_frame + n_frames) % n_frames
         return indices
 
