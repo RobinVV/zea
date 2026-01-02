@@ -105,6 +105,7 @@ def scan_convert_2d(
     coordinates: Union[None, np.ndarray] = None,
     fill_value: float = 0.0,
     order: int = 1,
+    distance_to_apex: float = 0.0,
     **kwargs,
 ):
     """
@@ -127,6 +128,8 @@ def scan_convert_2d(
             outside the input image ranges. Defaults to 0.0. When set to NaN,
             no interpolation at the edges will happen.
         order (int, optional): The order of the spline interpolation. Defaults to 1.
+        distance_to_apex (float, optional): Distance from the apex to the
+            start of the z-axis in Cartesian grid. Defaults to 0.0.
 
     Returns:
         ndarray: The scan-converted 2D ultrasound image in Cartesian coordinates.
@@ -146,7 +149,12 @@ def scan_convert_2d(
     parameters = {}
     if coordinates is None:
         coordinates, parameters = compute_scan_convert_2d_coordinates(
-            image.shape, rho_range, theta_range, resolution, dtype=image.dtype
+            image.shape,
+            rho_range,
+            theta_range,
+            resolution,
+            dtype=image.dtype,
+            distance_to_apex=distance_to_apex,
         )
 
     images_sc = _interpolate_batch(image, coordinates, fill_value, order=order, **kwargs)
