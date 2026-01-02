@@ -137,7 +137,7 @@ class Normalize(Operation):
     @property
     def valid_keys(self):
         if self.input_range is None:
-            return super().valid_keys + {"minval", "maxval"}
+            return super().valid_keys.union({"maxval", "minval"})
         else:
             return super().valid_keys
 
