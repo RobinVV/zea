@@ -185,7 +185,7 @@ class VerasonicsFile(h5py.File):
             return 1
 
     @staticmethod
-    def decode_string(dataset):
+    def decode_string(dataset: np.ndarray) -> str:
         """Decode a string dataset."""
         return "".join([chr(c) for c in dataset.squeeze()])
 
@@ -659,12 +659,13 @@ class VerasonicsFile(h5py.File):
     def read_center_frequency(self, waveform_index):
         """Center frequency of the transmit from the file in Hz."""
 
-        tw_type = self.dereference_index(self["TW"]["type"], waveform_index)
+        tw_type = self.dereference_index(self["TW"]["type"], waveform_index)[:]
         tw_type = self.decode_string(tw_type)
         if tw_type == "parametric":
             center_freq, _, _, _ = self.dereference_index(
-                self["TW"]["Parameters"], waveform_index
-            ).squeeze()
+                self["TW"]["Parameters"],
+                waveform_index,
+            )[:].squeeze()
         else:
             raise ValueError(
                 f"Unsupported waveform type '{tw_type}' for center frequency extraction."
@@ -1023,8 +1024,6 @@ class VerasonicsFile(h5py.File):
         # these are capable of handling multiple events
         raw_data = self.read_raw_data(event, frames=frames)
 
-        verasonics_image_buffer = self.read_image_data_p(event, frames=frames)
-
         polar_angles = self.read_polar_angles(tx_order, event)
         azimuth_angles = self.read_azimuth_angles(tx_order, event)
         t0_delays, tx_apodizations = self.read_t0_delays_apod(tx_order, event)
@@ -1056,6 +1055,7 @@ class VerasonicsFile(h5py.File):
             unit="wavelengths",
         )
 
+        verasonics_image_buffer = self.read_image_data_p(event, frames=frames)
         verasonics_image_buffer = DatasetElement(
             dataset_name="verasonics_image_buffer",
             data=verasonics_image_buffer,
