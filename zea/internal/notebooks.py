@@ -49,25 +49,16 @@ def animate_volume_mip(
     axis=0,
     zoom=1.0,
 ):
-    """
-    Create an animated 3D MIP visualization rotating around the volume.
+    """Create an animated 3D MIP visualization rotating around the volume.
 
-    Parameters
-    ----------
-    volume : ndarray
-        3D or 4D volume array. If 4D with shape (1, D, H, W), the first dim is squeezed.
-    path : str
-        Output path for the gif file.
-    n_frames : int
-        Number of frames for the 360-degree rotation.
-    interval : int
-        Milliseconds between frames.
-    cmap : str
-        Colormap name.
-    axis : int
-        Axis of rotation: 0 (D/depth), 1 (H/vertical), or 2 (W/horizontal).
-    zoom : float
-        Zoom factor. Values > 1 zoom in, < 1 zoom out.
+    Args:
+        volume (tensor): 3D or 4D volume array. If 4D with shape (1, D, H, W), the first dim is squeezed.
+        path (str): Output path for the gif file.
+        n_frames (int): Number of frames for the 360-degree rotation.
+        interval (int): Milliseconds between frames.
+        cmap (str): Colormap name.
+        axis (int): Axis of rotation: 0 (D/depth), 1 (H/vertical), or 2 (W/horizontal).
+        zoom (float): Zoom factor. Values > 1 zoom in, < 1 zoom out.
     """
     # Squeeze batch dimension if present
     vol = np.squeeze(volume)
