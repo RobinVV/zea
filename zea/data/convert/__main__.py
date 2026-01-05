@@ -41,6 +41,12 @@ def _add_parser_args_echonetlvh(subparsers):
         help="Do not reject sequences in manual_rejections.txt",
     )
     echonetlvh_parser.add_argument(
+        "--rejection_path",
+        type=str,
+        default=None,
+        help="Path to custom rejection txt file (defaults to manual_rejections.txt)",
+    )
+    echonetlvh_parser.add_argument(
         "--batch",
         type=str,
         default=None,
