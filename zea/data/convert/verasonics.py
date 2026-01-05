@@ -567,8 +567,9 @@ class VerasonicsFile(h5py.File):
         path = Path(self.filename)
         config_file = path.parent / "convert.yaml"
         if config_file.exists():
+            log.info(f"Found convert config file: {log.yellow(config_file)}")
             with open(config_file, "r", encoding="utf-8") as file:
-                data = yaml.load(file)
+                data = yaml.load(file, Loader=yaml.FullLoader)
 
             # Validate the YAML structure
             validated_data = _CONVERT_YAML_SCHEMA.validate(data)
@@ -1148,18 +1149,25 @@ class VerasonicsFile(h5py.File):
         """Creates a numpy array of frame indices from the file and the frames argument.
 
         Args:
-            frames (str): The frames argument. This can be "all" or a list of frame indices.
+            frames (str): The frames argument. This can be "all", a range of integers
+                (e.g. "4-8"), or a list of frame indices.
 
         Returns:
             frame_indices (np.ndarray): The frame indices.
         """
         # Read the number of frames from the file
-        n_frames = self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], buffer_index)
-        n_frames = self.cast_to_integer(n_frames)
+        n_frames = self.get_frame_count(buffer_index)
 
         if isinstance(frames, str) and frames == "all":
             # Create an array of all frame-indices
             frame_indices = np.arange(n_frames)
+        elif isinstance(frames, str):
+            assert "-" in frames, (
+                f"Invalid frames argument: {frames}. "
+                "Expected 'all' or a range of integers (e.g. '4-8')."
+            )
+            start, end = frames.split("-")
+            frame_indices = np.arange(int(start), int(end) + 1)
         else:
             frame_indices = np.asarray(frames)
             frame_indices.sort()
@@ -1364,20 +1372,6 @@ def convert_verasonics(args):
 
     log.info(f"Selected path: {log.yellow(selected_path)}")
 
-    # Parse frames
-    frames = args.frames
-    if frames[0] == "all":
-        frames = "all"
-    else:
-        indices = set()
-        for frame in frames:
-            if "-" in frame:
-                start, end = frame.split("-")
-                indices.update(range(int(start), int(end) + 1))
-            else:
-                indices.add(int(frame))
-        frames = list(indices)
-        frames.sort()
     # Do the conversion of a single file
     if not selected_path_is_directory:
         if output_path.is_file():
@@ -1394,7 +1388,7 @@ def convert_verasonics(args):
                 log.info("Aborting...")
                 sys.exit()
         _zea_from_verasonics_workspace(
-            selected_path, output_path, frames=frames, allow_accumulate=args.allow_accumulate
+            selected_path, output_path, frames=args.frames, allow_accumulate=args.allow_accumulate
         )
     else:
         # Continue with the rest of your code...
@@ -1445,7 +1439,7 @@ def convert_verasonics(args):
                     _zea_from_verasonics_workspace(
                         full_path,
                         file_output_path,
-                        frames=frames,
+                        frames=args.frames,
                         allow_accumulate=args.allow_accumulate,
                     )
                 except Exception:
