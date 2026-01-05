@@ -31,7 +31,7 @@ class GaussianAnalyticalKL:
 
 
 class Parameters:
-    """Class to hold all parameters for the HVAE architecture and training."""
+    """Class to hold all parameters for the HierarchicalVAE architecture and training."""
 
     def __init__(self, args):
         super().__init__()

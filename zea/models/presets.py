@@ -154,8 +154,8 @@ hvae_presets = {
         "metadata": {
             "description": (
                 "Hierarchical Variational Autoencoder (HVAE) model."
-                "Trained on EchoNetLVH dataset at 256x256 resolution"
-                "with Full 256/256 line selection and 3 channels."
+                "Trained on EchoNetLVH dataset at 256x256 resolution."
+                "Other versions should be selected with the version argument."
             ),
             "params": 24266595,
             "path": "hvae",

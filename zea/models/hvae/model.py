@@ -2,7 +2,7 @@ import random as pythonrandom
 from keras import Model, Sequential, Variable, layers, ops, random, metrics
 import numpy as np
 
-from zea.models.hvae.hvae_utils import SoftPlus, GaussianAnalyticalKL, GradientNorms
+from zea.models.hvae.utils import SoftPlus, GaussianAnalyticalKL, GradientNorms
 from zea.agent.selection import UniformRandomLines
 
 
