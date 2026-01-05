@@ -50,6 +50,9 @@ NOTEBOOK_PARAMETERS = {
         "n_posterior_steps": 2,
         "n_particles": 2,
     },
+    "3d_beamforming_example.ipynb": {
+        "downscale_rate": 8,
+    },
     "zea_sequence_example.ipynb": {
         "n_frames": 15,
         "n_tx": 1,
