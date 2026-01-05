@@ -346,21 +346,24 @@ class Scan(Parameters):
         on the azimuth limits and probe geometry.
         """
         ylims = self._params.get("ylims")
-        if ylims is None:
-            radius = max(self.zlims)
-            ylims_azimuth = (
-                (0.0, 0.0)  # avoid numerical imprecision with np.cos(np.pi/2)
-                if self.azimuth_limits[0] == self.azimuth_limits[1]
-                else (
-                    radius * np.cos(-np.pi / 2 + self.azimuth_limits[0]),
-                    radius * np.cos(-np.pi / 2 + self.azimuth_limits[1]),
-                )
+        if ylims is not None:
+            return ylims
+
+        # If ylims not set, compute based on azimuth limits and probe geometry
+        radius = max(self.zlims)
+        ylims_azimuth = (
+            (0.0, 0.0)  # avoid numerical imprecision with np.cos(np.pi/2)
+            if self.azimuth_limits[0] == self.azimuth_limits[1]
+            else (
+                radius * np.cos(-np.pi / 2 + self.azimuth_limits[0]),
+                radius * np.cos(-np.pi / 2 + self.azimuth_limits[1]),
             )
-            ylims_plane = (min(self.probe_geometry[:, 1]), max(self.probe_geometry[:, 1]))
-            ylims = (
-                min(ylims_azimuth[0], ylims_plane[0]),
-                max(ylims_azimuth[1], ylims_plane[1]),
-            )
+        )
+        ylims_plane = (min(self.probe_geometry[:, 1]), max(self.probe_geometry[:, 1]))
+        ylims = (
+            min(ylims_azimuth[0], ylims_plane[0]),
+            max(ylims_azimuth[1], ylims_plane[1]),
+        )
         return ylims
 
     @cache_with_dependencies("sound_speed", "sampling_frequency", "n_ax")
