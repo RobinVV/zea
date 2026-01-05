@@ -104,7 +104,9 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import yaml
 from keras import ops
+from schema import And, Optional, Or, Regex, Schema
 
 from zea import log
 from zea.data.data_format import DatasetElement, generate_zea_dataset
@@ -116,6 +118,24 @@ _VERASONICS_TO_ZEA_PROBE_NAMES = {
     "L11-4v": "verasonics_l11_4v",
     "L11-5v": "verasonics_l11_5v",
 }
+
+
+_CONVERT_YAML_SCHEMA = Schema(
+    {
+        "files": [
+            {
+                "name": str,
+                Optional("first_frame"): And(int, lambda x: x >= 0),
+                Optional("frames"): Or(
+                    "all",
+                    And(str, Regex(r"^\d+(-\d+)?$")),  # Matches "30-99" or single number like "5"
+                    [And(int, lambda x: x >= 0)],  # List of non-negative integers
+                ),
+                Optional("transmits"): Or("all", [And(int, lambda x: x >= 0)]),
+            }
+        ]
+    }
+)
 
 
 class VerasonicsFile(h5py.File):
@@ -531,37 +551,54 @@ class VerasonicsFile(h5py.File):
     def is_new_save_raw_format(self):
         return "save_raw_version" in self.keys()
 
-    def load_first_frames_txt(self):
+    def load_convert_config(self):
         """
-        In some cases, you might have forgotten to save the `lastFrame` field in the
-        `RcvBuffer` structure. In that case, we can try to load the `first_frames.txt`
-        file in the same directory as the .mat file. This file should contain the first frame index
-        for each .mat file in the directory, seperated by a space.
-        """
+        Can load additional conversion configuration from a `convert.yaml` file.
 
-        data = {}
+        The `convert.yaml` file should be in the same directory as the .mat file and have
+        the following structure:
+
+        .. code-block:: yaml
+            files:
+            - name: raw_data.mat
+                first_frame: 26  # 0-based indexing
+                frames: 30-99  # 0-based indexing
+        """
         path = Path(self.filename)
-        first_frames_txt = path.parent / "first_frames.txt"
-        if first_frames_txt.exists():
-            with open(first_frames_txt, "r") as f:
-                for line in f:
-                    filename, first_frame_idx = line.strip().split()
-                    data[filename] = int(first_frame_idx)
+        config_file = path.parent / "convert.yaml"
+        if config_file.exists():
+            with open(config_file, "r", encoding="utf-8") as file:
+                data = yaml.load(file)
 
-            if path.stem in data:
-                return data[path.stem]
-            elif path.name in data:
-                return data[path.name]
+            # Validate the YAML structure
+            validated_data = _CONVERT_YAML_SCHEMA.validate(data)
 
-    def get_image_raw_data_order(self, buffer_index=0):
+            files = validated_data["files"]
+            filenames = [file["name"] for file in files]
+            if path.name in filenames:
+                return files[filenames.index(path.name)]
+            elif path.stem in filenames:
+                return files[filenames.index(path.stem)]
+        return {}
+
+    def get_frame_count(self, buffer_index=0):
+        """Get the total number of frames in the RcvBuffer buffer."""
+        n_frames = self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], buffer_index)
+        n_frames = self.cast_to_integer(n_frames)
+        return n_frames
+
+    def get_indices_to_reorder(self, first_frame: int, buffer_index=0):
+        n_frames = self.get_frame_count(buffer_index)
+        return (np.arange(n_frames) + first_frame) % n_frames
+
+    def get_raw_data_order(self, buffer_index=0):
         """The order of frames in the RcvBuffer buffer.
 
         Because of the circular buffer used in Verasonics, the frames in the RcvBuffer
         buffer are not necessarily in the correct order. This function computes the
         correct order of frames.
         """
-        n_frames = self.dereference_index(self["Resource"]["RcvBuffer"]["numFrames"], buffer_index)
-        n_frames = self.cast_to_integer(n_frames)
+        n_frames = self.get_frame_count(buffer_index)
         try:
             last_frame = self.dereference_index(
                 self["Resource"]["RcvBuffer"]["lastFrame"], buffer_index
@@ -569,20 +606,15 @@ class VerasonicsFile(h5py.File):
             last_frame = self.cast_to_integer(last_frame) - 1
             first_frame = (last_frame + 1) % n_frames
         except KeyError:
-            first_frame = self.load_first_frames_txt()
-            if first_frame is None:
-                log.warning(
-                    "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
-                    "Assuming data is already in correct order."
-                )
-                return np.arange(n_frames)
-            else:
-                log.info(f"Loaded first frame index {first_frame} from 'first_frames.txt'.")
+            log.warning(
+                "Could not find 'lastFrame' in 'Resource/RcvBuffer'. "
+                "Assuming data is already in correct order."
+            )
+            return np.arange(n_frames)
 
-        indices = np.arange(first_frame, first_frame + n_frames) % n_frames
-        return indices
+        return self.get_indices_to_reorder(first_frame, n_frames)
 
-    def read_raw_data(self, event=None, frames="all", buffer_index=0):
+    def read_raw_data(self, event=None, frames="all", buffer_index=0, first_frame_idx=None):
         """
         Read the raw data from the file.
 
@@ -612,7 +644,10 @@ class VerasonicsFile(h5py.File):
             )
 
         # Re-order frames such that sequence is correct
-        indices = self.get_image_raw_data_order(buffer_index)
+        if first_frame_idx is not None:
+            indices = self.get_indices_to_reorder(first_frame_idx, buffer_index)
+        else:
+            indices = self.get_raw_data_order(buffer_index)
         raw_data = raw_data[indices]
 
         # Select only the requested frames
@@ -991,7 +1026,7 @@ class VerasonicsFile(h5py.File):
         self,
         event=None,
         additional_functions=None,
-        frames="all",
+        frames=None,
         allow_accumulate=False,
         buffer_index=0,
     ):
@@ -1005,7 +1040,7 @@ class VerasonicsFile(h5py.File):
                 `DatasetElement`. Defaults to None.
             frames (str or list of int, optional): The frames to add to the file. This can be
                 a list of integers, a range of integers (e.g. 4-8), or 'all'. Defaults to
-                'all'.
+                None, which means all frames, unless specified in a `convert.yaml` file.
             allow_accumulate (bool, optional): Sometimes, some transmits are already accumulated
                 on the Verasonics system (e.g. harmonic imaging through pulse inversion).
                 In this case, the mode in the Receive structure is set to 1 (accumulate).
@@ -1016,13 +1051,20 @@ class VerasonicsFile(h5py.File):
         if additional_functions is None:
             additional_functions = []
 
+        convert_config = self.load_convert_config()
+
+        if frames is None:
+            frames = convert_config.get("frames", "all")
+
+        first_frame_idx = convert_config.get("first_frame", None)
+
         tx_order, rcv_order, time_to_next_transmit = self.read_transmit_events(
             frames=frames, allow_accumulate=allow_accumulate, buffer_index=buffer_index
         )
         initial_times = self.read_initial_times(rcv_order)
 
         # these are capable of handling multiple events
-        raw_data = self.read_raw_data(event, frames=frames)
+        raw_data = self.read_raw_data(event, frames=frames, first_frame_idx=first_frame_idx)
 
         polar_angles = self.read_polar_angles(tx_order, event)
         azimuth_angles = self.read_azimuth_angles(tx_order, event)
@@ -1133,7 +1175,7 @@ class VerasonicsFile(h5py.File):
 
         return frame_indices
 
-    def to_zea(self, output_path, additional_functions=None, frames="all", allow_accumulate=False):
+    def to_zea(self, output_path, additional_functions=None, frames=None, allow_accumulate=False):
         """Converts the Verasonics file to the zea format.
 
         Args:
@@ -1143,7 +1185,8 @@ class VerasonicsFile(h5py.File):
                 `DatasetElement`. Defaults to None.
             frames (str or list of int, optional): The frames to add to the file. This can be
                 a list of integers, a range of integers (e.g. 4-8), or 'all'. Defaults to
-                'all'.
+                None, which means all frames are used, unless specified otherwise in a
+                `convert.yaml` file.
             allow_accumulate (bool, optional): Sometimes, some transmits are already accumulated
                 on the Verasonics system (e.g. harmonic imaging through pulse inversion).
                 In this case, the mode in the Receive structure is set to 1 (accumulate).
