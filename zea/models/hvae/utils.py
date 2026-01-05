@@ -31,7 +31,12 @@ class GaussianAnalyticalKL:
 
 
 class Parameters:
-    """Class to hold all parameters for the HierarchicalVAE architecture and training."""
+    """
+    Class to hold all parameters for the HierarchicalVAE architecture and training.
+
+    Args:
+        args: Argument parser containing all necessary parameters. Loaded in from HuggingFace.
+    """
 
     def __init__(self, args):
         super().__init__()
@@ -423,6 +428,12 @@ class DiscMixLogistic:
     """
 
     def __init__(self, num_bits, num_mixtures, num_channels):
+        """
+        Args:
+            num_bits (int): Number of bits used for pixel representation.
+            num_mixtures (int): Number of mixture components in the model.
+            num_channels (int): Number of channels in the input images.
+        """
         self.reduction = "none"
         self.num_bits = num_bits
         self.num_mixtures = num_mixtures
@@ -440,8 +451,17 @@ class DiscMixLogistic:
         self.dt = "float32"
 
     def call(self, targets, logits, mask=None):
-        #   targets: B, H, W, C                 [e.g. N,32,32,3]
-        #   logits:  B, H, W, M * (3 * C + 1)   [e.g. N,32,32,100] (10 * (3 * 3 + 1))
+        """
+        Calculates the negative log-likelihood of the targets given the model logits.
+
+        Args:
+            targets (tensor): Ground truth images of shape [B, H, W, C].
+            logits (tensor): Model output logits of shape [B, H, W, M * (3 * C + 1)].
+            mask (tensor, optional): Binary mask of shape [B, H, W, C] to apply to the loss.
+
+        Returns:
+            loss (tensor): Negative log-likelihood loss of shape [B].
+        """
 
         B, H, W, C = (
             ops.shape(targets)[0],
@@ -592,3 +612,6 @@ class GradientNorms(metrics.Metric):
 
     def result(self):
         return self.grads
+
+
+__all__ = ["Parameters", "DiscMixLogistic"]

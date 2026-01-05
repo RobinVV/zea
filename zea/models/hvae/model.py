@@ -63,6 +63,10 @@ class VAE(Model):
     """
 
     def __init__(self, params):
+        """
+        Args:
+            params (Parameters): Parameters object containing model configuration.
+        """
         super().__init__()
         self.params = params
         self.encoder = Encoder(params)
@@ -81,6 +85,9 @@ class VAE(Model):
         self.softplus = SoftPlus(0.69314718056)
 
     def build(self):
+        """
+        Builds the HVAE model by calling.
+        """
         self.encoder.build()
         self.decoder.build()
         _ = self.call(
@@ -107,7 +114,16 @@ class VAE(Model):
     def get_elbo(self, x, px_z, kl, mask=None):
         """
         Calculates the ELBO given the input data, reconstructed output,
-        and KL-divergences originating from the model.
+        and KL-divergences.
+
+        Args:
+            x (tensor): Input data of shape [B, 256, 256, 3], representing targets.
+            px_z (tensor): Output logits of shape [B, 256, 256, 100].
+            kl (list): List of KL divergences from each latent block.
+            mask (tensor, optional): Binary mask of shape [B, 256, 256, 3] to apply to the loss.
+
+        Returns:
+            ELBO, reconstruction loss, KL divergence.
         """
         recon_total = self.loss_fn.call(targets=x, logits=px_z, mask=mask)
         kl_total = ops.zeros(ops.shape(x)[0])
@@ -134,6 +150,14 @@ class VAE(Model):
         """
         Performs a forward pass through the encoder and decoder,
         returning the reconstructed output, latent samples, and KL divergences.
+
+        Args:
+            x (tensor): Input tensor of shape [B, 256, 256, 3].
+
+        Returns:
+            px_z (tensor): Output logits of shape [B, 256, 256, 100],
+            list of latent samples, list of KL divergences of each layer.
+
         """
         activations = self.encoder(x)
         px_z, z, kl = self.decoder(activations)
@@ -142,7 +166,15 @@ class VAE(Model):
     def sample_from_mol(self, logits, t=1.0):
         """
         Samples from a mixture of logistics parameterized by the logits.
-        Generally, converts the 100-channel mixture into a 3-frame image.
+        In this implementation, usually converts the 100-channel mixture
+        into a 3-frame image.
+
+        Args:
+            logits (tensor): Logits of shape [B, 256, 256, 100].
+            t (float, optional): Temperature for sampling. Defaults to 1.0.
+
+        Returns:
+            x (tensor): Sampled image of shape [B, 256, 256, 3] in [-1, 1].
         """
 
         # Same thing as in the DiscMixLogisticLoss
@@ -214,7 +246,7 @@ class VAE(Model):
 
     def print_model(self):
         """
-        Prints the architecture and parameter counts of the HVAE model.
+        Prints the architecture and parameter counts of the HVAE model, split into stages.
         """
         print("------ Encoder ------")
         print(
@@ -1155,3 +1187,6 @@ class PoolLayer(layers.Layer):
 
     def call(self, x):
         return self.pool(self.activation(self.c1(x)))
+
+
+__all__ = ["VAE"]

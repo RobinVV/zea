@@ -228,5 +228,3 @@ class HierarchicalVAE(DeepGenerativeModel):
 
 
 register_presets(hvae_presets, HierarchicalVAE)
-
-__all__ = ["HierarchicalVAE"]
