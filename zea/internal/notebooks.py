@@ -52,7 +52,8 @@ def animate_volume_mip(
     """Create an animated 3D MIP visualization rotating around the volume.
 
     Args:
-        volume (tensor): 3D or 4D volume array. If 4D with shape (1, D, H, W), the first dim is squeezed.
+        volume (tensor): 3D or 4D volume array.
+            If 4D with shape (1, D, H, W), the first dim is squeezed.
         path (str): Output path for the gif file.
         n_frames (int): Number of frames for the 360-degree rotation.
         interval (int): Milliseconds between frames.
