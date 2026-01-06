@@ -168,7 +168,7 @@ class GreedyEntropy(LinesActionModel):
         batch_size = shape[0]
         n_particles = shape[1]
         height = shape[3]
-        
+
         gaussian_error_per_pixel_stacked = ops.transpose(
             ops.reshape(
                 ops.transpose(gaussian_error_per_pixel_i_j, (0, 1, 2, 4, 3)),
