@@ -164,7 +164,11 @@ class GreedyEntropy(LinesActionModel):
         # Vertically stack all columns corresponding with the same line
         # This way we can just sum across the height axis and get the entropy
         # for each pixel in a given line
-        batch_size, n_particles, _, height, _ = gaussian_error_per_pixel_i_j.shape
+        shape = ops.shape(gaussian_error_per_pixel_i_j)
+        batch_size = shape[0]
+        n_particles = shape[1]
+        height = shape[3]
+        
         gaussian_error_per_pixel_stacked = ops.transpose(
             ops.reshape(
                 ops.transpose(gaussian_error_per_pixel_i_j, (0, 1, 2, 4, 3)),
