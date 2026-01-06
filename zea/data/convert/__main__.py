@@ -41,6 +41,12 @@ def _add_parser_args_echonetlvh(subparsers):
         help="Do not reject sequences in manual_rejections.txt",
     )
     echonetlvh_parser.add_argument(
+        "--rejection_path",
+        type=str,
+        default=None,
+        help="Path to custom rejection txt file (defaults to manual_rejections.txt)",
+    )
+    echonetlvh_parser.add_argument(
         "--batch",
         type=str,
         default=None,
@@ -110,6 +116,12 @@ def _add_parser_args_verasonics(subparsers):
         type=str,
         default="cpu",
         help="Device to use for conversion (e.g., 'cpu' or 'gpu:0').",
+    )
+    verasonics_parser.add_argument(
+        "--no_compression",
+        action="store_true",
+        help="Disable compression when saving the zea dataset. By default, compression is "
+        "enabled, which reduces disk space at the cost of increased conversion time.",
     )
 
 

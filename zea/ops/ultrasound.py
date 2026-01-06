@@ -35,6 +35,7 @@ from zea.ops.tensor import (
     GaussianBlur,
 )
 from zea.simulator import simulate_rf
+from zea.utils import canonicalize_axis
 
 
 @ops_registry("simulate_rf")
@@ -879,3 +880,85 @@ class ReshapeGrid(Operation):
         data = kwargs[self.key]
         reshaped_data = reshape_axis(data, grid.shape[:-1], self.axis + int(self.with_batch_dim))
         return {self.output_key: reshaped_data}
+
+
+@ops_registry("apply_window")
+class ApplyWindow(Operation):
+    """Apply a window function to the input data along a specific axis.
+
+    This operation can be used to zero out the end and/or beginning of the signal and apply a window
+    of some size to transition from the zeroed region to the unmodified region.
+
+    The axis is divided into five regions:
+    [start (zero)] - [size (window)] - [middle (unmodified)] - [size (window)] - [end (zero)]
+    """
+
+    STATIC_PARAMS = ["axis", "size", "window_type", "start", "end"]
+
+    def __init__(self, axis=-3, size=32, start=16, end=0, window_type="hanning", **kwargs):
+        """
+        Args:
+            axis (int): Axis along which to apply the window.
+            size (int): Size of the window to apply at the start and end regions.
+            start (int): Number of elements to zero at the end.
+            end (int): Number of elements to zero at the end.
+            window_type (str): Type of window to apply. Supported types are "hanning" and "linear".
+        """
+        super().__init__(**kwargs)
+        self.axis = axis
+        self.size = int(size)
+        self.start = int(start)
+        self.end = int(end)
+        self._check_inputs()
+        self.window_type = window_type
+        self.window = self._get_window(self.window_type, size, "float32")
+
+    def _check_inputs(self):
+        if self.start < 0:
+            raise ValueError("start must be >= 0.")
+        if self.end < 0:
+            raise ValueError("end must be >= 0.")
+        if self.size < 0:
+            raise ValueError("size must be >= 0.")
+
+    @staticmethod
+    def _get_window(window_type, size, dtype):
+        if window_type == "hanning":
+            window = ops.hanning(size * 2)
+        elif window_type == "linear":
+            window = ops.concatenate(
+                [ops.linspace(0.0, 1.0, size), ops.linspace(1.0, 0.0, size)], axis=0
+            )
+        else:
+            raise ValueError(f"Unsupported window type: {window_type}")
+        return ops.cast(window, dtype)
+
+    def call(self, **kwargs):
+        data = kwargs[self.key]
+        dtype = data.dtype
+        axis = canonicalize_axis(self.axis, ops.ndim(data))
+
+        length = ops.shape(data)[axis]
+
+        if self.start + self.size * 2 + self.end > length:
+            raise ValueError("start, size, and end are larger than the axis length.")
+
+        window = ops.cast(self.window, dtype)
+
+        ones = ops.ones((length,), dtype=dtype)
+        mask = ops.concatenate(
+            [
+                ops.zeros((self.start,), dtype=dtype),
+                window[: self.size],
+                ones[self.size + self.start : -(self.end + self.size)],
+                window[self.size :],
+                ops.zeros((self.end,), dtype=dtype),
+            ],
+            axis=0,
+        )
+
+        shape = [1] * ops.ndim(data)
+        shape[axis] = length
+        mask = ops.reshape(mask, shape)
+
+        return {self.output_key: data * mask}

@@ -1183,7 +1183,14 @@ class VerasonicsFile(h5py.File):
 
         return frame_indices
 
-    def to_zea(self, output_path, additional_functions=None, frames=None, allow_accumulate=False):
+    def to_zea(
+        self,
+        output_path,
+        additional_functions=None,
+        frames=None,
+        allow_accumulate=False,
+        enable_compression=True,
+    ):
         """Converts the Verasonics file to the zea format.
 
         Args:
@@ -1199,6 +1206,9 @@ class VerasonicsFile(h5py.File):
                 on the Verasonics system (e.g. harmonic imaging through pulse inversion).
                 In this case, the mode in the Receive structure is set to 1 (accumulate).
                 If this flag is set to False, an error is raised when such a mode is detected.
+                Defaults to False.
+            enable_compression (bool, optional): Whether to enable compression when saving
+                the zea file. Defaults to True.
         """
         if "TX_Agent" in self:
             active_keys = self["TX_Agent"].keys()
@@ -1231,6 +1241,7 @@ class VerasonicsFile(h5py.File):
                 **data,
                 event_structure=True,
                 description=description,
+                enable_compression=enable_compression,
             )
 
         else:
@@ -1244,7 +1255,12 @@ class VerasonicsFile(h5py.File):
 
             # Generate the zea dataset
             log.info("Generating zea dataset...")
-            generate_zea_dataset(path=output_path, **data, description="Verasonics data")
+            generate_zea_dataset(
+                path=output_path,
+                **data,
+                description="Verasonics data",
+                enable_compression=enable_compression,
+            )
 
 
 def _zea_from_verasonics_workspace(input_path, output_path, **kwargs):
@@ -1388,7 +1404,11 @@ def convert_verasonics(args):
                 log.info("Aborting...")
                 sys.exit()
         _zea_from_verasonics_workspace(
-            selected_path, output_path, frames=args.frames, allow_accumulate=args.allow_accumulate
+            selected_path,
+            output_path,
+            frames=args.frames,
+            allow_accumulate=args.allow_accumulate,
+            enable_compression=not args.no_compression,
         )
     else:
         # Continue with the rest of your code...
@@ -1441,6 +1461,7 @@ def convert_verasonics(args):
                         file_output_path,
                         frames=args.frames,
                         allow_accumulate=args.allow_accumulate,
+                        enable_compression=not args.no_compression,
                     )
                 except Exception:
                     # Print error message without raising it
