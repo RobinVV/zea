@@ -196,6 +196,7 @@ class Scan(Parameters):
         "sound_speed": {"type": float, "default": 1540.0},
         "sampling_frequency": {"type": float},
         "center_frequency": {"type": float},
+        "n_frames": {"type": int},
         "n_el": {"type": int},
         "n_tx": {"type": int},
         "n_ax": {"type": int},
