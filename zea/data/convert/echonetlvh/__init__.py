@@ -277,35 +277,32 @@ class LVHProcessor(H5Processor):
         """
 
         avi_filename = Path(avi_file).stem + ".avi"
-        sequence = np.array(load_avi(avi_file))
-
-        sequence = translate(sequence, self.range_from, self._process_range)
+        sequence_np = load_avi(avi_file)
+        sequence_processed = jnp.array(sequence_np)
+        sequence_processed = translate(sequence_processed, self.range_from, self._process_range)
         # Get pre-computed cone parameters for this file
         cone_params = self.cone_parameters.get(avi_filename)
         if cone_params is not None:
             # Apply pre-computed cropping parameters
-            sequence = crop_sequence_with_params(sequence, cone_params)
+            sequence_processed = crop_sequence_with_params(sequence_processed, cone_params)
         else:
             log.warning(f"No cone parameters for {avi_filename}, using original sequence")
-        sequence = jnp.array(sequence)
 
-        split = self.get_split(avi_file, sequence)
+        split = self.get_split(avi_file, sequence_processed)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
 
         angle = cone_params["opening_angle"] / 2  # angular field spans (-angle, +angle)
-        polar_im_set = self.cart2pol_batched(sequence, angle)
+        polar_im_set = self.cart2pol_batched(sequence_processed, angle)
+        polar_im_set = translate(polar_im_set, self._process_range, (0, 255))
+        polar_im_set = jnp.asarray(polar_im_set, dtype=jnp.uint8)
+        polar_im_set_np = np.array(polar_im_set)
 
         zea_dataset = {
             "path": out_h5,
-            # store as uint8 for memory efficiency
-            "image_sc": translate(np.array(sequence), self._process_range, (0, 255)).astype(
-                np.uint8
-            ),
+            "image_sc": sequence_np,
             "probe_name": "generic",
             "description": "EchoNet-LVH dataset converted to zea format",
-            "image": translate(np.array(polar_im_set), self._process_range, (0, 255)).astype(
-                np.uint8
-            ),
+            "image": polar_im_set_np,
             "cast_to_float": False,
         }
         return generate_zea_dataset(**zea_dataset)
