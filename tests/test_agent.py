@@ -129,6 +129,24 @@ def test_greedy_entropy():
     assert np.all(selected_lines == correct_selected_lines)
 
 
+def test_greedy_entropy_average_across_batch():
+    """Test GreedyEntropy with average_entropy_across_batch=True for 3D plane selection."""
+    np.random.seed(42)
+    h, w = 8, 8
+    batch_size = 3
+    n_particles = 2
+    n_actions = 1
+
+    particles = np.random.rand(batch_size, n_particles, h, w).astype(np.float32)
+
+    # Verify it runs without error when averaging across batch
+    agent = selection.GreedyEntropy(n_actions, w, h, w, average_entropy_across_batch=True)
+    selected_lines, mask = agent.sample(particles)
+
+    assert mask.shape == (1, h, w)
+    assert selected_lines.shape == (1, w)
+
+
 def test_covariance_sampling_lines():
     """Test CovarianceSamplingLines action selection."""
     # Note: this test is hard-coded to work with rng seed 2, seed should not be a variable.
