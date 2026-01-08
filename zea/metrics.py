@@ -342,6 +342,8 @@ class Metrics:
         Args:
             metrics (list): List of metric names to calculate.
             image_range (tuple): The range of the images. Used for metrics like PSNR and LPIPS.
+            quantize (bool): Whether to quantize the images to uint8 before calculating metrics.
+            clip (bool): Whether to clip the images to `image_range` before calculating metrics.
             kwargs: Additional keyword arguments to pass to the metric functions.
         """
         # Assert all metrics are paired
@@ -364,7 +366,9 @@ class Metrics:
         self.clip = clip
 
     @staticmethod
-    def _call_metric_fn(fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device):
+    def _call_metric_fn(
+        fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device, batch_size=None
+    ):
         if batch_axes is None:
             batch_axes = tuple(range(ops.ndim(y_true) - 3))
         elif not isinstance(batch_axes, (list, tuple)):
@@ -373,7 +377,9 @@ class Metrics:
         # Because most metric functions do not support batching, we vmap over the batch axes.
         metric_fn = fun
         for ax in reversed(batch_axes):
-            metric_fn = tensor.vmap(metric_fn, in_axes=ax, _use_torch_vmap=True)
+            metric_fn = tensor.vmap(
+                metric_fn, in_axes=ax, _use_torch_vmap=True, batch_size=batch_size
+            )
 
         out = func_on_device(metric_fn, device, y_true, y_pred)
 
@@ -399,6 +405,7 @@ class Metrics:
         y_pred,
         average_batch=True,
         batch_axes=None,
+        batch_size=None,
         return_numpy=True,
         device=None,
     ):
@@ -410,6 +417,8 @@ class Metrics:
             average_batch (bool): Whether to average the metrics over the batch dimensions.
             batch_axes (tuple): The axes corresponding to the batch dimensions. If None, will
                 assume all leading dimensions except the last 3 are batch dimensions.
+            batch_size (int): The batch size to use for computing metric values in parallel.
+                You may want to decrease this if you run into memory issues, e.g. with LPIPS.
             return_numpy (bool): Whether to return the metrics as numpy arrays. If False, will
                 return as tensors.
             device (str): The device to run the metric calculations on. If None, will use the
@@ -425,6 +434,7 @@ class Metrics:
                 batch_axes,
                 return_numpy,
                 device,
+                batch_size=batch_size,
             )
         return results
 
