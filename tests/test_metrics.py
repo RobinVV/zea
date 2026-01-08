@@ -10,7 +10,7 @@ from zea import metrics
 from zea.backend.tensorflow.losses import SMSLE
 from zea.internal.registry import metrics_registry
 
-from . import backend_equality_check, DEFAULT_TEST_SEED
+from . import DEFAULT_TEST_SEED, backend_equality_check
 
 
 def test_smsle():
@@ -103,6 +103,40 @@ def test_metrics_class():
 
     # Compare backends for a single metric
     return results_no_avg["mse"]
+
+
+@backend_equality_check(decimal=2)
+def test_metrics_class_batch_size():
+    """Test Metrics class with batch_size parameter"""
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    y_true = rng.random((4, 16, 16, 3)).astype(np.float32) * 255.0
+    y_pred = rng.random((4, 16, 16, 3)).astype(np.float32) * 255.0
+    y_true = ops.convert_to_tensor(y_true)
+    y_pred = ops.convert_to_tensor(y_pred)
+
+    METRIC_NAMES = ["mse", "psnr", "lpips"]
+    metrics_instance = metrics.Metrics(METRIC_NAMES, [0, 255])
+
+    # Compute without batch_size (baseline)
+    results_no_batch_size = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=0)
+
+    # Compute with batch_size=2 (should process in chunks)
+    results_with_batch_size = metrics_instance(
+        y_true, y_pred, average_batch=False, batch_axes=0, batch_size=2
+    )
+
+    # Results should be the same regardless of batch_size
+    for name in METRIC_NAMES:
+        np.testing.assert_allclose(
+            results_no_batch_size[name],
+            results_with_batch_size[name],
+            rtol=1e-5,
+            atol=1e-5,
+            err_msg=f"Metric {name} differs with batch_size parameter",
+        )
+
+    # Verify shapes are correct
+    assert all(value.shape[0] == 4 for value in results_with_batch_size.values())
 
 
 def test_metrics_registry():
