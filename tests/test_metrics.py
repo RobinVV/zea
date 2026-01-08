@@ -138,6 +138,9 @@ def test_metrics_class_batch_size():
     # Verify shapes are correct
     assert all(value.shape[0] == 4 for value in results_with_batch_size.values())
 
+    # Compare backends for a single metric
+    return results_with_batch_size["mse"]
+
 
 def test_metrics_registry():
     """Test if all metrics are in the registry"""
