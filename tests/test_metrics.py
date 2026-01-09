@@ -88,7 +88,7 @@ def test_metrics_class():
     assert all(name in results for name in METRIC_NAMES)
     assert all(np.isscalar(value.item()) for value in results.values())
 
-    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, num_batch_axes=1)
+    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False)
     assert all(name in results_no_avg for name in METRIC_NAMES)
     assert all(value.shape[0] == 2 for value in results_no_avg.values())
 
@@ -109,11 +109,11 @@ def test_metrics_class_batch_size():
     metrics_instance = metrics.Metrics(METRIC_NAMES, [0, 255])
 
     # Compute without batch_size (baseline)
-    results_no_batch_size = metrics_instance(y_true, y_pred, average_batch=False, num_batch_axes=1)
+    results_no_batch_size = metrics_instance(y_true, y_pred, average_batch=False)
 
     # Compute with batch_size=2 (should process in chunks)
     results_with_batch_size = metrics_instance(
-        y_true, y_pred, average_batch=False, num_batch_axes=1, batch_size=2
+        y_true, y_pred, average_batch=False, mapped_batch_size=2
     )
 
     # Results should be the same regardless of batch_size
