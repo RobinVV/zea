@@ -128,6 +128,9 @@ def test_greedy_entropy():
     correct_selected_lines = [correct_selected_lines]
     assert np.all(selected_lines == correct_selected_lines)
 
+    # Test compute_pairwise_pixel_gaussian_error with n_possible_actions = None
+    _ = agent.compute_pairwise_pixel_gaussian_error(particles, n_possible_actions=None)
+
 
 def test_greedy_entropy_average_across_batch():
     """Test GreedyEntropy with average_entropy_across_batch=True for 3D plane selection."""
