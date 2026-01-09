@@ -153,7 +153,7 @@ class GreedyEntropy(LinesActionModel):
         assert particles.shape[1] > 1, "The entropy cannot be approximated using a single particle."
 
         if n_possible_actions is None:
-            n_possible_actions = particles.shape[-1]
+            n_possible_actions = ops.shape(particles)[-1]
 
         # TODO: I think we only need to compute the lower triangular
         # of this matrix, since it's symmetric
@@ -164,7 +164,8 @@ class GreedyEntropy(LinesActionModel):
         # Vertically stack all columns corresponding with the same line
         # This way we can just sum across the height axis and get the entropy
         # for each pixel in a given line
-        batch_size, n_particles, _, height, _ = gaussian_error_per_pixel_i_j.shape
+        batch_size, n_particles, _, height, _ = ops.shape(gaussian_error_per_pixel_i_j)
+
         gaussian_error_per_pixel_stacked = ops.transpose(
             ops.reshape(
                 ops.transpose(gaussian_error_per_pixel_i_j, (0, 1, 2, 4, 3)),
