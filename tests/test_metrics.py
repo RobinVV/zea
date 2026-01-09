@@ -88,18 +88,9 @@ def test_metrics_class():
     assert all(name in results for name in METRIC_NAMES)
     assert all(np.isscalar(value.item()) for value in results.values())
 
-    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=0)
+    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, num_batch_axes=1)
     assert all(name in results_no_avg for name in METRIC_NAMES)
     assert all(value.shape[0] == 2 for value in results_no_avg.values())
-
-    y_true = rng.random((2, 1, 16, 16, 4, 3)).astype(np.float32) * 255.0
-    y_pred = rng.random((2, 1, 16, 16, 4, 3)).astype(np.float32) * 255.0
-    y_true = ops.convert_to_tensor(y_true)
-    y_pred = ops.convert_to_tensor(y_pred)
-
-    results_no_avg = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=(0, -2))
-    assert all(name in results_no_avg for name in METRIC_NAMES)
-    assert all(value.shape == (2, 4, 1) for value in results_no_avg.values())
 
     # Compare backends for a single metric
     return results_no_avg["mse"]
@@ -118,11 +109,11 @@ def test_metrics_class_batch_size():
     metrics_instance = metrics.Metrics(METRIC_NAMES, [0, 255])
 
     # Compute without batch_size (baseline)
-    results_no_batch_size = metrics_instance(y_true, y_pred, average_batch=False, batch_axes=0)
+    results_no_batch_size = metrics_instance(y_true, y_pred, average_batch=False, num_batch_axes=1)
 
     # Compute with batch_size=2 (should process in chunks)
     results_with_batch_size = metrics_instance(
-        y_true, y_pred, average_batch=False, batch_axes=0, batch_size=2
+        y_true, y_pred, average_batch=False, num_batch_axes=1, batch_size=2
     )
 
     # Results should be the same regardless of batch_size
