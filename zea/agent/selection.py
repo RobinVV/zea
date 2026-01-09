@@ -96,6 +96,7 @@ class GreedyEntropy(LinesActionModel):
         std_dev: float = 1,
         num_lines_to_update: int = 5,
         entropy_sigma: float = 1.0,
+        average_entropy_across_batch: bool = False,
     ):
         """Initialize the GreedyEntropy action selection model.
 
@@ -110,6 +111,10 @@ class GreedyEntropy(LinesActionModel):
                 to update. Must be odd.
             entropy_sigma (float, optional): The standard deviation of the Gaussian
                 Mixture components used to approximate the posterior.
+            average_entropy_across_batch (bool, optional): Whether to average entropy
+                across the batch when selecting lines. This can be useful when
+                selecting planes in 3D imaging, where the batch dimension represents
+                a third spatial dimension. Defaults to False.
         """
         super().__init__(n_actions, n_possible_actions, img_width, img_height)
 
@@ -117,6 +122,7 @@ class GreedyEntropy(LinesActionModel):
         # of the selected line is set to 0 once it's been selected.
         assert num_lines_to_update % 2 == 1, "num_samples must be odd."
         self.num_lines_to_update = num_lines_to_update
+        self.average_entropy_across_batch = average_entropy_across_batch
 
         # see here what I mean by upside_down_gaussian:
         # https://colab.research.google.com/drive/1CQp_Z6nADzOFsybdiH5Cag0vtVZjjioU?usp=sharing
@@ -275,6 +281,8 @@ class GreedyEntropy(LinesActionModel):
 
         pixelwise_entropy = self.compute_pixelwise_entropy(particles)
         linewise_entropy = ops.sum(pixelwise_entropy, axis=1)
+        if self.average_entropy_across_batch:
+            linewise_entropy = ops.expand_dims(ops.mean(linewise_entropy, axis=0), axis=0)
 
         # Greedily select best line, reweight entropies, and repeat
         all_selected_lines = []
