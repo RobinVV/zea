@@ -367,18 +367,17 @@ class Metrics:
 
     @staticmethod
     def _call_metric_fn(
-        fun, y_true, y_pred, average_batch, batch_axes, return_numpy, device, batch_size=None
+        fun, y_true, y_pred, average_batch, num_batch_axes, return_numpy, device, batch_size=None
     ):
-        if batch_axes is None:
-            batch_axes = tuple(range(ops.ndim(y_true) - 3))
-        elif not isinstance(batch_axes, (list, tuple)):
-            batch_axes = (batch_axes,)
+        if num_batch_axes is None:
+            num_batch_axes = max(0, ops.ndim(y_true) - 3)
 
         # Because most metric functions do not support batching, we vmap over the batch axes.
         metric_fn = fun
-        for ax in reversed(batch_axes):
+        for _ in range(num_batch_axes):
+            # recursively vmap the leading axis
             metric_fn = tensor.vmap(
-                metric_fn, in_axes=ax, _use_torch_vmap=True, batch_size=batch_size
+                metric_fn, in_axes=0, _use_torch_vmap=True, batch_size=batch_size
             )
 
         out = func_on_device(metric_fn, device, y_true, y_pred)
@@ -404,7 +403,7 @@ class Metrics:
         y_true,
         y_pred,
         average_batch=True,
-        batch_axes=None,
+        num_batch_axes=None,
         batch_size=None,
         return_numpy=True,
         device=None,
@@ -415,9 +414,9 @@ class Metrics:
             y_true (tensor): Ground truth images with shape [..., h, w, c]
             y_pred (tensor): Predicted images with shape [..., h, w, c]
             average_batch (bool): Whether to average the metrics over the batch dimensions.
-            batch_axes (tuple): The axes corresponding to the batch dimensions. If None, will
-                assume all leading dimensions except the last 3 are batch dimensions.
-            batch_size (int): The batch size to use for computing metric values in parallel.
+            num_batch_axes (int): The number of leading batch axes to map over. If your
+                batch axes are not leading, consider transposing the input tensor.
+            batch_size (optional int): The batch size to use for computing metric values in parallel.
                 You may want to decrease this if you run into memory issues, e.g. with LPIPS.
             return_numpy (bool): Whether to return the metrics as numpy arrays. If False, will
                 return as tensors.
@@ -431,7 +430,7 @@ class Metrics:
                 self._prepocess(y_true),
                 self._prepocess(y_pred),
                 average_batch,
-                batch_axes,
+                num_batch_axes,
                 return_numpy,
                 device,
                 batch_size=batch_size,
