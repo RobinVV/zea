@@ -1187,6 +1187,3 @@ class PoolLayer(layers.Layer):
 
     def call(self, x):
         return self.pool(self.activation(self.c1(x)))
-
-
-__all__ = ["VAE"]

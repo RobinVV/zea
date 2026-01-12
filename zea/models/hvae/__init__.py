@@ -35,7 +35,8 @@ SUPPORTED_VERSIONS = [
     "lvh_ur8",
     "lvh_ur4",
     "lvh_ge24",
-    "lvh_ge16lvh_ge8",
+    "lvh_ge16",
+    "lvh_ge8",
     "lvh_ge4",
 ]
 
@@ -59,7 +60,7 @@ class HierarchicalVAE(DeepGenerativeModel):
         Args:
             name (str): Name of the model.
             version (str): Version of the HVAE model to use.
-                Supported versions are: "lvh", "lvh_ur24", "lvh_ur16", "lvh_ur8", "lvh_ur4", "lvh_ge24", "lvh_ge16" "lvh_ge8", "lvh_ge4".
+                Supported versions are: "lvh", "lvh_ur24", "lvh_ur16", "lvh_ur8", "lvh_ur4", "lvh_ge24", "lvh_ge16", "lvh_ge8", "lvh_ge4".
         """
 
         super().__init__(name, **kwargs)
@@ -237,3 +238,5 @@ class HierarchicalVAE(DeepGenerativeModel):
 
 
 register_presets(hvae_presets, HierarchicalVAE)
+
+__all__ = ["HierarchicalVAE"]

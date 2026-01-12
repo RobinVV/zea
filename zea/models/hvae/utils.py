@@ -612,6 +612,3 @@ class GradientNorms(metrics.Metric):
 
     def result(self):
         return self.grads
-
-
-__all__ = ["Parameters", "DiscMixLogistic"]
