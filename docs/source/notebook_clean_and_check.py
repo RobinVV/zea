@@ -52,13 +52,11 @@ GPU_WARNING_EXCLUSIONS = [
     "data/zea_local_data.ipynb",
 ]
 
-GPU_WARNING_TEXT = """
-‼️ **Important:** This notebook is optimized for **GPU/TPU**. Code execution on a **CPU** may be very slow.
+GPU_WARNING_TEXT = """‼️ **Important:** This notebook is optimized for **GPU/TPU**. Code execution on a **CPU** may be very slow.
 
 If you are running in Colab, please enable a hardware accelerator via:
 
-**Runtime → Change runtime type → Hardware accelerator → GPU/TPU** 🚀.
-"""  # noqa E501
+**Runtime → Change runtime type → Hardware accelerator → GPU/TPU** 🚀."""  # noqa E501
 
 DOCS_URL = "https://github.com/tue-bmd/zea/blob/main/docs/source/notebook_clean_and_check.py"
 
@@ -172,8 +170,8 @@ def check_gpu_warning(nb, nb_path, badge_cell_idx):
 
     next_cell = cells[badge_cell_idx + 1]
     next_cell_src = "".join(next_cell.get("source", []))
-    expected_text = GPU_WARNING_TEXT.strip()
-    actual_text = next_cell_src.strip()
+    expected_text = GPU_WARNING_TEXT
+    actual_text = next_cell_src
 
     if expected_text != actual_text:
         error(
