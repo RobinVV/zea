@@ -229,7 +229,7 @@ class HierarchicalVAE(DeepGenerativeModel):
             measurements (tensor): Input measurements of shape [B, 256, 256, 3].
 
         Returns:
-            elbo (tensor): ELBO of the input measurements, averaged over the batch.
+            -elbo (tensor): negative ELBO of the input measurements, averaged over the batch.
 
         """
         recon, _, kl = self.network.call(measurements)
@@ -240,4 +240,4 @@ class HierarchicalVAE(DeepGenerativeModel):
 
 register_presets(hvae_presets, HierarchicalVAE)
 
-__all__ = ["HierarchicalVAE", "Parameters", "VAE", "SoftPlus"]
+__all__ = ["HierarchicalVAE"]
