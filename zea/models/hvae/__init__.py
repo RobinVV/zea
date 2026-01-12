@@ -234,7 +234,7 @@ class HierarchicalVAE(DeepGenerativeModel):
         recon, _, kl = self.network.call(measurements)
         # elbo is averaged over batch dimension
         elbo, _, _ = self.network.get_elbo(measurements, recon, kl, **kwargs)
-        return elbo
+        return -elbo
 
 
 register_presets(hvae_presets, HierarchicalVAE)
