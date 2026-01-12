@@ -28,7 +28,16 @@ from zea.internal.registry import model_registry
 from zea.models.preset_utils import register_presets, get_preset_loader
 from zea.models.presets import hvae_presets
 
-SUPPORTED_VERSIONS = ["lvh", "lvh_ur24", "lvh_ur16", "lvh_ur8", "lvh_ur4"]
+SUPPORTED_VERSIONS = [
+    "lvh",
+    "lvh_ur24",
+    "lvh_ur16",
+    "lvh_ur8",
+    "lvh_ur4",
+    "lvh_ge24",
+    "lvh_ge16lvh_ge8",
+    "lvh_ge4",
+]
 
 
 @model_registry(name="hvae")
@@ -50,7 +59,7 @@ class HierarchicalVAE(DeepGenerativeModel):
         Args:
             name (str): Name of the model.
             version (str): Version of the HVAE model to use.
-                Supported versions are: "lvh", "lvh_ur24", "lvh_ur16", "lvh_ur8", "lvh_ur4".
+                Supported versions are: "lvh", "lvh_ur24", "lvh_ur16", "lvh_ur8", "lvh_ur4", "lvh_ge24", "lvh_ge16" "lvh_ge8", "lvh_ge4".
         """
 
         super().__init__(name, **kwargs)
