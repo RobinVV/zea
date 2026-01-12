@@ -24,8 +24,8 @@ import numpy as np
 from keras import ops
 
 from zea import log
+from zea.func.tensor import sinc
 from zea.internal.cache import cache_output
-from zea.tensor_ops import sinc
 
 
 def _abs_sinc(x):
@@ -101,7 +101,7 @@ def compute_pfield(
     # array params
     probe_geometry = ops.convert_to_tensor(probe_geometry, dtype="float32")
 
-    pitch = probe_geometry[1, 0] - probe_geometry[0, 0]  # element pitch
+    pitch = ops.abs(probe_geometry[1, 0] - probe_geometry[0, 0])  # element pitch
 
     kerf = 0.1 * pitch  # for now this is hardcoded
     element_width = pitch - kerf

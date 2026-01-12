@@ -1,3 +1,7 @@
+.. This is the only manually maintained file in the
+   _autosummary directory. It is used to generate the main API reference
+   page for the zea package.
+
 zea
 ====
 
@@ -25,13 +29,12 @@ zea
    beamform
    config
    data
-   data.convert
    datapaths
    display
    doppler
+   func
    interface
    io_lib
-   keras_ops
    log
    metrics
    models
@@ -39,7 +42,6 @@ zea
    probes
    scan
    simulator
-   tensor_ops
    tools
    tracking
    utils
