@@ -113,6 +113,7 @@ class Scan(Parameters):
         n_el (int): Number of elements in the transducer array.
         n_tx (int): Number of transmit events in the dataset.
         n_ax (int): Number of axial samples in the received signal.
+        n_ch (int, optional): Number of channels (1 for RF, 2 for IQ data).
         xlims (tuple of float): Lateral (x) limits of the imaging region in
             meters (min, max).
         ylims (tuple of float, optional): Elevation (y) limits of the imaging
@@ -202,6 +203,7 @@ class Scan(Parameters):
         "n_el": {"type": int},
         "n_tx": {"type": int},
         "n_ax": {"type": int},
+        "n_ch": {"type": int},
         "bandwidth_percent": {"type": float, "default": 200.0},
         "demodulation_frequency": {"type": float},
         "element_width": {"type": float},
