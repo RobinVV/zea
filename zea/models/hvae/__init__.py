@@ -19,13 +19,14 @@ To try this model, simply load one of the available presets:
 """
 
 import pickle
+
 from keras import ops
 
-from zea.models.hvae.model import VAE
-from zea.models.hvae.utils import Parameters
-from zea.models.generative import DeepGenerativeModel
 from zea.internal.registry import model_registry
-from zea.models.preset_utils import register_presets, get_preset_loader
+from zea.models.generative import DeepGenerativeModel
+from zea.models.hvae.model import VAE
+from zea.models.hvae.utils import Parameters, SoftPlus
+from zea.models.preset_utils import get_preset_loader, register_presets
 from zea.models.presets import hvae_presets
 
 SUPPORTED_VERSIONS = [
@@ -239,4 +240,4 @@ class HierarchicalVAE(DeepGenerativeModel):
 
 register_presets(hvae_presets, HierarchicalVAE)
 
-__all__ = ["HierarchicalVAE"]
+__all__ = ["HierarchicalVAE", "Parameters", "VAE", "SoftPlus"]

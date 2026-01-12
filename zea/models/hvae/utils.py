@@ -1,11 +1,13 @@
-from keras import layers, ops, optimizers, metrics
 import numpy as np
+from keras import layers, metrics, ops, optimizers
 
 
 class SoftPlus(layers.Layer):
-    """
+    r"""
     Custom SoftPlus function that has a beta-parameter for gradient smoothing.
-    f(x) = (1/beta) * log(1 + exp(beta * x))
+
+    .. math::
+        f(x) = \frac{1}{\beta} \log(1 + \exp(\beta \cdot x))
     """
 
     def __init__(self, gradient_smoothing, min=-10):
