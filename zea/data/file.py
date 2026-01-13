@@ -800,6 +800,8 @@ def _assert_scan_keys_present(file: File):
             correct_shape = (file["scan"]["n_tx"][()],)
         elif key in ("waveforms_one_way", "waveforms_two_way"):
             correct_shape = None
+        elif key == "transmit_origins":
+            correct_shape = (file["scan"]["n_tx"][()], 3)
 
         elif key in (
             "sampling_frequency",
