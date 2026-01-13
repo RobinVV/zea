@@ -512,7 +512,7 @@ class BandPassFilter(FirFilter):
         )
         self.num_taps = num_taps
 
-    def call(self, sampling_frequency, demodulation_frequency, bandwidth=2e6, **kwargs):
+    def call(self, sampling_frequency, demodulation_frequency, bandwidth, **kwargs):
         """Apply band-pass filter with specified bandwidth.
 
         Args:

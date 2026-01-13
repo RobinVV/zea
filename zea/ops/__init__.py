@@ -122,6 +122,7 @@ from .tensor import (
 )
 from .ultrasound import (
     AnisotropicDiffusion,
+    BandPassFilter,
     ChannelsToComplex,
     Companding,
     ComplexToChannels,
@@ -167,6 +168,7 @@ __all__ = [
     "Threshold",
     # Ultrasound operations
     "AnisotropicDiffusion",
+    "BandPassFilter",
     "ChannelsToComplex",
     "Companding",
     "ComplexToChannels",
