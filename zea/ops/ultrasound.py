@@ -428,35 +428,32 @@ class FirFilter(Operation):
 
 
 @ops_registry("low_pass_filter")
-class LowPassFilter(FirFilter):
-    """Apply a low-pass FIR filter to the input signal using convolution.
+class LowPassFilterIQ(FirFilter):
+    """Apply a low-pass FIR filter to the demodulated IQ (n_ch=2) input signal using convolution.
 
     It is recommended to use :class:`FirFilter` with pre-computed filter taps for jittable
-    operations. The :class:`LowPassFilter` operation itself is not jittable and is provided
+    operations. The :class:`LowPassFilterIQ` operation itself is not jittable and is provided
     for convenience only.
 
     Uses :func:`get_low_pass_iq_filter` to compute the filter taps.
     """
 
-    def __init__(self, axis: int, complex_channels: bool = False, num_taps: int = 128, **kwargs):
-        """Initialize the LowPassFilter operation.
+    def __init__(self, axis: int, num_taps: int = 127, **kwargs):
+        """Initialize the LowPassFilterIQ operation.
 
         Args:
             axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
                 When using ``complex_channels=True``, the complex channels are removed to convert
                 to complex numbers before filtering, so adjust the ``axis`` accordingly.
-            complex_channels (bool): Whether the last dimension of the input signal represents
-                complex channels (real and imaginary parts). When True, it will convert the signal
-                to ``complex`` dtype before filtering and convert it back to two channels
-                after filtering.
-            num_taps (int): Number of taps in the FIR filter. Default is 128.
+            num_taps (int): Number of taps in the FIR filter. Default is 127.
+                Odd will result in a type I filter, even in a type II filter.
         """
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
         kwargs.pop("jittable", None)
         super().__init__(
             axis=axis,
-            complex_channels=complex_channels,
+            complex_channels=True,
             filter_key=f"low_pass_{self._random_suffix}",
             jittable=False,
             **kwargs,
@@ -476,11 +473,13 @@ class LowPassFilter(FirFilter):
 
 @ops_registry("band_pass_filter")
 class BandPassFilter(FirFilter):
-    """Apply a band-pass FIR filter to the input signal using convolution.
+    """Apply a band-pass FIR filter to the real input signal using convolution.
 
     The bandwidth parameter in the call method defines the passband centered around
     ``demodulation_frequency``, with edges at ``demodulation_frequency - bandwidth/2``
     and ``demodulation_frequency + bandwidth/2``.
+
+    Make sure this is used before demodulation to baseband.
 
     This operation is provided for convenience and will recompute the filter weights every
     time it is called. Alternatively, you can use :class:`FirFilter` with pre-computed
@@ -489,24 +488,21 @@ class BandPassFilter(FirFilter):
 
     STATIC_PARAMS = ["num_taps"]
 
-    def __init__(self, axis: int, complex_channels: bool = False, num_taps: int = 128, **kwargs):
+    def __init__(self, axis: int, num_taps: int = 127, **kwargs):
         """Initialize the BandPassFilter operation.
 
         Args:
             axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
                 When using ``complex_channels=True``, the complex channels are removed to convert
                 to complex numbers before filtering, so adjust the ``axis`` accordingly.
-            complex_channels (bool): Whether the last dimension of the input signal represents
-                complex channels (real and imaginary parts). When True, it will convert the signal
-                to ``complex`` dtype before filtering and convert it back to two channels
-                after filtering.
-            num_taps (int): Number of taps in the FIR filter. Default is 128.
+            num_taps (int): Number of taps in the FIR filter. Default is 127.
+                Odd will result in a type I filter, even in a type II filter.
         """
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
         super().__init__(
             axis=axis,
-            complex_channels=complex_channels,
+            complex_channels=False,
             filter_key=f"band_pass_{self._random_suffix}",
             **kwargs,
         )

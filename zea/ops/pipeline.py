@@ -212,8 +212,10 @@ class Pipeline:
 
         # Add the demodulate operation
         if not baseband:
-            operations.append(ApplyWindow())
-            operations.append(Demodulate())
+            operations += [
+                ApplyWindow(),
+                Demodulate(),
+            ]
 
         # Add beamforming ops
         operations.append(
