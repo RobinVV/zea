@@ -1,5 +1,5 @@
 import numpy as np
-import scipy
+import scipy.signal
 from keras import ops
 
 from zea import log

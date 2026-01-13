@@ -559,10 +559,11 @@ class VerasonicsFile(h5py.File):
         the following structure:
 
         .. code-block:: yaml
+
             files:
             - name: raw_data.mat
-                first_frame: 26  # 0-based indexing
-                frames: 30-99  # 0-based indexing
+              first_frame: 26  # 0-based indexing
+              frames: 30-99  # 0-based indexing
         """
         path = Path(self.filename)
         config_file = path.parent / "convert.yaml"

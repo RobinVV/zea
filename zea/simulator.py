@@ -76,7 +76,7 @@ def simulate_rf(
         lens_sound_speed (float): The speed of sound in the lens [m/s].
         sound_speed (float): The speed of sound in the medium [m/s].
         n_ax (int): The number of samples in the RF data.
-        center_frequency (float): The center frequency of the pulse [Hz].
+        center_frequency (float): The center frequency of the transmit pulse [Hz].
         sampling_frequency (float): The sampling frequency of the RF data [Hz].
         t0_delays (array-like): The delays of the transmitting elements [s] of shape (n_tx, n_el).
         initial_times (array-like): The initial times of the transmitting elements [s] of
@@ -299,7 +299,7 @@ def get_pulse_spectrum_fn(center_frequency, n_period=3.0):
     """Computes the spectrum of a sine that is windowed with a Hann window.
 
     Args:
-        center_frequency (float): The center frequency of the pulse.
+        center_frequency (float): The center frequency of the transmit pulse.
         n_period (float): The number of periods to include in the pulse.
 
     Returns:
