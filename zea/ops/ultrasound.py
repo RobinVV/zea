@@ -451,6 +451,7 @@ class LowPassFilterIQ(FirFilter):
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
         kwargs.pop("jittable", None)
+        kwargs.pop("complex_channels", None)
         super().__init__(
             axis=axis,
             complex_channels=True,
@@ -500,6 +501,7 @@ class BandPassFilter(FirFilter):
         """
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
+        kwargs.pop("complex_channels", None)
         super().__init__(
             axis=axis,
             complex_channels=False,
