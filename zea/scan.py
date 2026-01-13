@@ -67,6 +67,7 @@ Example Usage
     ...     sampling_frequency=25e6,
     ...     n_el=128,
     ...     n_tx=11,
+    ...     probe_geometry=probe.probe_geometry,
     ... )
 
     >>> # Access a derived property (computed lazily)
