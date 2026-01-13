@@ -758,7 +758,7 @@ class Scan(Parameters):
         assert not self.is_3d, "Pfield computation only supported for 2D scans"
         pfield = compute_pfield(
             sound_speed=self.sound_speed,
-            center_frequency=self.center_frequency,  # TODO: or demodulation_frequency?
+            center_frequency=self.center_frequency,
             bandwidth_percent=self.bandwidth_percent,
             n_el=self.n_el,
             probe_geometry=self.probe_geometry,
