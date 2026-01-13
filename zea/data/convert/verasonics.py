@@ -564,6 +564,11 @@ class VerasonicsFile(h5py.File):
             - name: raw_data.mat
               first_frame: 26  # 0-based indexing
               frames: 30-99  # 0-based indexing
+
+        If ``first_frame`` is provided, it will reorder the frames first and use
+        the ``frames`` key to subsample afterwards.
+
+        In the example ``frames: 30-99`` means frames 30 to 99 inclusive.
         """
         path = Path(self.filename)
         config_file = path.parent / "convert.yaml"
