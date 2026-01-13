@@ -740,3 +740,23 @@ def test_translate(range_from, range_to):
     result = zea.func.translate(arr, range_from, range_to)
     assert right_min <= np.min(result), "Minimum value is too small"
     assert np.max(result) <= right_max, "Maximum value is too large"
+
+
+@pytest.mark.parametrize(
+    "num_taps, f1, f2, sampling_frequency",
+    [
+        (64, 2e6, 4e6, 20e6),
+        (128, 1e6, 5e6, 25e6),
+        (32, 0.5e6, 3e6, 15e6),
+    ],
+)
+def test_get_band_pass_filter(num_taps, f1, f2, sampling_frequency):
+    """Tests if get_band_pass_filter is equivalent to scipy.signal.firwin."""
+    import scipy.signal
+
+    import zea
+
+    b1 = zea.func.get_band_pass_filter(num_taps, sampling_frequency, f1, f2)
+    b2 = scipy.signal.firwin(num_taps, [f1, f2], pass_zero=False, fs=sampling_frequency)
+
+    np.testing.assert_allclose(b1, b2, rtol=1e-5, atol=1e-5)

@@ -186,8 +186,17 @@ def upmix(iq_data, sampling_frequency, demodulation_frequency, upsampling_rate=6
     return ops.cast(rf_data, "float32")
 
 
+def _sinc(x):
+    """Return the normalized sinc function. Equivalent to np.sinc(x)."""
+    y = np.pi * ops.where(x == 0, 1.0e-20, x)
+    return ops.sin(y) / y
+
+
 def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
     """Band pass filter
+
+    Compatible with ``jax.jit`` when ``numtaps`` is static. Based on ``scipy.signal.firwin`` with
+    hamming window.
 
     Args:
         num_taps (int): number of taps in filter.
@@ -198,8 +207,31 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
     Returns:
         ndarray: band pass filter
     """
-    bpf = scipy.signal.firwin(num_taps, [f1, f2], pass_zero=False, fs=sampling_frequency)
-    return bpf
+    sampling_frequency = ops.cast(sampling_frequency, "float32")
+    f1 = ops.cast(f1, "float32")
+    f2 = ops.cast(f2, "float32")
+
+    nyq = 0.5 * sampling_frequency
+    f1 = f1 / nyq
+    f2 = f2 / nyq
+
+    # Build up the coefficients.
+    alpha = 0.5 * (num_taps - 1)
+    m = ops.arange(0, num_taps, dtype="float32") - alpha
+    h = f2 * _sinc(f2 * m) - f1 * _sinc(f1 * m)
+
+    # Get and apply the window function.
+    win = np.hamming(num_taps)
+    win = ops.convert_to_tensor(win, dtype=h.dtype)
+    h *= win
+
+    # Use center frequency for scaling: 0 for lowpass, 1 (Nyquist) for highpass, or band center
+    scale_frequency = ops.where(f1 == 0, 0.0, ops.where(f2 == 1, 1.0, 0.5 * (f1 + f2)))
+    c = ops.cos(np.pi * m * scale_frequency)
+    s = ops.sum(h * c)
+    h /= s
+
+    return h
 
 
 def get_low_pass_iq_filter(num_taps, sampling_frequency, center_frequency, bandwidth):
