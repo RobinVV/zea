@@ -18,6 +18,7 @@ from zea.func.ultrasound import (
     complex_to_channels,
     demodulate,
     envelope_detect,
+    get_band_pass_filter,
     get_low_pass_iq_filter,
     log_compress,
     upmix,
@@ -470,6 +471,70 @@ class LowPassFilter(FirFilter):
             ops.convert_to_numpy(bandwidth).item(),
         )
         kwargs[self.filter_key] = lpf
+        return super().call(**kwargs)
+
+
+@ops_registry("band_pass_filter")
+class BandPassFilter(FirFilter):
+    """Apply a band-pass FIR filter to the input signal using convolution.
+
+    The bandwidth parameter in the call method defines the passband centered around
+    ``demodulation_frequency``, with edges at ``demodulation_frequency - bandwidth/2``
+    and ``demodulation_frequency + bandwidth/2``.
+
+    This operation is provided for convenience and will recompute the filter weights every
+    time it is called. Alternatively, you can use :class:`FirFilter` with pre-computed
+    filter taps.
+    """
+
+    STATIC_PARAMS = ["num_taps"]
+
+    def __init__(self, axis: int, complex_channels: bool = False, num_taps: int = 128, **kwargs):
+        """Initialize the BandPassFilter operation.
+
+        Args:
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
+                When using ``complex_channels=True``, the complex channels are removed to convert
+                to complex numbers before filtering, so adjust the ``axis`` accordingly.
+            complex_channels (bool): Whether the last dimension of the input signal represents
+                complex channels (real and imaginary parts). When True, it will convert the signal
+                to ``complex`` dtype before filtering and convert it back to two channels
+                after filtering.
+            num_taps (int): Number of taps in the FIR filter. Default is 128.
+        """
+        self._random_suffix = str(uuid.uuid4())
+        kwargs.pop("filter_key", None)
+        super().__init__(
+            axis=axis,
+            complex_channels=complex_channels,
+            filter_key=f"band_pass_{self._random_suffix}",
+            **kwargs,
+        )
+        self.num_taps = num_taps
+
+    def call(self, sampling_frequency, demodulation_frequency, bandwidth=2e6, **kwargs):
+        """Apply band-pass filter with specified bandwidth.
+
+        Args:
+            sampling_frequency (float): Sampling frequency in Hz.
+            demodulation_frequency (float): Center frequency in Hz.
+            bandwidth (float): Bandwidth in Hz. The filter will pass frequencies from
+                ``demodulation_frequency - bandwidth/2`` to
+                ``demodulation_frequency + bandwidth/2``.
+
+        Returns:
+            dict: Dictionary containing filtered signal.
+        """
+        f1 = demodulation_frequency - bandwidth / 2
+        f2 = demodulation_frequency + bandwidth / 2
+
+        bpf = get_band_pass_filter(
+            self.num_taps,
+            sampling_frequency,
+            f1,
+            f2,
+        )
+        kwargs[self.filter_key] = bpf
         return super().call(**kwargs)
 
 
