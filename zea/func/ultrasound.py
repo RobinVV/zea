@@ -192,7 +192,7 @@ def _sinc(x):
     return ops.sin(y) / y
 
 
-def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
+def get_band_pass_filter(num_taps, sampling_frequency, f1, f2, validate=True):
     """Band pass filter
 
     Compatible with ``jax.jit`` when ``numtaps`` is static. Based on ``scipy.signal.firwin`` with
@@ -203,6 +203,7 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
         sampling_frequency (float): sample frequency in Hz.
         f1 (float): cutoff frequency in Hz of left band edge.
         f2 (float): cutoff frequency in Hz of right band edge.
+        validate (bool, optional): whether to validate the cutoff frequencies. Defaults to True.
 
     Returns:
         ndarray: band pass filter
@@ -215,13 +216,16 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
     f1 = f1 / nyq
     f2 = f2 / nyq
 
-    if f1 <= 0 or f2 >= 1:
-        raise ValueError(
-            "Invalid cutoff frequency: frequencies must be greater than 0 and less than fs/2."
-        )
+    if validate:
+        if f1 <= 0 or f2 >= 1:
+            raise ValueError(
+                "Invalid cutoff frequency: frequencies must be greater than 0 and less than fs/2."
+            )
 
-    if f1 >= f2:
-        raise ValueError("Invalid cutoff frequencies: the frequencies must be strictly increasing.")
+        if f1 >= f2:
+            raise ValueError(
+                "Invalid cutoff frequencies: the frequencies must be strictly increasing."
+            )
 
     # Build up the coefficients.
     alpha = 0.5 * (num_taps - 1)

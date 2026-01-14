@@ -516,9 +516,14 @@ def transmit_delays(
     # For plane waves, always use the first arrival time (minimum)
     is_planewave = ops.isinf(focus_distance)
 
-    if is_planewave:
-        tx_delay = ops.min(total_times + offset[None, :], axis=-1)
-    else:
+    # Set origin to (0, 0, 0) if not provided
+    if transmit_origin is None:
+        transmit_origin = ops.zeros(3, dtype=grid.dtype)
+
+    def _tx_delay_planewave():
+        return ops.min(total_times + offset[None, :], axis=-1)
+
+    def _tx_delay_focused():
         # Compute the 3D position of the focal point
         # The beam direction vector
         beam_direction = ops.stack(
@@ -528,10 +533,6 @@ def transmit_delays(
                 ops.cos(polar_angle),
             ]
         )
-
-        # Set origin to (0, 0, 0) if not provided
-        if transmit_origin is None:
-            transmit_origin = ops.zeros(3, dtype=grid.dtype)
 
         # Compute focal point position: origin + focus_distance * beam_direction
         # For negative focus_distance (diverging/virtual source), this is behind the origin
@@ -562,11 +563,13 @@ def transmit_delays(
         # smallest time over all elements (first wavefront arrival) for pixels before
         # the focus, and the largest time (last wavefront contribution) for pixels
         # beyond the focus.
-        tx_delay = ops.where(
+        return ops.where(
             is_before_focus,
             ops.min(total_times + offset[None, :], axis=-1),
             ops.max(total_times - offset[None, :], axis=-1),
         )
+
+    tx_delay = ops.cond(is_planewave, _tx_delay_planewave, _tx_delay_focused)
 
     # Subtract the initial time offset for this transmit
     tx_delay = tx_delay - initial_time

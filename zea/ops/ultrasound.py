@@ -523,7 +523,9 @@ class BandPassFilter(FirFilter):
         f1 = demodulation_frequency - bandwidth / 2
         f2 = demodulation_frequency + bandwidth / 2
 
-        bpf = get_band_pass_filter(self.num_taps, sampling_frequency, f1, f2)
+        bpf = get_band_pass_filter(
+            self.num_taps, sampling_frequency, f1, f2, validate=not self._jit_compile
+        )
         kwargs[self.filter_key] = bpf
         return super().call(**kwargs)
 
