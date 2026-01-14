@@ -43,7 +43,6 @@ def test_conversion_script(tmp_path_factory, dataset):
         [sys.executable, "-m", "zea.data.convert", dataset, str(src), str(dst), *extra_args],
         env=create_env_for_dataset(dataset),
         check=True,
-        capture_output=True,
     )
     verify_converted_test_dataset(dataset, src, dst)
 
@@ -467,7 +466,9 @@ def create_verasonics_test_data(src):
 
     # Create a convert.yaml file to specify parameters
     convert_yaml = {
-        "files": {"name": mat_file.name, "first_frame": 1},
+        "files": [
+            {"name": mat_file.name, "first_frame": 1},
+        ],
     }
     with open(src / "convert.yaml", "w", encoding="utf-8") as f:
         yaml.dump(convert_yaml, f)
@@ -658,8 +659,8 @@ def verify_converted_verasonics_test_data(src, dst):
     filepath = Path(src).glob("*.mat").__next__()
     with VerasonicsFile(filepath, "r") as vf:
         convert_config = vf.load_convert_config()
-        assert convert_config["files"]["name"] == filepath.name
-        assert convert_config["files"]["first_frame"] == 1
+        assert convert_config["name"] == filepath.name
+        assert convert_config["first_frame"] == 1
 
     # Check that the file contains data
     with File(h5_file, "r") as f:

@@ -569,6 +569,10 @@ class VerasonicsFile(h5py.File):
         the ``frames`` key to subsample afterwards.
 
         In the example ``frames: 30-99`` means frames 30 to 99 inclusive.
+
+        Returns:
+            dict: The configuration for the current file, or an empty dict if no
+                configuration is found.
         """
         path = Path(self.filename)
         config_file = path.parent / "convert.yaml"
