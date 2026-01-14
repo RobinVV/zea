@@ -92,7 +92,7 @@ def create_concentric_rings(size):
         ((100, 333), "create_radial_pattern", 0.001, None),
         ((200, 200), "create_concentric_rings", 0.1, None),
         ((100, 333), "create_concentric_rings", 0.1, None),
-        ((200, 200), "create_radial_pattern", 0.02, np.deg2rad(30)),
+        ((200, 200), "create_radial_pattern", 0.001, np.deg2rad(30)),
     ],
 )
 @backend_equality_check(decimal=2)
@@ -117,7 +117,11 @@ def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error, angle
         raise ValueError("Unknown pattern creator")
 
     rho_range = (0, 100)
-    theta_range = np.deg2rad((-45, 45))
+
+    if angle is None:
+        theta_range = np.deg2rad((-45, 45))
+    else:
+        theta_range = (-angle, angle)
 
     # Scan convert
     cartesian_data, _ = display.scan_convert_2d(polar_data, rho_range, theta_range)
