@@ -269,7 +269,10 @@ class Scan(Parameters):
             return self._params["distance_to_apex"]
         if self.aperture_size is not None:
             max_angle = np.max(np.abs(self.polar_limits))
-            distance_to_apex = (self.aperture_size[0] / 2) / np.tan(max_angle)
+            t = np.tan(max_angle)
+            if np.isclose(t, 0.0):
+                return 0.0
+            distance_to_apex = (self.aperture_size[0] / 2) / t
             return distance_to_apex
         return 0.0
 

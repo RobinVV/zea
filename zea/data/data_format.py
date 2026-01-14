@@ -642,7 +642,7 @@ def generate_zea_dataset(
         sound_speed (float): The speed of sound in m/s.
         probe_name (str): The name of the probe.
         description (str): The description of the dataset.
-        focus_distances (np.ndarray): The focus distances of shape (n_tx, n_el).
+        focus_distances (np.ndarray): The focus distances of shape (n_tx,).
         transmit_origins (np.ndarray): The transmit origins of shape (n_tx, 3).
         polar_angles (np.ndarray): The polar angles (radians) of shape (n_el,).
         azimuth_angles (np.ndarray): The azimuth angles (radians) of shape (n_tx,).

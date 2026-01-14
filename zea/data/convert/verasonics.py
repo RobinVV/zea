@@ -186,7 +186,7 @@ class VerasonicsFile(h5py.File):
             func (callable, optional): A function to apply to each dereferenced element.
 
         Returns:
-            np.ndarray: The dereferenced data.
+            list: The dereferenced data.
         """
         size = self.get_reference_size(dataset)
         dereferenced_data = []
@@ -590,8 +590,7 @@ class VerasonicsFile(h5py.File):
         n_frames = self.cast_to_integer(n_frames)
         return n_frames
 
-    def get_indices_to_reorder(self, first_frame: int, buffer_index=0):
-        n_frames = self.get_frame_count(buffer_index)
+    def get_indices_to_reorder(self, first_frame: int, n_frames: int):
         return (np.arange(n_frames) + first_frame) % n_frames
 
     def get_raw_data_order(self, buffer_index=0):
@@ -648,7 +647,8 @@ class VerasonicsFile(h5py.File):
 
         # Re-order frames such that sequence is correct
         if first_frame_idx is not None:
-            indices = self.get_indices_to_reorder(first_frame_idx, buffer_index)
+            n_frames = self.get_frame_count(buffer_index)
+            indices = self.get_indices_to_reorder(first_frame_idx, n_frames)
         else:
             indices = self.get_raw_data_order(buffer_index)
         raw_data = raw_data[indices]
