@@ -522,7 +522,7 @@ class Scan(Parameters):
             value = self._params.get("focus_distances")
             if value is None:
                 raise ValueError("No focus distances provided, cannot select focused transmits")
-            idx = np.where(value > 0)[0]
+            idx = np.where(value > 0)[0].tolist()
             if len(idx) == 0:
                 raise ValueError("No focused transmits found.")
             self._selected_transmits = idx
@@ -533,7 +533,7 @@ class Scan(Parameters):
             value = self._params.get("focus_distances")
             if value is None:
                 raise ValueError("No focus distances provided, cannot select unfocused transmits")
-            idx = np.where(value < 0)[0]
+            idx = np.where(value < 0)[0].tolist()
             if len(idx) == 0:
                 raise ValueError("No unfocused transmits found.")
             self._selected_transmits = idx
@@ -544,7 +544,7 @@ class Scan(Parameters):
             value = self._params.get("focus_distances")
             if value is None:
                 raise ValueError("No focus distances provided, cannot select plane wave transmits")
-            idx = np.concatenate([np.where(value == 0)[0], np.where(value == np.inf)[0]])
+            idx = np.concatenate([np.where(value == 0)[0], np.where(np.isinf(value))[0]]).tolist()
             if len(idx) == 0:
                 raise ValueError("No plane wave transmits found.")
             self._selected_transmits = idx
@@ -658,7 +658,7 @@ class Scan(Parameters):
 
         return value[self.selected_transmits]
 
-    @cache_with_dependencies("selected_transmits", "n_tx")
+    @cache_with_dependencies("selected_transmits", "n_el", "n_tx")
     def tx_apodizations(self):
         """Transmit apodizations of shape (n_tx, n_el)."""
         value = self._params.get("tx_apodizations")
