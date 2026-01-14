@@ -1147,6 +1147,36 @@ class VerasonicsFile(h5py.File):
 
         return data
 
+    def _parse_frames_argument(self, frames, n_frames):
+        value_error = ValueError(
+            f"Invalid frames argument: {frames}. "
+            "Expected 'all', a range (e.g. '4-8'), or a list of integers."
+        )
+
+        if isinstance(frames, str):
+            if frames == "all":
+                return list(range(n_frames))
+            elif "-" in frames:
+                start, end = frames.split("-")
+                return list(range(int(start), int(end) + 1))
+            else:
+                # Try to convert to integer
+                try:
+                    frame_index = int(frames)
+                    return [frame_index]
+                except ValueError:
+                    raise value_error
+        elif isinstance(frames, (list, tuple)):
+            # Recursively parse each element
+            frame_indices = []
+            for frame in frames:
+                frame_indices.extend(self._parse_frames_argument(frame, n_frames))
+            return frame_indices
+        elif isinstance(frames, int):
+            return [frames]
+        else:
+            raise value_error
+
     def get_frame_indices(self, frames, buffer_index=0):
         """Creates a numpy array of frame indices from the file and the frames argument.
 
@@ -1160,19 +1190,10 @@ class VerasonicsFile(h5py.File):
         # Read the number of frames from the file
         n_frames = self.get_frame_count(buffer_index)
 
-        if isinstance(frames, str) and frames == "all":
-            # Create an array of all frame-indices
-            frame_indices = np.arange(n_frames)
-        elif isinstance(frames, str):
-            assert "-" in frames, (
-                f"Invalid frames argument: {frames}. "
-                "Expected 'all' or a range of integers (e.g. '4-8')."
-            )
-            start, end = frames.split("-")
-            frame_indices = np.arange(int(start), int(end) + 1)
-        else:
-            frame_indices = np.asarray(frames)
-            frame_indices.sort()
+        frame_indices = self._parse_frames_argument(frames, n_frames)
+        frame_indices = np.asarray(frame_indices)
+        frame_indices = np.unique(frame_indices)  # Remove duplicates
+        frame_indices.sort()  # Sort the indices
 
         if np.any(frame_indices >= n_frames):
             log.error(
