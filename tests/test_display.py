@@ -86,16 +86,17 @@ def create_concentric_rings(size):
 
 
 @pytest.mark.parametrize(
-    "size, pattern_creator, allowed_error",
+    "size, pattern_creator, allowed_error, angle",
     [
-        ((200, 200), "create_radial_pattern", 0.001),
-        ((100, 333), "create_radial_pattern", 0.001),
-        ((200, 200), "create_concentric_rings", 0.1),
-        ((100, 333), "create_concentric_rings", 0.1),
+        ((200, 200), "create_radial_pattern", 0.001, None),
+        ((100, 333), "create_radial_pattern", 0.001, None),
+        ((200, 200), "create_concentric_rings", 0.1, None),
+        ((100, 333), "create_concentric_rings", 0.1, None),
+        ((200, 200), "create_radial_pattern", 0.02, np.deg2rad(30)),
     ],
 )
 @backend_equality_check(decimal=2)
-def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error):
+def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error, angle):
     """Tests the scan_conversion function with structured test patterns and
     inverts the data with inverse_scan_convert_2d.
 
@@ -123,7 +124,7 @@ def test_scan_conversion_and_inverse(size, pattern_creator, allowed_error):
 
     # Inverse scan convert
     cartesian_data_inv = display.inverse_scan_convert_2d(
-        cartesian_data, output_size=polar_data.shape, find_scan_cone=False
+        cartesian_data, output_size=polar_data.shape, find_scan_cone=False, angle=angle
     )
     cartesian_data_inv = ops.convert_to_numpy(cartesian_data_inv)
 
