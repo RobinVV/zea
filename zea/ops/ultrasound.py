@@ -375,9 +375,8 @@ class FirFilter(Operation):
     ):
         """
         Args:
-            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
-                When using ``complex_channels=True``, the complex channels are removed to convert
-                to complex numbers before filtering, so adjust the ``axis`` accordingly!
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension and
+                not the complex channel axis when ``complex_channels=True``.
             complex_channels (bool): Whether the last dimension of the input signal represents
                 complex channels (real and imaginary parts). When True, it will convert the signal
                 to ``complex`` dtype before filtering and convert it back to two channels
@@ -393,11 +392,7 @@ class FirFilter(Operation):
         self.filter_key = filter_key
 
     def _check_axis(self, axis, ndim=None):
-        """Check if the axis is valid."""
-        if ndim is not None:
-            if axis < -ndim or axis >= ndim:
-                raise ValueError(f"Axis {axis} is out of bounds for array of dimension {ndim}.")
-
+        """Check if axis is not the batch dimension."""
         if self.with_batch_dim and (axis == 0 or (ndim is not None and axis == -ndim)):
             raise ValueError("Cannot apply FIR filter along batch dimension.")
 
@@ -410,16 +405,22 @@ class FirFilter(Operation):
         signal = kwargs[self.key]
         fir_filter_taps = kwargs[self.filter_key]
 
-        if self.complex_channels:
-            signal = channels_to_complex(signal)
+        ndim = ops.ndim(signal)
+        self._check_axis(self.axis, ndim)
+        axis = canonicalize_axis(self.axis, ndim)
 
-        self._check_axis(self.axis, ndim=ops.ndim(signal))
+        if self.complex_channels:
+            assert axis < ndim - 1, (
+                "When using complex_channels=True, the complex channels are removed to convert"
+                " to complex numbers before filtering, so axis cannot be the last axis."
+            )
+            signal = channels_to_complex(signal)
 
         def _convolve(signal):
             """Apply the filter to the signal using correlation."""
             return correlate(signal, fir_filter_taps[::-1], mode="same")
 
-        filtered_signal = apply_along_axis(_convolve, self.axis, signal)
+        filtered_signal = apply_along_axis(_convolve, axis, signal)
 
         if self.complex_channels:
             filtered_signal = complex_to_channels(filtered_signal)
@@ -438,19 +439,20 @@ class LowPassFilterIQ(FirFilter):
     Uses :func:`get_low_pass_iq_filter` to compute the filter taps.
     """
 
-    def __init__(self, axis: int, num_taps: int = 127, **kwargs):
+    def __init__(self, axis: int = -3, num_taps: int = 127, **kwargs):
         """Initialize the LowPassFilterIQ operation.
 
         Args:
-            axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
-                When using ``complex_channels=True``, the complex channels are removed to convert
-                to complex numbers before filtering, so adjust the ``axis`` accordingly.
+            axis (int): Axis along which to apply the filter. Cannot be the batch dimension and
+                cannot be the complex channel axis (the last axis). Default is -3, which is the
+                ``n_ax`` axis for standard ultrasound data layout.
             num_taps (int): Number of taps in the FIR filter. Default is 127.
                 Odd will result in a type I filter, even in a type II filter.
         """
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
         kwargs.pop("jittable", None)
+        kwargs.pop("complex_channels", None)
         super().__init__(
             axis=axis,
             complex_channels=True,
@@ -477,29 +479,26 @@ class BandPassFilter(FirFilter):
 
     The bandwidth parameter in the call method defines the passband centered around
     ``demodulation_frequency``, with edges at ``demodulation_frequency - bandwidth/2``
-    and ``demodulation_frequency + bandwidth/2``.
-
-    Make sure this is used before demodulation to baseband.
+    and ``demodulation_frequency + bandwidth/2``. So, make sure this is used before demodulation
+    to baseband.
 
     This operation is provided for convenience and will recompute the filter weights every
     time it is called. Alternatively, you can use :class:`FirFilter` with pre-computed
     filter taps.
     """
 
-    STATIC_PARAMS = ["num_taps"]
-
-    def __init__(self, axis: int, num_taps: int = 127, **kwargs):
+    def __init__(self, axis: int = -3, num_taps: int = 127, **kwargs):
         """Initialize the BandPassFilter operation.
 
         Args:
             axis (int): Axis along which to apply the filter. Cannot be the batch dimension.
-                When using ``complex_channels=True``, the complex channels are removed to convert
-                to complex numbers before filtering, so adjust the ``axis`` accordingly.
+                Default is -3, which is the ``n_ax`` axis for standard ultrasound data layout.
             num_taps (int): Number of taps in the FIR filter. Default is 127.
                 Odd will result in a type I filter, even in a type II filter.
         """
         self._random_suffix = str(uuid.uuid4())
         kwargs.pop("filter_key", None)
+        kwargs.pop("complex_channels", None)
         super().__init__(
             axis=axis,
             complex_channels=False,
@@ -524,12 +523,7 @@ class BandPassFilter(FirFilter):
         f1 = demodulation_frequency - bandwidth / 2
         f2 = demodulation_frequency + bandwidth / 2
 
-        bpf = get_band_pass_filter(
-            self.num_taps,
-            sampling_frequency,
-            f1,
-            f2,
-        )
+        bpf = get_band_pass_filter(self.num_taps, sampling_frequency, f1, f2)
         kwargs[self.filter_key] = bpf
         return super().call(**kwargs)
 
