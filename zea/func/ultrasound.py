@@ -215,6 +215,14 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2):
     f1 = f1 / nyq
     f2 = f2 / nyq
 
+    if f1 <= 0 or f2 >= 1:
+        raise ValueError(
+            "Invalid cutoff frequency: frequencies must be greater than 0 and less than fs/2."
+        )
+
+    if f1 >= f2:
+        raise ValueError("Invalid cutoff frequencies: the frequencies must be strictly increasing.")
+
     # Build up the coefficients.
     alpha = 0.5 * (num_taps - 1)
     m = ops.arange(0, num_taps, dtype="float32") - alpha
