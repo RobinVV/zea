@@ -358,23 +358,15 @@ class VerasonicsFile(h5py.File):
             tx_order = tx_order[modes == 0]
             rcv_order = rcv_order[modes == 0]
 
-            if time_to_next_acq[:, modes == 0].shape != time_to_next_acq[:, modes == 1].shape:
-                # We could choose to just drop the `time_to_next_transmit` key in this case.
-                # Or think of a better handling for accumulate mode.
-                # But for now we raise an error.
-                raise ValueError(
-                    "Cannot currently handle different number of time_to_next_acq values "
-                    "for mode 0 and mode 1 transmits."
-                )
-            else:
-                log.info("Adding time to next acquisition for mode 0 and mode 1 transmits.")
-                time_to_next_acq = time_to_next_acq[:, modes == 0] + time_to_next_acq[:, modes == 1]
+            log.info("Dropping time to next acquisition for accumulate mode transmits.")
+            time_to_next_acq = None
 
-        if event is not None:
-            time_to_next_acq = time_to_next_acq[event]
-            time_to_next_acq = np.expand_dims(time_to_next_acq, axis=0)
+        if time_to_next_acq is not None:
+            if event is not None:
+                time_to_next_acq = time_to_next_acq[event]
+                time_to_next_acq = np.expand_dims(time_to_next_acq, axis=0)
 
-        time_to_next_acq = time_to_next_acq[frame_indices]
+            time_to_next_acq = time_to_next_acq[frame_indices]
 
         return tx_order, rcv_order, time_to_next_acq
 
