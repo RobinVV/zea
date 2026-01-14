@@ -512,52 +512,61 @@ def transmit_delays(
     if azimuth_angle is None:
         azimuth_angle = ops.zeros_like(polar_angle)
 
-    # Compute the 3D position of the focal point
-    # The beam direction vector
-    beam_direction = ops.stack(
-        [
-            ops.sin(polar_angle) * ops.cos(azimuth_angle),
-            ops.sin(polar_angle) * ops.sin(azimuth_angle),
-            ops.cos(polar_angle),
-        ]
-    )
+    # Special case for plane waves (infinite focus distance)
+    # For plane waves, always use the first arrival time (minimum)
+    is_planewave = ops.isinf(focus_distance)
 
-    # Set origin to (0, 0, 0) if not provided
-    if transmit_origin is None:
-        transmit_origin = ops.zeros(3, dtype=grid.dtype)
+    if is_planewave:
+        tx_delay = ops.min(total_times + offset[None, :], axis=-1)
+    else:
+        # Compute the 3D position of the focal point
+        # The beam direction vector
+        beam_direction = ops.stack(
+            [
+                ops.sin(polar_angle) * ops.cos(azimuth_angle),
+                ops.sin(polar_angle) * ops.sin(azimuth_angle),
+                ops.cos(polar_angle),
+            ]
+        )
 
-    # Compute focal point position: origin + focus_distance * beam_direction
-    # For negative focus_distance (diverging/virtual source), this is behind the origin
-    focal_point = transmit_origin + focus_distance * beam_direction  # shape (3,)
+        # Set origin to (0, 0, 0) if not provided
+        if transmit_origin is None:
+            transmit_origin = ops.zeros(3, dtype=grid.dtype)
 
-    # Compute the position of each pixel relative to the focal point
-    pixel_relative_to_focus = grid - focal_point[None, :]  # shape (n_pix, 3)
+        # Compute focal point position: origin + focus_distance * beam_direction
+        # For negative focus_distance (diverging/virtual source), this is behind the origin
+        focal_point = transmit_origin + focus_distance * beam_direction  # shape (3,)
 
-    # Project onto the beam direction to determine if pixel is before or after focus
-    # Positive projection means pixel is in the direction of beam propagation (beyond focus)
-    # Negative projection means pixel is behind the focus (before focus)
-    projection_along_beam = ops.sum(
-        pixel_relative_to_focus * beam_direction[None, :], axis=-1
-    )  # shape (n_pix,)
+        # Compute the position of each pixel relative to the focal point
+        pixel_relative_to_focus = grid - focal_point[None, :]  # shape (n_pix, 3)
 
-    # For focused waves (positive focus_distance):
-    #   - Use min time for pixels before focus (projection < 0)
-    #   - Use max time for pixels beyond focus (projection > 0)
-    # For diverging waves (negative focus_distance, virtual source):
-    #   - The sign of focus_distance flips the logic
-    #   - Use min time for pixels between transducer and virtual source
-    #   - Use max time for pixels beyond transducer
-    is_before_focus = ops.cast(ops.sign(focus_distance), "float32") * projection_along_beam < 0.0
+        # Project onto the beam direction to determine if pixel is before or after focus
+        # Positive projection means pixel is in the direction of beam propagation (beyond focus)
+        # Negative projection means pixel is behind the focus (before focus)
+        projection_along_beam = ops.sum(
+            pixel_relative_to_focus * beam_direction[None, :], axis=-1
+        )  # shape (n_pix,)
 
-    # Compute the effective time of the pixels to the wavefront by computing the
-    # smallest time over all elements (first wavefront arrival) for pixels before
-    # the focus, and the largest time (last wavefront contribution) for pixels
-    # beyond the focus.
-    tx_delay = ops.where(
-        is_before_focus,
-        ops.min(total_times + offset[None, :], axis=-1),
-        ops.max(total_times - offset[None, :], axis=-1),
-    )
+        # For focused waves (positive focus_distance):
+        #   - Use min time for pixels before focus (projection < 0)
+        #   - Use max time for pixels beyond focus (projection > 0)
+        # For diverging waves (negative focus_distance, virtual source):
+        #   - The sign of focus_distance flips the logic
+        #   - Use min time for pixels between transducer and virtual source
+        #   - Use max time for pixels beyond transducer
+        is_before_focus = (
+            ops.cast(ops.sign(focus_distance), "float32") * projection_along_beam < 0.0
+        )
+
+        # Compute the effective time of the pixels to the wavefront by computing the
+        # smallest time over all elements (first wavefront arrival) for pixels before
+        # the focus, and the largest time (last wavefront contribution) for pixels
+        # beyond the focus.
+        tx_delay = ops.where(
+            is_before_focus,
+            ops.min(total_times + offset[None, :], axis=-1),
+            ops.max(total_times - offset[None, :], axis=-1),
+        )
 
     # Subtract the initial time offset for this transmit
     tx_delay = tx_delay - initial_time
