@@ -532,13 +532,11 @@ def inverse_scan_convert_2d(
     Returns:
         polar_image (Array): 2D image in polar coordinates (sector-shaped scan).
     """
-    # Default angle to π/4 radians (45 degrees)
-    if angle is None:
-        angle = np.deg2rad(45)
 
     if find_scan_cone:
         assert image_range is not None, "image_range must be provided when find_scan_cone is True"
         cartesian_image = fit_and_crop_around_scan_cone(cartesian_image, image_range)
+
     polar_image = cartesian_to_polar_matrix(
         cartesian_image,
         fill_value=fill_value,
