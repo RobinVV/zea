@@ -76,8 +76,7 @@ NOTEBOOK_PARAMETERS = {
     "hvae_model_example.ipynb": {
         "inference_fractions": [0.03],
         "n_samples": 2,
-        "BATCH_SIZE": 1,
-        "TESTING": True,
+        "batch_size": 1,
     },
     # Add more notebooks and their parameters here as needed
     # "other_notebook.ipynb": {
