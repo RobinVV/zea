@@ -52,7 +52,7 @@ def compute_t0_delays_planewave(probe_geometry, polar_angles, azimuth_angles=0, 
 
 
 def compute_t0_delays_focused(
-    origins,
+    transmit_origins,
     focus_distances,
     probe_geometry,
     polar_angles,
@@ -63,7 +63,7 @@ def compute_t0_delays_focused(
     the first element fires at t=0.
 
     Args:
-        origins (np.ndarray): The origin of the focused transmit of shape (n_tx, 3,).
+        transmit_origins (np.ndarray): The origin of the focused transmit of shape (n_tx, 3,).
         focus_distances (np.ndarray): The distance to the focus for each transmit of shape (n_tx,).
         probe_geometry (np.ndarray): The positions of the elements in the array of
             shape (element, 3).
@@ -79,8 +79,8 @@ def compute_t0_delays_focused(
     assert polar_angles.shape == (n_tx,), (
         f"polar_angles must have length n_tx = {n_tx}. Got length {len(polar_angles)}."
     )
-    assert origins.shape == (n_tx, 3), (
-        f"origins must have shape (n_tx, 3). Got shape {origins.shape}."
+    assert transmit_origins.shape == (n_tx, 3), (
+        f"transmit_origins must have shape (n_tx, 3). Got shape {transmit_origins.shape}."
     )
     assert probe_geometry.shape[1] == 3 and probe_geometry.ndim == 2, (
         f"probe_geometry must have shape (element, 3). Got shape {probe_geometry.shape}."
@@ -115,7 +115,7 @@ def compute_t0_delays_focused(
 
     # Compute the location of the virtual source by adding the focus distance
     # to the origin along the wave vectors.
-    virtual_sources = origins[:, None] + focus_distances[:, None, None] * v
+    virtual_sources = transmit_origins[:, None] + focus_distances[:, None, None] * v
 
     # Compute the distances between the virtual sources and each element
     dist = np.linalg.norm(virtual_sources - probe_geometry, axis=-1)

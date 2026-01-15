@@ -52,6 +52,7 @@ The ``zea`` toolbox uses a custom data format based on the HDF5 standard to stor
          ├── t0_delays
          ├── tx_apodizations
          ├── focus_distances
+         ├── transmit_origins
          ├── polar_angles
          ├── azimuth_angles
          ├── bandwidth_percent
@@ -112,6 +113,8 @@ The ``zea`` toolbox uses a custom data format based on the HDF5 standard to stor
      - Transmit apodization values, shape [n_tx, n_el].
    * - ``scan/focus_distances``
      - Distance from the origin point on the transducer to where the beam comes to focus for each transmit, in meters, shape [n_tx].
+   * - ``scan/transmit_origins``
+     - 3D coordinates (in meters) of the origin point for each transmit, shape [n_tx, 3].
    * - ``scan/polar_angles``
      - Polar angles of transmit beams in radians, shape [n_tx].
    * - ``scan/azimuth_angles``
