@@ -1,58 +1,8 @@
 import random as pythonrandom
-from keras import Model, Sequential, Variable, layers, ops, random, metrics
+from keras import Model, Sequential, Variable, layers, ops, random
 import numpy as np
 
-from zea.models.hvae.utils import SoftPlus, GaussianAnalyticalKL, GradientNorms
-from zea.agent.selection import UniformRandomLines
-
-
-class VAETrainer(Model):
-    """
-    Trainer class for the HVAE, solely here for compatibility with loading weights.
-    """
-
-    def __init__(self, params, model=None, *args, **kwargs):
-        super().__init__(**kwargs)
-
-        self.params = params
-        self.lr = params.learning_rate
-        self.batch_size = params.batch_size
-
-        if model is not None:
-            self.model = model
-            self.build_model = False
-        else:
-            self.model = VAE(params)
-            self.build_model = True
-        self.bits_dim_scale = ops.multiply(self.model.ndims, ops.log(2))
-
-        self.agent = None
-        if hasattr(params, "retrain_encoder"):
-            if params.retrain_encoder:
-                self.agent = UniformRandomLines(
-                    n_actions=params.num_lines,
-                    n_possible_actions=256,
-                    img_width=256,
-                    img_height=256,
-                )
-
-        self.elbo_tracker = metrics.Mean(name="loss")
-        self.recon_tracker = metrics.Mean(name="recon")
-        self.kl_tracker = metrics.Mean(name="kl")
-        self.grad_tracker = GradientNorms(name="grad_norm")
-        self.skip_tracker = metrics.Sum(name="skips")
-        self.grad_skipnorm = Variable(1e9, trainable=False, dtype="float32")
-
-    def build(self):
-        shape_tuple = (
-            None,  # batch dimension can be None
-            self.params.enc_input_size[0],  # height
-            self.params.enc_input_size[0],  # width
-            self.params.data_width,  # channels
-        )
-        super().build(shape_tuple)
-        if self.build_model:
-            self.model.build()
+from zea.models.hvae.utils import SoftPlus, GaussianAnalyticalKL
 
 
 class VAE(Model):

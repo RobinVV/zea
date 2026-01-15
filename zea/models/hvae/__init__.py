@@ -25,7 +25,7 @@ from keras import ops
 from zea.internal.registry import model_registry
 from zea.models.generative import DeepGenerativeModel
 from zea.models.hvae.model import VAE
-from zea.models.hvae.utils import Parameters, SoftPlus
+from zea.models.hvae.utils import Parameters
 from zea.models.preset_utils import get_preset_loader, register_presets
 from zea.models.presets import hvae_presets
 
