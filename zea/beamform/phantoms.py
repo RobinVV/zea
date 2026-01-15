@@ -41,3 +41,47 @@ def fish():
 
     scat_z += z_offset
     return np.stack([scat_x, scat_y, scat_z], axis=1)
+
+
+def rose():
+    """Returns a scatterer phantom of the rosecurve for ultrasound simulation tests.
+
+    Returns:
+        ndarray: The scatterer positions of shape (n_scat, 3).
+    """
+    # https://en.wikipedia.org/wiki/Rose_(mathematics)
+    size = 11e-3
+    z_offset = 2.0 * size
+    k = 3
+    num_scatterers = 80
+
+    def rose_curve(theta, k):
+        r = size * np.cos(k * theta)
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
+        return x, y
+
+    scat_x, scat_z = rose_curve(theta=np.linspace(0, 2 * np.pi, num_scatterers), k=k)
+
+    scat_x = np.concatenate(
+        [
+            scat_x,
+            np.array([size * 0.7]),
+            np.array([size * 1.1]),
+            np.array([size * 1.4]),
+            np.array([size * 1.2]),
+        ]
+    )
+    scat_y = np.zeros_like(scat_x)
+    scat_z = np.concatenate(
+        [
+            scat_z,
+            np.array([-size * 0.1]),
+            np.array([-size * 0.25]),
+            np.array([-size * 0.6]),
+            np.array([-size * 1.0]),
+        ]
+    )
+
+    scat_z += z_offset
+    return np.stack([scat_x, scat_y, scat_z], axis=1)

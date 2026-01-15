@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from zea import ops
-from zea.beamform.phantoms import fish
+from zea.beamform.phantoms import fish, rose
 from zea.internal.core import DEFAULT_DYNAMIC_RANGE
 from zea.internal.dummy_scan import _get_probe, _get_scan
 
@@ -105,6 +105,7 @@ def _test_location(image, extent, true_position):
 @pytest.fixture
 def ultrasound_scatterers():
     """Returns scatterer positions and magnitudes for ultrasound simulation tests."""
+    scat_positions = rose()
     scat_positions = fish()
     n_scat = scat_positions.shape[0]
 
