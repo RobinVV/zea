@@ -406,7 +406,9 @@ def _write_datasets(
         group_name=scan_group_name,
         name="demodulation_frequency",
         data=demodulation_frequency,
-        description="The demodulation frequency in Hz.",
+        description="The frequency at which the data should be "
+        "demodulated in Hz. (Usually the same as center_frequency, "
+        "but different when doing harmonic imaging.)",
         unit="Hz",
     )
 
