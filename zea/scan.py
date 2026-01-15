@@ -480,7 +480,7 @@ class Scan(Parameters):
                 - "all": Use all transmits
                 - "center": Use only the center transmit
                 - "focused": Use only focused transmits
-                - "unfocused": Use only unfocused transmits
+                - "diverging": Use only diverging transmits
                 - "plane": Use only plane wave transmits
                 - int: Select this many evenly spaced transmits
                 - list/array: Use these specific transmit indices
@@ -529,13 +529,13 @@ class Scan(Parameters):
             self._invalidate("selected_transmits")
             return self
 
-        if selection == "unfocused":
+        if selection == "diverging":
             value = self._params.get("focus_distances")
             if value is None:
-                raise ValueError("No focus distances provided, cannot select unfocused transmits")
+                raise ValueError("No focus distances provided, cannot select diverging transmits")
             idx = np.where(value < 0)[0].tolist()
             if len(idx) == 0:
-                raise ValueError("No unfocused transmits found.")
+                raise ValueError("No diverging transmits found.")
             self._selected_transmits = idx
             self._invalidate("selected_transmits")
             return self
