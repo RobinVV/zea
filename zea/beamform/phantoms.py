@@ -117,3 +117,26 @@ def lissajous(a=3, b=2, delta=np.pi / 2, num_scatterers=200):
     scat_y = np.zeros_like(scat_x)
 
     return np.stack([scat_x, scat_y, scat_z], axis=1)
+
+
+def golden_ratio(num_scatterers=100):
+    """Generates scatterer positions based on the golden ratio spiral.
+
+    Args:
+        num_scatterers (int): Number of scatterer points to generate.
+
+    Returns:
+        ndarray: The scatterer positions of shape (num_scatterers, 3).
+    """
+    size = 11e-3
+    z_offset = 2.0 * size
+
+    phi = (1 + 5**0.5) / 2  # Golden ratio
+    theta = np.linspace(0, 4 * np.pi, num_scatterers)
+    r = size * (theta / (4 * np.pi))
+
+    scat_x = r * np.cos(theta * phi)
+    scat_z = r * np.sin(theta * phi) + z_offset
+    scat_y = np.zeros_like(scat_x)
+
+    return np.stack([scat_x, scat_y, scat_z], axis=1)
