@@ -55,6 +55,7 @@ def rose(k=3, num_scatterers=80):
     """
     # https://en.wikipedia.org/wiki/Rose_(mathematics)
     size = 11e-3
+    z_offset = 2.0 * size
 
     def rose_curve(theta, k):
         r = size * np.cos(k * theta)
@@ -63,6 +64,7 @@ def rose(k=3, num_scatterers=80):
         return x, y
 
     scat_x, scat_z = rose_curve(theta=np.linspace(0, 2 * np.pi, num_scatterers), k=k)
+    scat_z += z_offset
     scat_y = np.zeros_like(scat_x)
     return np.stack([scat_x, scat_y, scat_z], axis=1)
 
