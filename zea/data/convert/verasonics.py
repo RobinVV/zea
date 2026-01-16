@@ -1088,6 +1088,9 @@ class VerasonicsFile(h5py.File):
         else:
             group_name = f"event_{event}/scan"
 
+        additional_elements = []
+
+        # Add Verasonics lens correction to additional elements
         el_lens_correction = DatasetElement(
             group_name=group_name,
             dataset_name="lens_correction",
@@ -1099,20 +1102,26 @@ class VerasonicsFile(h5py.File):
             ),
             unit="wavelengths",
         )
+        additional_elements.append(el_lens_correction)
 
-        verasonics_image_buffer = self.read_image_data_p(event, frames=frames)
-        verasonics_image_buffer = DatasetElement(
-            dataset_name="verasonics_image_buffer",
-            data=verasonics_image_buffer,
-            description=(
-                "The Verasonics ImgDataP buffer. "
-                "WARNING: This buffer may skip frames compared to the raw data! "
-                "Use only for reference."
-            ),
-            unit="unitless",
-        )
+        # Add Verasonics ImgDataP buffer to additional elements
+        try:
+            verasonics_image_buffer = self.read_image_data_p(event, frames=frames)
+            verasonics_image_buffer = DatasetElement(
+                dataset_name="verasonics_image_buffer",
+                data=verasonics_image_buffer,
+                description=(
+                    "The Verasonics ImgDataP buffer. "
+                    "WARNING: This buffer may skip frames compared to the raw data! "
+                    "Use only for reference."
+                ),
+                unit="unitless",
+            )
+            additional_elements.append(verasonics_image_buffer)
+        except Exception as e:
+            log.error(f"Could not read Verasonics ImgDataP buffer: {e}, skipping.")
 
-        additional_elements = []
+        # Add additional elements from user-defined functions
         for additional_function in additional_functions:
             additional_elements.append(additional_function(self))
 
@@ -1138,11 +1147,7 @@ class VerasonicsFile(h5py.File):
             "waveforms_two_way": waveforms_two_way_list,
             "tgc_gain_curve": self.tgc_gain_curve,
             "element_width": self.element_width,
-            "additional_elements": [
-                el_lens_correction,
-                verasonics_image_buffer,
-                *additional_elements,
-            ],
+            "additional_elements": additional_elements,
         }
 
         return data
