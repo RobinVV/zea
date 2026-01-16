@@ -254,9 +254,9 @@ def calculate_delays(
             time-of-flights. This makes it slower, but more accurate in the near-field.
             Defaults to False.
         lens_thickness (float, optional): Thickness of the lens in meters. Used for
-            lens correction. Defaults to 1e-3.
+            lens correction.
         lens_sound_speed (float, optional): Speed of sound in the lens in m/s. Used
-            for lens correction Defaults to 1000.
+            for lens correction.
         n_iter (int, optional): Number of iterations for the Newton-Raphson method
             used in lens correction. Defaults to 2.
 
