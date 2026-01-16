@@ -132,7 +132,7 @@ def ultrasound_scatterers():
 )
 @pytest.mark.heavy
 def test_transmit_schemes(
-    default_pipeline,
+    default_pipeline: ops.Pipeline,
     probe_kind,
     scan_kind,
     ultrasound_scatterers,
@@ -171,6 +171,29 @@ def test_transmit_schemes(
     # Verify the normalized image has values between 0 and 255
     assert np.nanmin(output_default["data"]) >= 0.0
     assert np.nanmax(output_default["data"]) <= 255.0
+
+    # Additional test for planewave: verify focus_distance=0 gives same result
+    if scan_kind == "planewave":
+        scan_zero_focus = _get_scan(probe, scan_kind, focus_distances=np.zeros(scan.n_tx))
+        parameters_zero = default_pipeline.prepare_parameters(probe, scan_zero_focus)
+
+        output_zero_focus = default_pipeline(
+            **parameters_zero,
+            scatterer_positions=ultrasound_scatterers["positions"],
+            scatterer_magnitudes=ultrasound_scatterers["magnitudes"],
+        )
+
+        image_zero = keras.ops.convert_to_numpy(output_zero_focus["data"][0])
+
+        # The images should be identical (or very close due to numerical precision)
+        np.testing.assert_allclose(
+            image,
+            image_zero,
+            rtol=1e-5,
+            atol=1e-3,
+            err_msg="Planewave with focus_distance=inf and "
+            + "focus_distance=0 should give same result",
+        )
 
 
 @pytest.mark.heavy

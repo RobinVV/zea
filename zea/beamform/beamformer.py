@@ -526,12 +526,16 @@ def transmit_delays(
         ]
     )
 
+    # Handle plane wave case where focus_distance is set to zero
+    # We use np.inf to consider the first wavefront arrival for all pixels
+    focus_distance = ops.where(focus_distance == 0.0, np.inf, focus_distance)
+
     # Compute focal point position: origin + focus_distance * beam_direction
     # For negative focus_distance (diverging/virtual source), this is behind the origin
     focal_point = transmit_origin + focus_distance * beam_direction  # shape (3,)
 
-    # Deal with plane wave case where focus_distance is infinite
-    # np.inf * 0.0 -> nan
+    # Deal with plane wave case where focus_distance is infinite and beam_direction is zero
+    # (np.inf * 0.0 -> nan) so we convert nan to zero
     focal_point = ops.where(ops.isnan(focal_point), 0.0, focal_point)
 
     # Compute the position of each pixel relative to the focal point

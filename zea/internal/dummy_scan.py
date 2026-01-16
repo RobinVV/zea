@@ -105,10 +105,13 @@ def _get_planewave_scan(ultrasound_probe, grid_type, **kwargs):
     angles = np.linspace(10, -10, n_tx) * np.pi / 180
 
     sound_speed = constant_scan_kwargs["sound_speed"]
-    focus_distances = np.ones(n_tx) * np.inf
     t0_delays = compute_t0_delays_planewave(
         probe_geometry=probe_geometry, polar_angles=angles, sound_speed=sound_speed
     )
+
+    # Focus distances can be overriden via kwargs
+    if "focus_distances" not in kwargs:
+        kwargs["focus_distances"] = np.ones(n_tx) * np.inf
 
     return Scan(
         n_tx=n_tx,
@@ -119,7 +122,6 @@ def _get_planewave_scan(ultrasound_probe, grid_type, **kwargs):
         t0_delays=t0_delays,
         tx_apodizations=tx_apodizations,
         element_width=np.linalg.norm(probe_geometry[1] - probe_geometry[0]),
-        focus_distances=focus_distances,
         polar_angles=angles,
         initial_times=np.ones(n_tx) * 1e-6,
         n_ax=_get_n_ax(ultrasound_probe),
