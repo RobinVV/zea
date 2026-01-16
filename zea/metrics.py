@@ -71,7 +71,7 @@ def gcnr(x, y, bins=256):
     return 1 - np.sum(np.minimum(f, g))
 
 
-@metrics_registry(name="fwhm", paired=False, jittable=True)
+@metrics_registry(name="fwhm", paired=False, jittable=False)
 def fwhm(img):
     """Resolution full width half maxima"""
     mask = ops.nonzero(img >= 0.5 * ops.amax(img))[0]
