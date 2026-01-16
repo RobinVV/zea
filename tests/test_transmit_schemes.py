@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from zea import ops
-from zea.beamform.phantoms import fish, rose
+from zea.beamform.phantoms import fish, rose, fibonacci, lissajous
 from zea.internal.core import DEFAULT_DYNAMIC_RANGE
 from zea.internal.dummy_scan import _get_probe, _get_scan
 
@@ -105,7 +105,6 @@ def _test_location(image, extent, true_position):
 @pytest.fixture
 def ultrasound_scatterers():
     """Returns scatterer positions and magnitudes for ultrasound simulation tests."""
-    scat_positions = rose()
     scat_positions = fish()
     n_scat = scat_positions.shape[0]
 
@@ -224,3 +223,16 @@ def test_polar_grid(default_pipeline: ops.Pipeline, ultrasound_scatterers):
         extent=extent,
         true_position=ultrasound_scatterers["positions"][target_scatterer_index],
     )
+
+
+def test_phantoms():
+    """Tests the fish and rose phantom generation functions."""
+    fish_scat = fish()
+    rose_scat = rose(num_scatterers=50)
+    fibonacci_scat = fibonacci(num_scatterers=50)
+    lissajous_scat = lissajous(num_scatterers=50)
+
+    assert fish_scat.shape == (104, 3)
+    assert rose_scat.shape == (50, 3)
+    assert fibonacci_scat.shape == (50, 3)
+    assert lissajous_scat.shape == (50, 3)
