@@ -1,8 +1,22 @@
+.. This is the only manually maintained file in the
+   _autosummary directory. It is used to generate the main API reference
+   page for the zea package.
+
 zea
 ====
 
 .. automodule:: zea
 
+.. rubric:: Functions
+
+.. autosummary::
+   :toctree:
+
+   init_device
+   load_file
+   set_data_paths
+   setup
+   setup_config
 
 .. rubric:: Modules
 
@@ -18,6 +32,7 @@ zea
    datapaths
    display
    doppler
+   func
    interface
    io_lib
    log
@@ -27,7 +42,7 @@ zea
    probes
    scan
    simulator
-   tensor_ops
    tools
+   tracking
    utils
    visualize

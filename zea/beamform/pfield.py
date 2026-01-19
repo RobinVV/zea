@@ -24,8 +24,8 @@ import numpy as np
 from keras import ops
 
 from zea import log
+from zea.func.tensor import sinc
 from zea.internal.cache import cache_output
-from zea.tensor_ops import sinc
 
 
 def _abs_sinc(x):
@@ -43,7 +43,7 @@ def compute_pfield(
     grid,
     t0_delays,
     frequency_step=4,
-    db_thresh=-1,
+    db_thresh=-1.0,
     downsample=10,
     downmix=4,
     alpha=1,
@@ -65,7 +65,7 @@ def compute_pfield(
         t0_delays (array): Transmit delays for each transmit event.
         frequency_step (int, optional): Frequency step. Default is 4.
             Higher is faster but less accurate.
-        db_thresh (int, optional): dB threshold. Default is -1.
+        db_thresh (float, optional): dB threshold. Default is -1.0
             Higher is faster but less accurate.
         downsample (int, optional): Downsample the grid for faster computation.
             Default is 10. Higher is faster but less accurate.
@@ -85,6 +85,13 @@ def compute_pfield(
     # medium params
     alpha_db = 0  # currently we ignore attenuation in the compounding
 
+    # cast to float32
+    sound_speed = ops.cast(sound_speed, "float32")
+    center_frequency = ops.cast(center_frequency, "float32")
+    bandwidth_percent = ops.cast(bandwidth_percent, "float32")
+    alpha_db = ops.cast(alpha_db, "float32")
+    db_thresh = ops.cast(db_thresh, "float32")
+
     # probe params
     center_frequency = center_frequency / downmix  # downmixing the frequency
 
@@ -94,7 +101,7 @@ def compute_pfield(
     # array params
     probe_geometry = ops.convert_to_tensor(probe_geometry, dtype="float32")
 
-    pitch = probe_geometry[1, 0] - probe_geometry[0, 0]  # element pitch
+    pitch = ops.abs(probe_geometry[1, 0] - probe_geometry[0, 0])  # element pitch
 
     kerf = 0.1 * pitch  # for now this is hardcoded
     element_width = pitch - kerf

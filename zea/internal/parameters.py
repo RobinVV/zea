@@ -10,14 +10,13 @@ See the Parameters class docstring for details on features and usage.
 
 import functools
 import inspect
-import pickle
 from copy import deepcopy
 
 import numpy as np
 
-from zea.internal.cache import serialize_elements
+from zea import log
 from zea.internal.core import Object as ZeaObject
-from zea.internal.core import _to_tensor
+from zea.internal.core import _to_tensor, hash_elements, serialize_elements
 
 
 def cache_with_dependencies(*deps):
@@ -31,15 +30,16 @@ def cache_with_dependencies(*deps):
             self._assert_dependencies_met(func.__name__)
 
             if func.__name__ in self._cache:
-                # Check if dependencies changed
-                current_hash = self._current_dependency_hash(deps)
+                # Check if dependencies changed for mutable parameters
+                current_hash = self._current_dependency_hash(func.__name__)
                 if current_hash == self._dependency_versions.get(func.__name__):
                     return self._cache[func.__name__]
+                else:
+                    self._invalidate(func.__name__)
 
             result = func(self)
-            self._computed.add(func.__name__)
             self._cache[func.__name__] = result
-            self._dependency_versions[func.__name__] = self._current_dependency_hash(deps)
+            self._dependency_versions[func.__name__] = self._current_dependency_hash(func.__name__)
             return result
 
         return property(wrapper)
@@ -47,7 +47,7 @@ def cache_with_dependencies(*deps):
     return decorator
 
 
-class MissingDependencyError(AttributeError):
+class MissingDependencyError(ValueError):
     """Exception indicating that a dependency of an attribute was not met."""
 
     def __init__(self, attribute: str, missing_dependencies: set):
@@ -55,6 +55,13 @@ class MissingDependencyError(AttributeError):
             f"Cannot access '{attribute}' due to missing dependencies: "
             + f"{sorted(missing_dependencies)}"
         )
+
+
+class NoDependencyError(ValueError):
+    """Exception indicating that an attribute has no dependencies defined."""
+
+    def __init__(self, name: str):
+        super().__init__(f"'{name}' is not a computed property with dependencies.")
 
 
 class Parameters(ZeaObject):
@@ -81,7 +88,7 @@ class Parameters(ZeaObject):
 
     - **Leaf Parameter Enforcement:** Only leaf parameters
       (those directly listed in `VALID_PARAMS`) can be set. Attempting to set a computed
-      property raises an informative `AttributeError` listing the leaf parameters
+      property raises an informative `ValueError` listing the leaf parameters
       that must be changed instead.
 
     - **Optional Dependency Parameters:** Parameters can be both set directly (as a leaf)
@@ -98,46 +105,50 @@ class Parameters(ZeaObject):
       computed properties to tensors for machine learning workflows.
 
     - **Error Reporting:** If a computed property cannot be resolved due to missing dependencies,
-      an informative `AttributeError` is raised, listing the missing parameters.
+      an informative `MissingDependencyError` is raised, listing the missing parameters.
 
     **Usage Example:**
 
-    .. code-block:: python
+    .. doctest::
 
-        class MyParams(Parameters):
-            VALID_PARAMS = {
-                "a": {"type": int, "default": 1},
-                "b": {"type": float, "default": 2.0},
-                "d": {"type": float},  # optional dependency
-            }
+        >>> class MyParams(Parameters):
+        ...     VALID_PARAMS = {
+        ...         "a": {"type": int, "default": 1},
+        ...         "b": {"type": float, "default": 2.0},
+        ...         "d": {"type": float},  # optional dependency
+        ...     }
 
-            @cache_with_dependencies("a", "b")
-            def c(self):
-                return self.a + self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def c(self):
+        ...        return self.a + self.b
 
-            @cache_with_dependencies("a", "b")
-            def d(self):
-                if self._params.get("d") is not None:
-                    return self._params["d"]
-                return self.a * self.b
+        ...     @cache_with_dependencies("a", "b")
+        ...     def d(self):
+        ...         if self._params.get("d") is not None:
+        ...             return self._params["d"]
+        ...         return self.a * self.b
 
-
-        p = MyParams(a=3)
-        print(p.c)  # Computes and caches c
-        print(p.c)  # Returns cached value
+        >>> p = MyParams(a=3)
+        >>> print(p.c)  # Computes and caches c
+        5.0
+        >>> print(p.c)  # Returns cached value
+        5.0
 
         # Changing a parameter invalidates the cache
-        p.a = 4
-        print(p.c)  # Recomputes c
+        >>> p.a = 4
+        >>> print(p.c)  # Recomputes c, now 4 + 2.0 = 6.0
+        6.0
 
-        # You are not allowed to set computed properties
-        # p.c = 5  # Raises AttributeError
+        >>> # You are not allowed to set computed properties
+        >>> # p.c = 5  # Raises ValueError
 
-        # Now check out the optional dependency, this can be either
-        # set directly during initialization or computed from dependencies (default)
-        print(p.d)  # Returns 6 (=3 * 2.0)
-        p = MyParams(a=3, d=9.99)
-        print(p.d)  # Returns 9.99
+        >>> # Now check out the optional dependency, this can be either
+        >>> # set directly during initialization or computed from dependencies (default)
+        >>> print(p.d)  # Returns 8 (=4 * 2.0)
+        8.0
+        >>> p = MyParams(a=3, d=9.99)
+        >>> print(p.d)
+        9.99
 
     """
 
@@ -146,47 +157,90 @@ class Parameters(ZeaObject):
     def __init__(self, **kwargs):
         super().__init__()
 
+        # Check if VALID_PARAMS is defined
         if self.VALID_PARAMS is None:
             raise NotImplementedError("VALID_PARAMS must be defined in subclasses of Parameters.")
-
-        # Initialize parameters with defaults
-        for param, config in self.VALID_PARAMS.items():
-            if param not in kwargs and "default" in config:
-                kwargs[param] = config["default"]
-
-        # Validate parameter types
-        for key, value in kwargs.items():
-            self._validate_parameter(key, value)
-
-        self._params = {}
-        self._properties = self.get_properties()
-        self._computed = set()
-        self._cache = {}
-        self._dependency_versions = {}
-        for k, v in kwargs.items():
-            self._params[k] = v
-
-        # Tensor cache stores converted tensors for parameters and computed properties
-        # to avoid converting them multiple times if there are no changes.
-        self._tensor_cache = {}
 
         # Check if the definition of the class has circular dependencies
         for name in self.__class__.__dict__:
             self._check_for_circular_dependencies(name)
 
+        # Internal state
+        self._params = {}
+        self._properties = self.get_properties()
+        self._cache = {}
+        self._dependency_versions = {}
+
+        # Tensor cache stores converted tensors for parameters and computed properties
+        # to avoid converting them multiple times if there are no changes.
+        self._tensor_cache = {}
+
+        # Initialize parameters with defaults
+        for param, config in self.VALID_PARAMS.items():
+            if param not in kwargs and "default" in config:
+                # need to deepcopy in case default is mutable
+                kwargs[param] = deepcopy(config["default"])
+
+        # Set provided parameters
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
     @classmethod
     def _validate_parameter(cls, key, value):
-        """Validate parameter against the VALID_PARAMS definition."""
+        # Check if the parameter is valid
         if key not in cls.VALID_PARAMS:
             raise ValueError(
                 f"Invalid parameter: {key}. Valid parameters are: {list(cls.VALID_PARAMS.keys())}"
             )
+
+        # Cast the value if needed and possible
         expected_type = cls.VALID_PARAMS[key]["type"]
+        if expected_type is not None and value is not None and not isinstance(value, expected_type):
+            value = cls._cast(key, value)
+
+        # Check again
         if expected_type is not None and value is not None and not isinstance(value, expected_type):
             allowed = cls._human_readable_type(expected_type)
             raise TypeError(
                 f"Parameter '{key}' expected type {allowed}, got {type(value).__name__}"
             )
+
+        return value
+
+    @classmethod
+    def _cast(cls, key, value):
+        """Cast parameter to the expected type if 'cast_from' is specified.
+
+        Additionally, int to float conversion is allowed implicitly."""
+        # If the value is a single-element array, convert it to a scalar
+        # If it's a numpy scalar, convert it to a native Python type
+        if (isinstance(value, np.ndarray) and value.size == 1) or isinstance(value, np.generic):
+            value = value.item()
+
+        # Assume the key exists in VALID_PARAMS
+        config = cls.VALID_PARAMS[key]
+
+        if value is None:
+            return value
+
+        cast_to = config["type"]
+        if isinstance(cast_to, tuple):
+            raise ValueError(f"Casting to multiple types is not supported for parameter '{key}'.")
+
+        if "cast_from" not in config:
+            if isinstance(value, int) and cast_to is float:
+                # Allow implicit conversion from int to float
+                return float(value)
+            return value
+
+        cast_types = config["cast_from"]
+        if not isinstance(cast_types, tuple):
+            cast_types = (cast_types,)
+
+        if any(isinstance(value, t) for t in cast_types):
+            value = cast_to(value)
+
+        return value
 
     @staticmethod
     def _human_readable_type(type):
@@ -203,7 +257,7 @@ class Parameters(ZeaObject):
     def serialized(self):
         """Compute the checksum of the object only if not already done"""
         if self._serialized is None:
-            self._serialized = pickle.dumps(self._params)
+            self._serialized = serialize_elements([self._params])
         return self._serialized
 
     @classmethod
@@ -216,42 +270,51 @@ class Parameters(ZeaObject):
     def _get_dependencies(cls, name):
         """Get the dependencies of a computed property."""
         if not cls._is_property_with_dependencies(name):
-            raise AttributeError(f"'{name}' is not a computed property with dependencies.")
+            raise NoDependencyError(name)
         return getattr(cls, name).fget._dependencies
 
-    @classmethod
-    def _find_leaf_params(cls, name, seen=None):
+    def _find_leaf_params(self, name, seen=None):
+        """Recursively find all leaf parameters that a property depends on.
+
+        If it is an optional dependency parameter, it will be included as a leaf. Not the ones it
+        depends on.
+        """
         if seen is None:
             seen = set()
         if name in seen:
             return set()
         seen.add(name)
-        # If the name is a property with dependencies, find its leaf parameters
-        if cls._is_property_with_dependencies(name):
-            leaves = set()
-            for dep in cls._get_dependencies(name):
-                leaves |= cls._find_leaf_params(dep, seen)  # union
-            return leaves
-        # If it's a regular parameter, return it as a leaf
-        elif name in cls.VALID_PARAMS:
+
+        # If the name is already a leaf parameter, return it
+        if name in self._params or name in self.VALID_PARAMS:
             return {name}
-        else:
-            raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
+
+        # If the name is a property with dependencies, find its leaf parameters
+        if self._is_property_with_dependencies(name):
+            leaves = set()
+            for dep in self._get_dependencies(name):
+                leaves |= self._find_leaf_params(dep, seen)  # union
+            return leaves
+
+        raise AttributeError(f"'{name}' is not a valid parameter or computed property.")
+
+    def _has_param(self, name):
+        """Check if a parameter is set (i.e., exists in _params)."""
+        # Check for existence of _params to avoid issues during unpickling
+        return "_params" in self.__dict__ and name in self._params
 
     def __getattr__(self, item):
-        # First check regular params
-        if item in self._params:
+        """Handle attribute access for parameters only.
+
+        Properties with dependencies are handled by cache_with_dependencies decorator.
+        Regular properties are handled by normal Python descriptor protocol.
+        """
+        # Return parameter value if it exists
+        if self._has_param(item):
             return self._params[item]
 
-        # Check if it's a property
-        if item not in self._properties:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'. ")
-
-        self._assert_dependencies_met(item)
-
-        # Return property value
-        cls_attr = getattr(self.__class__, item, None)
-        return cls_attr.__get__(self, self.__class__)
+        # Attribute not found
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
 
     def __setattr__(self, key, value):
         # Give clear error message on assignment to methods
@@ -270,13 +333,13 @@ class Parameters(ZeaObject):
         # Give clear error message on assignment to computed properties
         if self._is_property_with_dependencies(key) and key not in self.VALID_PARAMS:
             leaf_params = sorted(self._find_leaf_params(key))
-            raise AttributeError(
+            raise ValueError(
                 f"Cannot set computed property '{key}'. Only leaf parameters can be set. "
                 f"To change '{key}', set one or more of its leaf parameters: {leaf_params}"
             )
 
         # Validate new value
-        self._validate_parameter(key, value)
+        value = self._validate_parameter(key, value)
 
         # Set the parameter
         self._params[key] = value
@@ -290,7 +353,9 @@ class Parameters(ZeaObject):
             del self._params[name]
             self._invalidate(name)
         elif name in self.VALID_PARAMS:
-            raise AttributeError(f"Cannot delete parameter '{name}' because it is not set.")
+            raise ValueError(f"Cannot delete parameter '{name}' because it is not set.")
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def _check_for_circular_dependencies(cls, name, seen=None):
@@ -328,7 +393,6 @@ class Parameters(ZeaObject):
     def _invalidate(self, key):
         """Invalidate a specific cached computed property and its dependencies."""
         self._cache.pop(key, None)
-        self._computed.discard(key)
         self._dependency_versions.pop(key, None)
         self._tensor_cache.pop(key, None)
         self._serialized = None  # see core object
@@ -342,9 +406,16 @@ class Parameters(ZeaObject):
         for key in self._find_all_dependents(changed_key):
             self._invalidate(key)
 
-    def _current_dependency_hash(self, deps) -> str:
-        values = [self._params.get(dep, None) for dep in deps]
-        return serialize_elements(values)
+    def _current_dependency_hash(self, key) -> str:
+        """Compute a hash representing the current state of the dependencies of key.
+
+        Mainly needed to track changes in mutable parameters.
+        """
+        if not self._is_property_with_dependencies(key):
+            raise NoDependencyError(key)
+        deps = self._find_leaf_params(key)
+        values = [self._params.get(dep) for dep in sorted(deps)]
+        return hash_elements(values)
 
     def _assert_dependencies_met(self, name):
         """Assert that all dependencies for a computed property are met."""
@@ -381,7 +452,8 @@ class Parameters(ZeaObject):
         Args:
             include ("all", or list): Only include these parameter/property names.
                 If "all", include all available parameters (i.e. their dependencies are met).
-                Default is "all".
+                If specified, will take the intersection with possible parameters, so non-existing
+                keys will be ignored. Default is "all".
             exclude (None or list): Exclude these parameter/property names.
                 If provided, these keys will be excluded from the output.
             keep_as_is (list): List of parameter/property names that should not be converted to
@@ -401,14 +473,17 @@ class Parameters(ZeaObject):
         if include == "all":
             keys = all_keys
         elif include is not None:
+            # Filter include list to only existing keys
             keys = set(include).intersection(all_keys)
         elif exclude is not None:
+            # Take all keys except those in exclude
             keys = all_keys - set(exclude)
 
         tensor_dict = {}
         # Convert parameters and computed properties to tensors
         for key in keys:
             # Get the value from params or computed properties
+            # This is essential to trigger dependency checks
             try:
                 val = getattr(self, key)
             except MissingDependencyError as exc:
@@ -458,9 +533,21 @@ class Parameters(ZeaObject):
         return f"{self.__class__.__name__}(\n{param_str}\n)"
 
     @classmethod
-    def safe_initialize(cls, **kwargs):
-        """Overwrite safe initialize from zea.core.Object.
+    def standardize_params(cls, **kwargs) -> dict:
+        """Return a dict with only valid parameters set and cast to the right type."""
+        params = {}
+        for parameter, value in kwargs.items():
+            if parameter in cls.VALID_PARAMS:
+                params[parameter] = value
+            else:
+                log.debug(f"Skipping invalid parameter '{parameter}'.")
+        return params
 
-        We do not want safe initialization here.
-        """
-        return cls(**kwargs)
+    @classmethod
+    def safe_initialize(cls, **kwargs):
+        """Reduce kwargs to only valid parameters and convert types as needed."""
+        params = cls.standardize_params(**kwargs)
+
+        if len(params) == 0:
+            log.info(f"Could not find proper scan parameters in {kwargs}.")
+        return cls(**params)

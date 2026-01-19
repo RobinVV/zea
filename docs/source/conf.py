@@ -27,16 +27,38 @@ extensions = [
     "nbsphinx",  # for Jupyter notebook support
     "sphinx_design",  # for fancy code block selection
     "sphinxcontrib.bibtex",  # for bibliography support
+    "sphinx_reredirects",  # for redirecting empty toc entries
+    "sphinxarg.ext",  # for argparse support
+    "sphinx.ext.mathjax",  # for rendering math in the documentation
 ]
 
 autodoc_mock_imports = ["zea.backend.tf2jax"]
-exclude_patterns = ["_autosummary/zea.backend.tf2jax.rst"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "_autosummary/zea.backend.tf2jax.rst",
+    # Exclude internal implementation modules from documentation
+    "_autosummary/zea.func.tensor.rst",
+    "_autosummary/zea.func.ultrasound.rst",
+    "_autosummary/zea.ops.base.rst",
+    "_autosummary/zea.ops.tensor.rst",
+    "_autosummary/zea.ops.ultrasound.rst",
+    "_autosummary/zea.ops.pipeline.rst",
+    "_autosummary/zea.tracking.base.rst",
+    "_autosummary/zea.tracking.segmentation.rst",
+    "_autosummary/zea.tracking.lucas_kanade.rst",
+    "_autosummary/zea.models.hvae.model.rst",
+    "_autosummary/zea.models.hvae.utils.rst",
+]
 
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,
     "show-inheritance": True,
+    "special-members": "__call__",
 }
+autoclass_content = "both"  # include both class docstring and __init__ docstring
 
 templates_path = ["_templates"]
 
@@ -66,3 +88,13 @@ modindex_common_prefix = ["zea."]
 
 # for bibtex
 bibtex_bibfiles = ["../../paper/paper.bib"]
+
+# for redirecting empty toc items to their parent
+redirects = {
+    f"notebooks/{page}.html": f"../examples.html#{page}"
+    for page in ["data", "pipeline", "models", "metrics", "agent"]
+}
+
+# this will make sure that when an __all__ is defined in a module, the members
+# listed in __all__ are the only ones included in the autosummary documentation
+autosummary_ignore_module_all = False

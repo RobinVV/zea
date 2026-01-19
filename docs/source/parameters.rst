@@ -19,26 +19,32 @@ How to Load and Save a Config
 
 Here is a minimal example of how to load and save a config file using zea:
 
-.. code-block:: python
+.. doctest::
 
-    from zea import Config
-    from zea.config import check_config
+    >>> from zea import Config
+    >>> from zea.config import check_config
 
-    # Load a config from file
-    config = Config.from_yaml("configs/config_picmus_rf.yaml")
-    # or some predefined from Hugging Face Hub
-    config = Config.from_hf("zeahub/configs", "config_picmus_rf.yaml", repo_type="dataset")
+    >>> # Load a config from file
+    >>> config = Config.from_yaml("../configs/config_picmus_rf.yaml")
+    >>> # or some predefined from Hugging Face Hub
+    >>> config = Config.from_hf("zeahub/configs", "config_picmus_rf.yaml", repo_type="dataset")
 
-    # We can check if the config has valid parameters (zea compliance)
-    config = check_config(config)
+    >>> # We can check if the config has valid parameters (zea compliance)
+    >>> config = check_config(config)
 
-    # Access or change parameters
-    print(config.scan.sampling_frequency)
-    config.scan.sampling_frequency = 8e6
+    >>> # Access or change parameters
+    >>> config.scan.sampling_frequency = 8e6
+    >>> print(config.scan.sampling_frequency)
+    8000000.0
 
-    # Save the config back to file
-    config.save_to_yaml("configs/config_picmus_rf_modified.yaml")
+    >>> # Save the config back to file
+    >>> config.save_to_yaml("my_new_config.yaml")
 
+.. testcleanup::
+
+    import os
+
+    os.remove("my_new_config.yaml")
 
 -------------------------------
 Parameter List
@@ -131,10 +137,6 @@ Parameters Reference
      - The file extension to use when saving the video (mp4, gif)
    * - ``scan``
      - The scan section contains the parameters pertaining to the reconstruction.
-   * - ``scan.grid_size_x``
-     - The number of pixels in the beamforming grid in the x-direction
-   * - ``scan.grid_size_z``
-     - The number of pixels in the beamforming grid in the z-direction
    * - ``scan.apply_lens_correction``
      - Set to true to apply lens correction in the time-of-flight calculation
    * - ``scan.center_frequency``
@@ -145,6 +147,10 @@ Parameters Reference
      - The receive f-number for apodization. Set to zero to disable masking. The f-number is the ratio between the distance from the transducer and the size of the aperture.
    * - ``scan.fill_value``
      - Value to fill the image with outside the defined region (float, default 0.0).
+   * - ``scan.grid_size_x``
+     - The number of pixels in the beamforming grid in the x-direction
+   * - ``scan.grid_size_z``
+     - The number of pixels in the beamforming grid in the z-direction
    * - ``scan.lens_sound_speed``
      - The speed of sound in the lens in m/s. Usually around 1000 m/s
    * - ``scan.lens_thickness``

@@ -47,6 +47,48 @@ echonet_dynamic_presets = {
     },
 }
 
+augmented_camus_seg_presets = {
+    "augmented_camus_seg": {
+        "metadata": {
+            "description": (
+                "Augmented CAMUS segmentation model for cardiac ultrasound segmentation. "
+                "Original paper and code: https://arxiv.org/abs/2502.20100"
+            ),
+            "params": 33468899,
+            "path": "lv_segmentation",
+        },
+        "hf_handle": "hf://zeahub/augmented-camus-segmentation",
+    },
+}
+
+regional_quality_presets = {
+    "mobilenetv2_regional_quality": {
+        "metadata": {
+            "description": (
+                "MobileNetV2-based regional myocardial image quality scoring model. "
+                "Original GitHub repository and code: https://github.com/GillesVanDeVyver/arqee"
+            ),
+            "params": 2217064,
+            "path": "regional_quality",
+        },
+        "hf_handle": "hf://zeahub/mobilenetv2-regional-quality",
+    }
+}
+
+echonet_lvh_presets = {
+    "echonetlvh": {
+        "metadata": {
+            "description": (
+                "EchoNetLVH segmentation model for PLAX-view cardiac ultrasound segmentation. "
+                "Trained on images of size (224, 224)."
+            ),
+            "params": 0,
+            "path": "echonetlvh",
+        },
+        "hf_handle": "hf://zeahub/echonetlvh",
+    },
+}
+
 lpips_presets = {
     "lpips": {
         "metadata": {
@@ -83,6 +125,14 @@ diffusion_model_presets = {
         },
         "hf_handle": "hf://zeahub/diffusion-echonet-dynamic",
     },
+    "diffusion-echonetlvh-3-frame": {
+        "metadata": {
+            "description": ("3-frame diffusion model trained on EchoNetLVH dataset."),
+            "params": 0,
+            "path": "diffusion",
+        },
+        "hf_handle": "hf://zeahub/diffusion-echonetlvh",
+    },
 }
 
 carotid_segmenter_presets = {
@@ -96,5 +146,21 @@ carotid_segmenter_presets = {
             "path": "carotid_segmenter",
         },
         "hf_handle": "hf://zeahub/carotid-segmenter",
+    },
+}
+
+hvae_presets = {
+    "hvae": {
+        "metadata": {
+            "description": (
+                "Hierarchical Variational Autoencoder (HVAE) model. "
+                "Trained on EchoNetLVH dataset at 256x256 resolution. "
+                "Other versions should be selected with the version argument. "
+                "e.g. `HierarchicalVAE.from_preset('hvae', version='lvh_ur24')`."
+            ),
+            "params": 24266595,
+            "path": "hvae",
+        },
+        "hf_handle": "hf://zeahub/hvae",
     },
 }

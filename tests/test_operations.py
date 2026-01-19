@@ -11,14 +11,19 @@ import keras
 import numpy as np
 import pytest
 from scipy.ndimage import gaussian_filter
-from scipy.signal import hilbert
+from scipy.signal import hilbert as hilbert_scipy
 
 from zea import ops
+from zea.func.ultrasound import (
+    channels_to_complex,
+    complex_to_channels,
+    compute_time_to_peak_stack,
+)
 from zea.ops import Pipeline, Simulate
 from zea.probes import Probe
 from zea.scan import Scan
 
-from . import backend_equality_check
+from . import DEFAULT_TEST_SEED, backend_equality_check
 
 
 @pytest.mark.parametrize(
@@ -38,13 +43,15 @@ def test_companding(comp_type, size, parameter_value_range):
 
     from zea import ops
 
+    rng = np.random.default_rng(42)
+
     for parameter_value in np.linspace(*parameter_value_range, 10):
         A = parameter_value if comp_type == "a" else 0
         mu = parameter_value if comp_type == "mu" else 0
 
         companding = ops.Companding(comp_type=comp_type, expand=False)
-
-        signal = np.clip((np.random.random(size) - 0.5) * 2, -1, 1)
+        rng = np.random.default_rng(DEFAULT_TEST_SEED)
+        signal = np.clip((rng.standard_normal(size) - 0.5) * 2, -1, 1)
         signal = signal.astype("float32")
         signal = keras.ops.convert_to_tensor(signal)
 
@@ -95,7 +102,8 @@ def test_converting_to_image(size, dynamic_range, input_range):
     else:
         _input_range = input_range
 
-    data = np.random.random(size) * (_input_range[1] - _input_range[0]) + _input_range[0]
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = rng.standard_normal(size) * (_input_range[1] - _input_range[0]) + _input_range[0]
     output_range = (0, 1)
     normalize = ops.Normalize(output_range, input_range)
     log_compress = ops.LogCompress()
@@ -137,7 +145,8 @@ def test_normalize(size, output_range, input_range):
     normalize_back = ops.Normalize(_output_range, _input_range)
 
     # create random data between input range
-    data = np.random.random(size) * (input_range[1] - input_range[0]) + input_range[0]
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = rng.random(size) * (input_range[1] - input_range[0]) + input_range[0]
 
     data = keras.ops.convert_to_tensor(data)
 
@@ -163,9 +172,10 @@ def test_normalize(size, output_range, input_range):
 )
 def test_complex_to_channels(size, axis):
     """Test complex to channels and back"""
-    data = np.random.random(size) + 1j * np.random.random(size)
-    _data = ops.complex_to_channels(data, axis=axis)
-    __data = ops.channels_to_complex(_data)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = rng.random(size) + 1j * rng.random(size)
+    _data = complex_to_channels(data, axis=axis)
+    __data = channels_to_complex(_data)
     np.testing.assert_almost_equal(data, __data)
 
 
@@ -179,9 +189,10 @@ def test_complex_to_channels(size, axis):
 )
 def test_channels_to_complex(size, axis):
     """Test channels to complex and back"""
-    data = np.random.random(size)
-    _data = ops.channels_to_complex(data)
-    __data = ops.complex_to_channels(_data, axis=axis)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = rng.random(size)
+    _data = channels_to_complex(data)
+    __data = complex_to_channels(_data, axis=axis)
     np.testing.assert_almost_equal(data, __data)
 
 
@@ -256,6 +267,7 @@ def test_up_and_down_conversion(factor, batch_size):
 
     data = []
     _data = []
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     for _ in range(batch_size):
         # Define scatterers with random variation
         scat_x_base, scat_z_base = np.meshgrid(
@@ -264,11 +276,11 @@ def test_up_and_down_conversion(factor, batch_size):
             indexing="ij",
         )
         # Add random perturbations
-        scat_x = np.ravel(scat_x_base) + np.random.uniform(-1e-3, 1e-3, 25)
-        scat_z = np.ravel(scat_z_base) + np.random.uniform(-1e-3, 1e-3, 25)
+        scat_x = np.ravel(scat_x_base) + rng.uniform(-1e-3, 1e-3, 25)
+        scat_z = np.ravel(scat_z_base) + rng.uniform(-1e-3, 1e-3, 25)
         n_scat = len(scat_x)
         # Select random subset of scatterers
-        idx = np.random.choice(n_scat, n_scat, replace=False)[:n_scat]
+        idx = rng.choice(n_scat, n_scat, replace=False)[:n_scat]
         scat_positions = np.stack(
             [
                 scat_x[idx],
@@ -304,7 +316,9 @@ def test_hilbert_transform():
 
     import keras
 
-    from zea import ops
+    from zea import func
+
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
     # create some dummy sinusoidal data of size (2, 500, 128, 1)
     # sinusoids on axis 1
@@ -312,11 +326,12 @@ def test_hilbert_transform():
     data = data[np.newaxis, :, np.newaxis, np.newaxis]
     data = np.tile(data, (2, 1, 128, 1))
 
-    data = data + np.random.random(data.shape) * 0.1
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = data + rng.random(data.shape) * 0.1
 
     data = keras.ops.convert_to_tensor(data)
 
-    data_iq = ops.hilbert(data, axis=-3)
+    data_iq = func.hilbert(data, axis=-3)
     assert keras.ops.dtype(data_iq) in [
         "complex64",
         "complex128",
@@ -324,7 +339,7 @@ def test_hilbert_transform():
 
     data_iq = keras.ops.convert_to_numpy(data_iq)
 
-    reference_data_iq = hilbert(data, axis=-3)
+    reference_data_iq = hilbert_scipy(data, axis=-3)
     np.testing.assert_almost_equal(reference_data_iq, data_iq, decimal=4)
 
     return data_iq
@@ -349,7 +364,7 @@ def spiral_image():
     spiral = np.sin(8 * theta + 8 * r)
     spiral = (spiral - spiral.min()) / (spiral.max() - spiral.min())
 
-    rng = np.random.default_rng(seed=42)
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
     noisy = spiral + 0.2 * rng.normal(size=spiral.shape)
     noisy = np.clip(noisy, 0, 1)
     speckle = spiral * (1 + 0.5 * rng.normal(size=spiral.shape))
@@ -391,7 +406,8 @@ def test_gaussian_blur(sigma, spiral_image):
 @backend_equality_check(decimal=4)
 def test_lee_filter(sigma, spiral_image):
     """
-    Test `ops.LeeFilter`, only checks if variance is reduced.
+    Test `ops.LeeFilter`, checks if variance is reduced and if with and without
+    batch dimension give the same result.
     """
     import keras
 
@@ -401,9 +417,16 @@ def test_lee_filter(sigma, spiral_image):
     image = spiral_image["spiral"]
 
     lee = ops.LeeFilter(sigma=sigma, with_batch_dim=False)
+    lee_batched = ops.LeeFilter(sigma=sigma, with_batch_dim=True)
 
     image_tensor = keras.ops.convert_to_tensor(image[..., None])
     filtered = lee(data=image_tensor)["data"][..., 0]
+    filtered_batched = lee_batched(data=image_tensor[None, ...])["data"][0, ..., 0]
+
+    assert np.allclose(
+        keras.ops.convert_to_numpy(filtered),
+        keras.ops.convert_to_numpy(filtered_batched),
+    ), "LeeFilter with and without batch dim should give the same result."
 
     assert keras.ops.var(filtered) < keras.ops.var(image_tensor), (
         "LeeFilter should reduce variance of the processed image"
@@ -475,3 +498,80 @@ def test_anisotropic_diffusion_op(spiral_image, niter, lmbda):
     assert np.abs(np.mean(filtered_np) - np.mean(speckle)) < 0.1
 
     return filtered_np
+
+
+def test_compute_time_to_peak():
+    """Test compute_time_to_peak function."""
+    t = np.arange(512) / 250e6
+
+    t_peak = 1e-6
+
+    center_frequency0 = 5e6
+    waveform0 = np.exp(-((t - t_peak) ** 2) / (2 * (0.2e-6) ** 2)) * np.cos(
+        2 * np.pi * center_frequency0 * (t - t_peak)
+    )
+
+    center_frequency1 = 10e6
+    waveform1 = np.exp(-((t - t_peak) ** 2) / (2 * (0.2e-6) ** 2)) * np.cos(
+        2 * np.pi * center_frequency1 * (t - t_peak)
+    )
+
+    center_frequencies = np.array([center_frequency0, center_frequency1])
+    waveforms = np.array([waveform0, waveform1])
+
+    t_peak = compute_time_to_peak_stack(waveforms, center_frequencies, 250e6)
+
+    assert np.allclose(t_peak, 1e-6, atol=1e-8), f"t_peak should be close to 1e-6, got {t_peak}"
+
+
+@pytest.mark.parametrize(
+    "beamformer,expected_shape",
+    [
+        ("das", (1, 7, 2)),
+        ("dmas", (1, 7, 2)),
+    ],
+)
+def test_beamformers(beamformer, expected_shape):
+    """Test all beamformer operations (DAS and DMAS stages)."""
+    if beamformer == "das":
+        operation = ops.DelayAndSum(with_batch_dim=True)
+    elif beamformer == "dmas":
+        operation = ops.DelayMultiplyAndSum(with_batch_dim=True)
+    else:
+        raise ValueError(f"Unknown beamformer: {beamformer}")
+
+    data = keras.ops.zeros((1, 3, 7, 4, 2))
+
+    output = operation(data=data)["data"]
+    assert output.shape == expected_shape, (
+        f"Output shape should be {expected_shape} for {beamformer}, got {output.shape}"
+    )
+
+    # DMAS should raise ValueError with single channel
+    if beamformer == "dmas":
+        with pytest.raises(ValueError):
+            data = keras.ops.zeros((1, 3, 7, 4, 1))
+            operation(data=data)
+
+
+@pytest.mark.parametrize(
+    "axis, size, start, end, window_type",
+    [
+        (0, 64, 64, 32, "hanning"),
+        (1, 32, 32, 16, "linear"),
+    ],
+)
+def test_apply_window(axis, size, start, end, window_type):
+    """Test ApplyWindow operation."""
+    operation = ops.ultrasound.ApplyWindow(
+        axis=axis, size=size, start=start, end=end, window_type=window_type
+    )
+
+    data = keras.ops.ones((256, 128, 64))
+    data_out = operation(data=data)["data"]
+    if axis == 0:
+        assert data_out[:start, :, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
+        assert data_out[-end:, :, :].numpy().sum() == 0.0, "End region not zeroed correctly."
+    elif axis == 1:
+        assert data_out[:, :start, :].numpy().sum() == 0.0, "Start region not zeroed correctly."
+        assert data_out[:, -end:, :].numpy().sum() == 0.0, "End region not zeroed correctly."

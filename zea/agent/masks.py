@@ -9,8 +9,8 @@ from typing import List
 import keras
 from keras import ops
 
-from zea import tensor_ops
 from zea.agent.gumbel import hard_straight_through
+from zea.func.tensor import nonzero
 
 _DEFAULT_DTYPE = "bool"
 
@@ -56,7 +56,7 @@ def k_hot_to_indices(selected_lines, n_actions: int, fill_value=-1):
 
     # Find nonzero indices for each frame
     def get_nonzero(row):
-        return tensor_ops.nonzero(row > 0, size=n_actions, fill_value=fill_value)[0]
+        return nonzero(row > 0, size=n_actions, fill_value=fill_value)[0]
 
     indices = ops.vectorized_map(get_nonzero, selected_lines)
     return indices
@@ -91,7 +91,8 @@ def random_uniform_lines(
 
 def _assert_equal_spacing(n_actions, n_possible_actions):
     assert n_possible_actions % n_actions == 0, (
-        "Number of actions must divide evenly into possible actions to use equispaced sampling."
+        "Number of actions must divide evenly into possible actions to use equispaced sampling. "
+        "If you do not care about equal spacing, set `assert_equal_spacing=False`."
     )
 
 
