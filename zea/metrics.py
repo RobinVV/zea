@@ -28,14 +28,16 @@ def get_metric(name, **kwargs):
 
 def _reduce_mean(array, keep_batch_dim=True):
     """Reduce array by taking the mean.
-    Preserves batch dimension if keep_batch_dim=True.
+
+    Args:
+        array (tensor): Input tensor of shape (..., height, width, channels)
+        keep_batch_dim (bool): Whether to keep the batch dimensions when reducing.
+            Default is True.
     """
     if keep_batch_dim:
-        ndim = ops.ndim(array)
-        axis = tuple(range(max(0, ndim - 3), ndim))
+        return ops.mean(array, axis=(-3, -2, -1))
     else:
-        axis = None
-    return ops.mean(array, axis=axis)
+        return ops.mean(array)
 
 
 @metrics_registry(name="cnr", paired=True, jittable=True)
@@ -105,8 +107,10 @@ def psnr(y_true, y_pred, *, max_val=255):
     PSNR = 20 * log10(max_val) - 10 * log10(mean(square(y_true - y_pred)))
 
     Args:
-        y_true (tensor): [None, height, width, channels]
-        y_pred (tensor): [None, height, width, channels]
+        y_true (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
+        y_pred (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
         max_val: The dynamic range of the images
 
     Returns:
@@ -120,12 +124,15 @@ def psnr(y_true, y_pred, *, max_val=255):
 @metrics_registry(name="mse", paired=True, jittable=True)
 def mse(y_true, y_pred):
     """Gives the MSE for two input tensors.
+
     Args:
-        y_true (tensor)
-        y_pred (tensor)
+        y_true (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
+        y_pred (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
+
     Returns:
         (float): mean squared error between y_true and y_pred. L2 loss.
-
     """
     return _reduce_mean(ops.square(y_true - y_pred))
 
@@ -133,12 +140,15 @@ def mse(y_true, y_pred):
 @metrics_registry(name="mae", paired=True, jittable=True)
 def mae(y_true, y_pred):
     """Gives the MAE for two input tensors.
+
     Args:
-        y_true (tensor)
-        y_pred (tensor)
+        y_true (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
+        y_pred (tensor): input tensor of shape (height, width, channels)
+            with optional batch dimension.
+
     Returns:
         (float): mean absolute error between y_true and y_pred. L1 loss.
-
     """
     return _reduce_mean(ops.abs(y_true - y_pred))
 
@@ -369,7 +379,7 @@ class Metrics:
         num_batch_axes = max(0, ops.ndim(y_true) - 3)
 
         # Because most metric functions do not support batching, we vmap over the batch axes.
-        # This does assume that the metric function can handle single images of shape [h, w, c].
+        # This does assume that the metric function can handle single images of shape (h, w, c).
         metric_fn = fun
         for _ in range(num_batch_axes):
             # recursively vmap the leading axis
@@ -405,13 +415,13 @@ class Metrics:
         device=None,
     ):
         """Calculate all metrics and return as a dictionary.
-        Assumes input shape [..., h, w, c], i.e. images of shape [h, w, c] with
+        Assumes input shape (..., h, w, c), i.e. images of shape (h, w, c) with
         any number of leading batch dimensions. The metrics will be calculated
         on these 2d images and mapped across all leading batch dimensions.
 
         Args:
-            y_true (tensor): Ground truth images with shape [..., h, w, c]
-            y_pred (tensor): Predicted images with shape [..., h, w, c]
+            y_true (tensor): Ground truth images with shape (..., h, w, c)
+            y_pred (tensor): Predicted images with shape (..., h, w, c)
             average_batches (bool): Whether to average the metrics over the batch dimensions.
             mapped_batch_size (optional int): The batch size to use for computing
                 metric values in parallel.
