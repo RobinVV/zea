@@ -293,13 +293,19 @@ class LVHProcessor(H5Processor):
 
         angle = cone_params["opening_angle"] / 2  # angular field spans (-angle, +angle)
         polar_im_set = self.cart2pol_batched(sequence_processed, angle)
+        sequence_processed_uint8 = jnp.asarray(sequence_processed, dtype=jnp.uint8)
+        sequence_processed_np = np.array(sequence_processed_uint8)
+        del sequence_processed
+        del sequence_processed_uint8
+
         polar_im_set = translate(polar_im_set, self._process_range, (0, 255))
         polar_im_set = jnp.asarray(polar_im_set, dtype=jnp.uint8)
         polar_im_set_np = np.array(polar_im_set)
+        del polar_im_set
 
         zea_dataset = {
             "path": out_h5,
-            "image_sc": sequence_np,
+            "image_sc": sequence_processed_np,
             "probe_name": "generic",
             "description": "EchoNet-LVH dataset converted to zea format",
             "image": polar_im_set_np,
