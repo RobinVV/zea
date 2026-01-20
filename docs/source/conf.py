@@ -2,15 +2,13 @@
 
 import os
 import sys
+from importlib.metadata import version as get_version
 
 sys.path.insert(0, os.path.abspath("../.."))
 
-import zea
-
 # -- Project information -----------------------------------------------------
 project = "zea"
-# get automatically the version from the package
-release = zea.__version__
+release = str(get_version("zea"))
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -32,7 +30,14 @@ extensions = [
     "sphinx.ext.mathjax",  # for rendering math in the documentation
 ]
 
-autodoc_mock_imports = ["zea.backend.tf2jax"]
+autodoc_mock_imports = [
+    "tensorflow",
+    "torch",
+    "jax",
+    "jaxlib",
+    "zea.backend.tf2jax",
+]
+
 exclude_patterns = [
     "_build",
     "Thumbs.db",
