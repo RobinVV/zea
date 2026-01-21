@@ -1,6 +1,9 @@
 """Configuration file for the Sphinx documentation builder."""
 
 import os
+
+os.environ["KERAS_BACKEND"] = "numpy"
+
 import sys
 from importlib.metadata import version as get_version
 
