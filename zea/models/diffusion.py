@@ -15,6 +15,8 @@ To try this model, simply load one of the available presets:
 
 """
 
+from __future__ import annotations
+
 import abc
 from typing import Literal
 
