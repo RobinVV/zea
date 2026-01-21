@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import sys
 
 from . import log
 
@@ -80,8 +81,12 @@ def _bootstrap_backend():
     log.info(f"Using backend {keras_backend()!r}")
 
 
-# call and clean up namespace
-_bootstrap_backend()
+# Skip backend bootstrap when building documentation
+# Sphinx sets READTHEDOCS or we can detect it via autodoc
+_building_docs = os.environ.get("READTHEDOCS") == "True" or "sphinx" in sys.modules
+
+if not _building_docs:
+    _bootstrap_backend()
 del _bootstrap_backend
 
 from . import (
