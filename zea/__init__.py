@@ -81,12 +81,10 @@ def _bootstrap_backend():
     log.info(f"Using backend {keras_backend()!r}")
 
 
-# Skip backend bootstrap when building documentation
-# Sphinx sets READTHEDOCS or we can detect it via autodoc
-_building_docs = os.environ.get("READTHEDOCS") == "True" or "sphinx" in sys.modules
-
-if not _building_docs:
+# Skip backend bootstrap when building on ReadTheDocs
+if os.environ.get("READTHEDOCS") != "True":
     _bootstrap_backend()
+
 del _bootstrap_backend
 
 from . import (
