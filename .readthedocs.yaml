@@ -12,7 +12,7 @@ build:
   apt_packages:
     - pandoc
   jobs:
-    pre_install:
+    pre_build:
       - export KERAS_BACKEND=numpy
 
 # Build documentation in the "docs/" directory with Sphinx
@@ -28,3 +28,4 @@ python:
       path: .
       extra_requirements:
         - docs
+        - jax

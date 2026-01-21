@@ -33,8 +33,6 @@ extensions = [
 autodoc_mock_imports = [
     "tensorflow",
     "torch",
-    "jax",
-    "jaxlib",
     "zea.backend.tf2jax",
 ]
 
