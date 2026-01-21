@@ -31,6 +31,7 @@ extensions = [
 ]
 
 autodoc_mock_imports = [
+    "keras",
     "tensorflow",
     "torch",
     "jax",
