@@ -61,7 +61,12 @@ def _import_torch():
 
 def _get_backend():
     try:
-        return keras.backend.backend()
+        backend_result = keras.backend.backend()
+        if isinstance(backend_result, str):
+            return backend_result
+        else:
+            # to handle mocked backends during testing
+            return None
     except Exception:
         return None
 
