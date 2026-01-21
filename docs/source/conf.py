@@ -29,7 +29,7 @@ extensions = [
     "sphinx_design",  # for fancy code block selection
     "sphinxcontrib.bibtex",  # for bibliography support
     "sphinx_reredirects",  # for redirecting empty toc entries
-    "sphinxarg.ext",  # for argparse support
+    "sphinxcontrib.autoprogram",  # for argparse support
     "sphinx.ext.mathjax",  # for rendering math in the documentation
 ]
 

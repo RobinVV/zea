@@ -5136,29 +5136,6 @@ lint = ["flake8 (>=6.0)", "mypy (==1.11.1)", "pyright (==1.1.384)", "pytest (>=6
 test = ["cython (>=3.0)", "defusedxml (>=0.7.1)", "pytest (>=8.0)", "setuptools (>=70.0)", "typing_extensions (>=4.9)"]
 
 [[package]]
-name = "sphinx-argparse"
-version = "0.5.2"
-description = "A sphinx extension that automatically documents argparse commands and options"
-optional = true
-python-versions = ">=3.10"
-groups = ["main"]
-markers = "extra == \"dev\" or extra == \"docs\""
-files = [
-    {file = "sphinx_argparse-0.5.2-py3-none-any.whl", hash = "sha256:d771b906c36d26dee669dbdbb5605c558d9440247a5608b810f7fa6e26ab1fd3"},
-    {file = "sphinx_argparse-0.5.2.tar.gz", hash = "sha256:e5352f8fa894b6fb6fda0498ba28a9f8d435971ef4bbc1a6c9c6414e7644f032"},
-]
-
-[package.dependencies]
-docutils = ">=0.19"
-sphinx = ">=5.1.0"
-
-[package.extras]
-docs = ["CommonMark (>=0.5.6)", "furo (>=2024)"]
-lint = ["lxml-stubs (>=0.4)", "mypy (>=1.10)", "ruff (>=0.5)", "types-docutils (>=0.21)"]
-markdown = ["CommonMark (>=0.5.6)"]
-test = ["coverage (>=6.5)", "lxml (>=4.9)", "pytest (>=8.0)", "setuptools (>=70.0)", "typing_extensions (>=4.9)"]
-
-[[package]]
 name = "sphinx-autobuild"
 version = "2024.10.3"
 description = "Rebuild Sphinx documentation on changes, with hot reloading in the browser."
@@ -5317,6 +5294,22 @@ files = [
 lint = ["mypy", "ruff (==0.5.5)", "types-docutils"]
 standalone = ["Sphinx (>=5)"]
 test = ["pytest"]
+
+[[package]]
+name = "sphinxcontrib-autoprogram"
+version = "0.1.9"
+description = "Documenting CLI programs"
+optional = true
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "extra == \"dev\" or extra == \"docs\""
+files = [
+    {file = "sphinxcontrib-autoprogram-0.1.9.tar.gz", hash = "sha256:219655507fadca29b3062b5d86c37d94db48f03bde4b58d61526872bf72f57cc"},
+    {file = "sphinxcontrib_autoprogram-0.1.9-py2.py3-none-any.whl", hash = "sha256:79a5282d7640337e4bf11f624970a43709f1b704c5c59a59756d45e824db5301"},
+]
+
+[package.dependencies]
+Sphinx = ">=1.2"
 
 [[package]]
 name = "sphinxcontrib-bibtex"
@@ -6469,10 +6462,10 @@ propcache = ">=0.2.1"
 
 [extras]
 backends = ["jax", "tensorflow", "torch"]
-dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "myst-parser", "nbsphinx", "onnxruntime", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "simpleitk", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-bibtex"]
+dev = ["IPython", "PyStemmer", "cloudpickle", "furo", "ipykernel", "ipywidgets", "myst-parser", "nbsphinx", "onnxruntime", "opencv-python-headless", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "simpleitk", "sphinx", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-autoprogram", "sphinxcontrib-bibtex"]
 display = ["opencv-python"]
 display-headless = ["opencv-python-headless"]
-docs = ["IPython", "PyStemmer", "furo", "myst-parser", "nbsphinx", "sphinx", "sphinx-argparse", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-bibtex"]
+docs = ["IPython", "PyStemmer", "furo", "myst-parser", "nbsphinx", "sphinx", "sphinx-autobuild", "sphinx-autodoc-typehints", "sphinx-copybutton", "sphinx-reredirects", "sphinx_design", "sphinxcontrib-autoprogram", "sphinxcontrib-bibtex"]
 jax = ["jax"]
 models = ["onnxruntime"]
 tests = ["cloudpickle", "ipykernel", "ipywidgets", "papermill", "pre-commit", "pytest", "pytest-cov", "ruff", "simpleitk"]
@@ -6480,4 +6473,4 @@ tests = ["cloudpickle", "ipykernel", "ipywidgets", "papermill", "pre-commit", "p
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "3aab62fff364b34f0a022329547cbeccc83be1940fe647c72bc1839483cee15e"
+content-hash = "b7b49ff0f7f9015e9234747facfd1bfc34c5edc6db4885e91e2f2f3cae401e7f"
