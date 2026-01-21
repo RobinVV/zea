@@ -11,6 +11,9 @@ build:
     python: "3.12"
   apt_packages:
     - pandoc
+  jobs:
+    pre_install:
+      - export KERAS_BACKEND=numpy
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
