@@ -289,11 +289,12 @@ def test_up_and_down_conversion(factor, batch_size):
             ],
             axis=1,
         )
+        scat_positions = np.expand_dims(scat_positions, axis=0)  # add batch dimension
 
         output = simulator_pipeline(
             **parameters,
             scatterer_positions=scat_positions.astype(np.float32),
-            scatterer_magnitudes=np.ones(n_scat, dtype=np.float32),
+            scatterer_magnitudes=np.ones((1, n_scat), dtype=np.float32),
         )
 
         data.append(keras.ops.convert_to_numpy(output["data"]))

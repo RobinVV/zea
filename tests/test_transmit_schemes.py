@@ -106,11 +106,12 @@ def _test_location(image, extent, true_position):
 def ultrasound_scatterers():
     """Returns scatterer positions and magnitudes for ultrasound simulation tests."""
     scat_positions = fish()
+    scat_positions = np.expand_dims(scat_positions, axis=0)  # add batch dimension
     n_scat = scat_positions.shape[0]
 
     return {
         "positions": scat_positions.astype(np.float32),
-        "magnitudes": np.ones(n_scat, dtype=np.float32),
+        "magnitudes": np.ones((1, n_scat), dtype=np.float32),
         "n_scat": n_scat,
     }
 
@@ -169,7 +170,7 @@ def test_transmit_schemes(
     _test_location(
         image.T,
         extent=extent,
-        true_position=ultrasound_scatterers["positions"][target_scatterer_index],
+        true_position=ultrasound_scatterers["positions"][0, target_scatterer_index],
     )
     # Check that the pipeline produced the expected outputs
     assert output_default["data"].shape[0] == 1  # Batch dimension
@@ -221,7 +222,7 @@ def test_polar_grid(default_pipeline: ops.Pipeline, ultrasound_scatterers):
     _test_location(
         image.T,
         extent=extent,
-        true_position=ultrasound_scatterers["positions"][target_scatterer_index],
+        true_position=ultrasound_scatterers["positions"][0, target_scatterer_index],
     )
 
 

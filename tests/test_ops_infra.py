@@ -656,7 +656,8 @@ def ultrasound_scan(ultrasound_probe):
 
 
 def get_scatterers():
-    """Returns scatterer positions and magnitudes for ultrasound simulation tests."""
+    """Returns scatterer positions and magnitudes for ultrasound simulation tests.
+    Has a batch dimension of 1."""
     scat_x, scat_z = np.meshgrid(
         np.linspace(-10e-3, 10e-3, 5),
         np.linspace(10e-3, 30e-3, 5),
@@ -673,10 +674,11 @@ def get_scatterers():
         ],
         axis=1,
     )
+    scat_positions = np.expand_dims(scat_positions, axis=0)  # add batch dimension
 
     return {
         "positions": scat_positions.astype(np.float32),
-        "magnitudes": np.ones(n_scat, dtype=np.float32),
+        "magnitudes": np.ones((1, n_scat), dtype=np.float32),
         "n_scat": n_scat,
     }
 
@@ -696,14 +698,10 @@ def test_simulator(ultrasound_probe, ultrasound_scan, ultrasound_scatterers, wit
     pipeline = ops.Pipeline([ops.Simulate()], with_batch_dim=with_batch_dim)
     parameters = pipeline.prepare_parameters(ultrasound_probe, ultrasound_scan)
 
-    if with_batch_dim:
-        # expand dims to add batch dimension, batch_size = 1
-        ultrasound_scatterers["positions"] = np.expand_dims(
-            ultrasound_scatterers["positions"], axis=0
-        )
-        ultrasound_scatterers["magnitudes"] = np.expand_dims(
-            ultrasound_scatterers["magnitudes"], axis=0
-        )
+    if not with_batch_dim:
+        # remove batch_dim of scatterers for pipeline without batch dimension
+        ultrasound_scatterers["positions"] = ultrasound_scatterers["positions"][0]
+        ultrasound_scatterers["magnitudes"] = ultrasound_scatterers["magnitudes"][0]
 
     output = pipeline(
         **parameters,
@@ -728,12 +726,6 @@ def test_default_ultrasound_pipeline(
     # all dynamic parameters are set in the call method of the operations
     # or equivalently in the pipeline call (which is passed to the operations)
     parameters = default_pipeline.prepare_parameters(ultrasound_probe, ultrasound_scan)
-
-    ultrasound_scatterers["positions"] = np.expand_dims(ultrasound_scatterers["positions"], axis=0)
-    ultrasound_scatterers["magnitudes"] = np.expand_dims(
-        ultrasound_scatterers["magnitudes"], axis=0
-    )
-
     output_default = default_pipeline(
         **parameters,
         scatterer_positions=ultrasound_scatterers["positions"],
