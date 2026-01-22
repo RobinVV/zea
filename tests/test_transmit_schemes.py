@@ -106,7 +106,6 @@ def _test_location(image, extent, true_position):
 def ultrasound_scatterers():
     """Returns scatterer positions and magnitudes for ultrasound simulation tests."""
     scat_positions = fish()
-    scat_positions = np.expand_dims(scat_positions, axis=0)  # add batch dimension
     n_scat = scat_positions.shape[0]
 
     return {
@@ -234,8 +233,8 @@ def test_phantoms():
     lissajous_scat = lissajous(num_scatterers=50)
     golden_ratio_scat = golden_ratio(num_scatterers=50)
 
-    assert fish_scat.shape == (104, 3)
-    assert rose_scat.shape == (50, 3)
-    assert fibonacci_scat.shape == (50, 3)
-    assert lissajous_scat.shape == (50, 3)
-    assert golden_ratio_scat.shape == (50, 3)
+    assert fish_scat.shape == (1, 104, 3)
+    assert rose_scat.shape == (1, 50, 3)
+    assert fibonacci_scat.shape == (1, 50, 3)
+    assert lissajous_scat.shape == (1, 50, 3)
+    assert golden_ratio_scat.shape == (1, 50, 3)

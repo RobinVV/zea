@@ -73,7 +73,7 @@ def rose(k=3, num_scatterers=80, with_batch_dim=True):
     scat_y = np.zeros_like(scat_x)
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
     scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
-    return
+    return scat
 
 
 def fibonacci(alpha=0.5, num_scatterers=100, with_batch_dim=True):
