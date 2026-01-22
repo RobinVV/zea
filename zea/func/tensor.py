@@ -1,5 +1,7 @@
 """Basic tensor operations implemented with the multi-backend ``keras.ops``."""
 
+from __future__ import annotations
+
 from typing import List, Tuple, Union
 
 import keras
