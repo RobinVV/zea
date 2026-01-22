@@ -687,24 +687,33 @@ def ultrasound_scatterers():
     return get_scatterers()
 
 
-def test_simulator(ultrasound_probe, ultrasound_scan, ultrasound_scatterers):
+@pytest.mark.parametrize(
+    "with_batch_dim",
+    [False, True],
+)
+def test_simulator(ultrasound_probe, ultrasound_scan, ultrasound_scatterers, with_batch_dim):
     """Tests the simulator operation."""
-    pipeline = ops.Pipeline([ops.Simulate()])
+    pipeline = ops.Pipeline([ops.Simulate()], with_batch_dim=with_batch_dim)
     parameters = pipeline.prepare_parameters(ultrasound_probe, ultrasound_scan)
+
+    if with_batch_dim:
+        # expand dims to add batch dimension, batch_size = 1
+        ultrasound_scatterers["positions"] = np.expand_dims(
+            ultrasound_scatterers["positions"], axis=0
+        )
+        ultrasound_scatterers["magnitudes"] = np.expand_dims(
+            ultrasound_scatterers["magnitudes"], axis=0
+        )
 
     output = pipeline(
         **parameters,
         scatterer_positions=ultrasound_scatterers["positions"],
         scatterer_magnitudes=ultrasound_scatterers["magnitudes"],
     )
-
-    assert output["data"].shape == (
-        1,
-        ultrasound_scan.n_tx,
-        ultrasound_scan.n_ax,
-        ultrasound_scan.n_el,
-        1,
-    )
+    # assert output shape with batch dimension if with_batch_dim else without
+    expected_shape = (ultrasound_scan.n_tx, ultrasound_scan.n_ax, ultrasound_scan.n_el, 1)
+    expected_shape = (1,) + expected_shape if with_batch_dim else expected_shape
+    assert output["data"].shape == expected_shape
 
 
 @pytest.mark.heavy
@@ -719,6 +728,11 @@ def test_default_ultrasound_pipeline(
     # all dynamic parameters are set in the call method of the operations
     # or equivalently in the pipeline call (which is passed to the operations)
     parameters = default_pipeline.prepare_parameters(ultrasound_probe, ultrasound_scan)
+
+    ultrasound_scatterers["positions"] = np.expand_dims(ultrasound_scatterers["positions"], axis=0)
+    ultrasound_scatterers["magnitudes"] = np.expand_dims(
+        ultrasound_scatterers["magnitudes"], axis=0
+    )
 
     output_default = default_pipeline(
         **parameters,

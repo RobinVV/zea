@@ -71,24 +71,42 @@ class Simulate(Operation):
         tx_apodizations,
         **kwargs,
     ):
+        simulate_kwargs = {
+            "probe_geometry": probe_geometry,
+            "apply_lens_correction": apply_lens_correction,
+            "lens_thickness": lens_thickness,
+            "lens_sound_speed": lens_sound_speed,
+            "sound_speed": sound_speed,
+            "n_ax": n_ax,
+            "center_frequency": center_frequency,
+            "sampling_frequency": sampling_frequency,
+            "t0_delays": t0_delays,
+            "initial_times": initial_times,
+            "element_width": element_width,
+            "attenuation_coef": attenuation_coef,
+            "tx_apodizations": tx_apodizations,
+        }
+        if not self.with_batch_dim:
+            simulated_rf = simulate_rf(
+                scatterer_positions=scatterer_positions,
+                scatterer_magnitudes=scatterer_magnitudes,
+                **simulate_kwargs,
+            )
+        else:
+            simulated_rf = ops.map(
+                lambda inputs: simulate_rf(
+                    scatterer_positions=inputs["positions"],
+                    scatterer_magnitudes=inputs["magnitudes"],
+                    **simulate_kwargs,
+                ),
+                {
+                    "positions": scatterer_positions,
+                    "magnitudes": scatterer_magnitudes,
+                },
+            )
+
         return {
-            self.output_key: simulate_rf(
-                ops.convert_to_tensor(scatterer_positions),
-                ops.convert_to_tensor(scatterer_magnitudes),
-                probe_geometry=probe_geometry,
-                apply_lens_correction=apply_lens_correction,
-                lens_thickness=lens_thickness,
-                lens_sound_speed=lens_sound_speed,
-                sound_speed=sound_speed,
-                n_ax=n_ax,
-                center_frequency=center_frequency,
-                sampling_frequency=sampling_frequency,
-                t0_delays=t0_delays,
-                initial_times=initial_times,
-                element_width=element_width,
-                attenuation_coef=attenuation_coef,
-                tx_apodizations=tx_apodizations,
-            ),
+            self.output_key: simulated_rf,
             "n_ch": 1,  # Simulate always returns RF data (so single channel)
         }
 

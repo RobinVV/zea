@@ -193,8 +193,8 @@ def simulate_rf(
 
     rf_data = ops.stack(parts, axis=0)
     rf_data = ops.transpose(rf_data, (0, 2, 1))
-    rf_data = rf_data[None, ..., None]
-    rf_data = rf_data[:, :, :n_ax, :, :]
+    rf_data = rf_data[..., None]
+    rf_data = rf_data[:, :n_ax, :, :]
     return rf_data
 
 
