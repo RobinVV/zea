@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import sys
 
 from . import log
 
@@ -80,8 +81,10 @@ def _bootstrap_backend():
     log.info(f"Using backend {keras_backend()!r}")
 
 
-# call and clean up namespace
-_bootstrap_backend()
+# Skip backend bootstrap when building on ReadTheDocs
+if os.environ.get("READTHEDOCS") != "True":
+    _bootstrap_backend()
+
 del _bootstrap_backend
 
 from . import (
