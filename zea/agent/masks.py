@@ -4,6 +4,8 @@ Mask generation utilities.
 These masks are used as a measurement operator for focused scan-line subsampling.
 """
 
+from __future__ import annotations
+
 from typing import List
 
 import keras
