@@ -286,7 +286,7 @@ class LVHProcessor(H5Processor):
             # Apply pre-computed cropping parameters
             sequence_processed = crop_sequence_with_params(sequence_processed, cone_params)
         else:
-            log.warning(f"No cone parameters for {avi_filename}, using original sequence")
+            raise UserWarning(f"No cone parameters for {avi_filename}")
 
         split = self.get_split(avi_file, sequence_processed)
         out_h5 = self.path_out_h5 / split / (Path(avi_file).stem + ".hdf5")
