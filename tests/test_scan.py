@@ -54,6 +54,17 @@ def test_scan_copy():
     assert scan != scan_copy
 
 
+def test_scan_copy_selected_transmits():
+    """Test that selected_transmits is copied correctly."""
+    scan = Scan(**scan_args)
+    scan.set_transmits(scan_args["n_tx"] // 2)
+    scan_copy = scan.copy()
+
+    assert scan.selected_transmits == scan_copy.selected_transmits
+    scan.set_transmits(scan_args["n_tx"] // 3)
+    assert scan.selected_transmits != scan_copy.selected_transmits
+
+
 def test_initialization():
     """Test initialization of Scan class."""
     scan = Scan(**scan_args)

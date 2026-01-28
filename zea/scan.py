@@ -195,7 +195,10 @@ class Scan(Parameters):
         "grid_type": {"type": str, "default": "cartesian"},
         "polar_limits": {"type": (tuple, list)},
         "dynamic_range": {"type": (tuple, list)},
-        "selected_transmits": {"type": (type(None), str, int, list, slice, np.ndarray)},
+        "selected_transmits": {
+            "type": (type(None), str, int, list, slice, np.ndarray),
+            "default": None,
+        },
         # acquisition parameters
         "sound_speed": {"type": float, "default": 1540.0},
         "sampling_frequency": {"type": float},
@@ -233,21 +236,6 @@ class Scan(Parameters):
         "resolution": {"type": float, "default": None},
         "distance_to_apex": {"type": float},
     }
-
-    def __init__(self, **kwargs):
-        # Ensure that selected_transmits is present and set to None by default
-        selected_transmits_input = kwargs.get("selected_transmits", None)
-        kwargs["selected_transmits"] = None
-
-        # Initialize parent class
-        super().__init__(**kwargs)
-
-        # Initialize selection to None
-        self._selected_transmits = None
-
-        # Apply selection from input if provided
-        if selected_transmits_input is not None:
-            self.set_transmits(selected_transmits_input)
 
     @cache_with_dependencies("probe_geometry")
     def aperture_size(self):
@@ -445,21 +433,6 @@ class Scan(Parameters):
         return self.grid_size_y > 1 and self.grid_size_x > 1 and self.grid_size_z > 1
 
     @property
-    def selected_transmits(self):
-        """Get the currently selected transmit indices.
-
-        Returns:
-            list: The list of selected transmit indices. If none were explicitly
-            selected and n_tx is available, all transmits are used.
-        """
-        # Return all transmits if none explicitly selected
-        if self._selected_transmits is None:
-            if "n_tx" in self._params:
-                return list(range(self._params["n_tx"]))
-            return []
-        return self._selected_transmits
-
-    @property
     def n_tx_total(self):
         """The total number of transmits in the full dataset."""
         return self._params["n_tx"]
@@ -508,13 +481,13 @@ class Scan(Parameters):
 
         # Handle None and "all" - use all transmits
         if selection is None or selection == "all":
-            self._selected_transmits = None
+            self._params["selected_transmits"] = list(range(n_tx_total))
             self._invalidate("selected_transmits")
             return self
 
         # Handle "center" - use center transmit
         if selection == "center":
-            self._selected_transmits = [n_tx_total // 2]
+            self._params["selected_transmits"] = [n_tx_total // 2]
             self._invalidate("selected_transmits")
             return self
 
@@ -525,7 +498,7 @@ class Scan(Parameters):
             idx = np.where(value > 0)[0].tolist()
             if len(idx) == 0:
                 raise ValueError("No focused transmits found.")
-            self._selected_transmits = idx
+            self._params["selected_transmits"] = idx
             self._invalidate("selected_transmits")
             return self
 
@@ -536,7 +509,7 @@ class Scan(Parameters):
             idx = np.where(value < 0)[0].tolist()
             if len(idx) == 0:
                 raise ValueError("No diverging transmits found.")
-            self._selected_transmits = idx
+            self._params["selected_transmits"] = idx
             self._invalidate("selected_transmits")
             return self
 
@@ -547,7 +520,7 @@ class Scan(Parameters):
             idx = np.concatenate([np.where(value == 0)[0], np.where(np.isinf(value))[0]]).tolist()
             if len(idx) == 0:
                 raise ValueError("No plane wave transmits found.")
-            self._selected_transmits = idx
+            self._params["selected_transmits"] = idx
             self._invalidate("selected_transmits")
             return self
 
@@ -563,11 +536,11 @@ class Scan(Parameters):
                 )
 
             if selection == 1:
-                self._selected_transmits = [n_tx_total // 2]
+                self._params["selected_transmits"] = [n_tx_total // 2]
             else:
                 # Compute evenly spaced indices
                 tx_indices = np.linspace(0, n_tx_total - 1, selection)
-                self._selected_transmits = list(np.rint(tx_indices).astype(int))
+                self._params["selected_transmits"] = list(np.rint(tx_indices).astype(int))
 
             self._invalidate("selected_transmits")
             return self
@@ -585,7 +558,7 @@ class Scan(Parameters):
             if any(i < 0 or i >= n_tx_total for i in selection):
                 raise ValueError(f"Transmit indices must be between 0 and {n_tx_total - 1}")
 
-            self._selected_transmits = [
+            self._params["selected_transmits"] = [
                 int(i) for i in selection
             ]  # Convert numpy integers to Python ints
             self._invalidate("selected_transmits")
@@ -885,5 +858,5 @@ class Scan(Parameters):
         if key == "selected_transmits":
             # If setting selected_transmits, call set_transmits to handle logic
             self.set_transmits(value)
-            return super().__setattr__(key, self.selected_transmits)
-        return super().__setattr__(key, value)
+        else:
+            return super().__setattr__(key, value)
