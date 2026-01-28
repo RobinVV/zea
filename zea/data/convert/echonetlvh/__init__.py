@@ -293,22 +293,26 @@ class LVHProcessor(H5Processor):
 
         angle = cone_params["opening_angle"] / 2  # angular field spans (-angle, +angle)
         polar_im_set = self.cart2pol_batched(sequence_processed, angle)
-        sequence_processed_uint8 = jnp.asarray(sequence_processed, dtype=jnp.uint8)
-        sequence_processed_np = np.array(sequence_processed_uint8)
+        sequence_processed = translate(sequence_processed, self._process_range, self.range_from)
+        sequence_processed_uint8 = jnp.asarray(jnp.floor(sequence_processed + 0.5), dtype=jnp.uint8)
         del sequence_processed
-        del sequence_processed_uint8
 
         polar_im_set = translate(polar_im_set, self._process_range, (0, 255))
-        polar_im_set = jnp.asarray(polar_im_set, dtype=jnp.uint8)
-        polar_im_set_np = np.array(polar_im_set)
+        polar_im_set_uint8 = jnp.asarray(jnp.floor(polar_im_set + 0.5), dtype=jnp.uint8)
         del polar_im_set
+
+        if jnp.all(sequence_processed_uint8 == 0):
+            raise ValueError(f"Processed sequence is all zeros for file {avi_file}")
+
+        if jnp.all(polar_im_set_uint8 == 0):
+            raise ValueError(f"Polar sequence is all zeros for file {avi_file}")
 
         zea_dataset = {
             "path": out_h5,
-            "image_sc": sequence_processed_np,
+            "image_sc": sequence_processed_uint8,
             "probe_name": "generic",
             "description": "EchoNet-LVH dataset converted to zea format",
-            "image": polar_im_set_np,
+            "image": polar_im_set_uint8,
             "cast_to_float": False,
         }
         return generate_zea_dataset(**zea_dataset)
