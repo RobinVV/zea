@@ -1,13 +1,11 @@
 import numpy as np
 
 
-def fish(with_batch_dim=True):
+def fish():
     """Returns a scatterer phantom for ultrasound simulation tests.
-    Args:
-        with_batch_dim (bool): Whether to add a batch dimension to the output.
 
     Returns:
-        ndarray: The scatterer positions of shape (n_scat, 3) or (1, n_scat, 3).
+        ndarray: The scatterer positions of shape (104, 3).
     """
     # The size is the height of the fish
     size = 11e-3
@@ -43,20 +41,18 @@ def fish(with_batch_dim=True):
 
     scat_z += z_offset
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
-    scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
     return scat
 
 
-def rose(k=3, num_scatterers=80, with_batch_dim=True):
+def rose(k=3, num_scatterers=80):
     """Generates scatterer positions based on the Rose curve.
 
     Args:
         k (int): The frequency parameter of the rose curve.
         num_scatterers (int): The number of scatterers to generate along the curve.
-        with_batch_dim (bool): Whether to add a batch dimension to the output.
 
     Returns:
-        ndarray: The scatterer positions of shape (num_scatterers, 3) or (1, num_scatterers, 3).
+        ndarray: The scatterer positions of shape (num_scatterers, 3).
     """
     # https://en.wikipedia.org/wiki/Rose_(mathematics)
     size = 11e-3
@@ -72,20 +68,18 @@ def rose(k=3, num_scatterers=80, with_batch_dim=True):
     scat_z += z_offset
     scat_y = np.zeros_like(scat_x)
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
-    scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
     return scat
 
 
-def fibonacci(alpha=0.5, num_scatterers=100, with_batch_dim=True):
+def fibonacci(alpha=0.5, num_scatterers=100):
     """Generates scatterer positions based on the Fibonacci sphere algorithm.
 
     Args:
         num_scatterers (int): Number of scatterer points to generate.
         alpha (float): Scaling factor for the z-coordinate.
-        with_batch_dim (bool): Whether to add a batch dimension to the output.
 
     Returns:
-        ndarray: The scatterer positions of shape (num_scatterers, 3) or (1, num_scatterers, 3).
+        ndarray: The scatterer positions of shape (num_scatterers, 3).
     """
     size = 11e-3
     z_offset = 2.0 * size
@@ -102,21 +96,19 @@ def fibonacci(alpha=0.5, num_scatterers=100, with_batch_dim=True):
     scat_y = np.zeros_like(scat_x)
 
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
-    scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
     return scat
 
 
-def lissajous(a=3, b=2, delta=np.pi / 2, num_scatterers=200, with_batch_dim=True):
+def lissajous(a=3, b=2, delta=np.pi / 2, num_scatterers=200):
     """Generates scatterer positions based on a Lissajous curve.
 
     Args:
         a (int): Frequency parameter for the x-coordinate.
         b (int): Frequency parameter for the z-coordinate.
         num_scatterers (int): Number of scatterer points to generate.
-        with_batch_dim (bool): Whether to add a batch dimension to the output.
 
     Returns:
-        ndarray: The scatterer positions of shape (num_scatterers, 3) or (1, num_scatterers, 3).
+        ndarray: The scatterer positions of shape (num_scatterers, 3).
     """
     size = 11e-3
     z_offset = 2.0 * size
@@ -127,19 +119,17 @@ def lissajous(a=3, b=2, delta=np.pi / 2, num_scatterers=200, with_batch_dim=True
     scat_z = size * np.sin(b * t) + z_offset
     scat_y = np.zeros_like(scat_x)
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
-    scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
     return scat
 
 
-def golden_ratio(num_scatterers=100, with_batch_dim=True):
+def golden_ratio(num_scatterers=100):
     """Generates scatterer positions based on the golden ratio spiral.
 
     Args:
         num_scatterers (int): Number of scatterer points to generate.
-        with_batch_dim (bool): Whether to add a batch dimension to the output.
 
     Returns:
-        ndarray: The scatterer positions of shape (num_scatterers, 3) or (1, num_scatterers, 3).
+        ndarray: The scatterer positions of shape (num_scatterers, 3).
     """
     size = 11e-3
     z_offset = 2.0 * size
@@ -152,5 +142,4 @@ def golden_ratio(num_scatterers=100, with_batch_dim=True):
     scat_z = r * np.sin(theta * phi) + z_offset
     scat_y = np.zeros_like(scat_x)
     scat = np.stack([scat_x, scat_y, scat_z], axis=1)
-    scat = np.expand_dims(scat, axis=0) if with_batch_dim else scat
     return scat
