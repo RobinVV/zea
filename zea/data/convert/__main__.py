@@ -75,11 +75,6 @@ def _add_parser_args_echonetlvh(subparsers):
         action="store_true",
         help="Force recomputation even if parameters already exist",
     )
-    echonetlvh_parser.add_argument(
-        "--no_hyperthreading",
-        action="store_true",
-        help="Disable hyperthreading for multiprocessing",
-    )
 
 
 def _add_parser_args_picmus(subparsers):
