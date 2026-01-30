@@ -90,6 +90,5 @@ The following list contains some of the papers that have been published using ``
    van2025patient
    stevens2025semantic
    stevens2026nuclear
-   penninga2026iterative
    nolan2026task
    federici2026informative
