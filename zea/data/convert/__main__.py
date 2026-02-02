@@ -1,5 +1,7 @@
 import argparse
 
+from zea import init_device
+
 
 def _add_parser_args_echonet(subparsers):
     """Add Echonet specific arguments to the parser."""
@@ -72,11 +74,6 @@ def _add_parser_args_echonetlvh(subparsers):
         "--force",
         action="store_true",
         help="Force recomputation even if parameters already exist",
-    )
-    echonetlvh_parser.add_argument(
-        "--no_hyperthreading",
-        action="store_true",
-        help="Disable hyperthreading for multiprocessing",
     )
 
 
@@ -173,4 +170,5 @@ def main():
 
 
 if __name__ == "__main__":
+    init_device()
     main()
