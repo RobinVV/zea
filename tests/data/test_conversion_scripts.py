@@ -207,6 +207,7 @@ def create_echonetlvh_test_data(src):
         ("0X2222222222222222", "train", (64, 48)),  # (will be rejected)
         ("0X3333333333333333", "val", (64, 48)),  # Even width
         ("0X4444444444444444", "test", (64, 48)),
+        ("0X5555555555555555", "train", (64, 48)),  # Will cause crop to overshoot
     ]
 
     # Create a test rejections file with one entry
@@ -336,6 +337,11 @@ def create_echonetlvh_test_data(src):
                 mode="constant",
                 constant_values=0,
             )
+
+            # Special case: Add a bright pixel below the scan cone to cause overshoot
+            if filename == "0X5555555555555555":
+                # Place a white pixel at the bottom center to confuse cone detection
+                padded_img[-5, padded_img.shape[1] // 2] = 1.0
 
             # Scale to uint8
             padded_img = (padded_img * 255).astype(np.uint8)
