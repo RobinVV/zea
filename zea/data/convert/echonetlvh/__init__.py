@@ -546,33 +546,11 @@ def convert_echonetlvh(args):
 
         log.info("Starting the conversion process.")
 
-        if not args.no_hyperthreading:
-            # DO NOT create a processor here for submission
-            with ProcessPoolExecutor(max_workers=min(64, os.cpu_count())) as executor:
-                futures = {
-                    executor.submit(
-                        _process_file_worker,
-                        str(file),  # avi_file
-                        args.dst,  # dst (Path or str)
-                        splits,  # splits (picklable dict of lists)
-                        cone_parameters,  # cone params dict (picklable)
-                        processor.range_from,  # only if needed; better pass primitives
-                        processor._process_range,
-                    ): file
-                    for file in files_to_process
-                }
-                for future in tqdm(as_completed(futures), total=len(files_to_process)):
-                    try:
-                        future.result()
-                    except Exception as e:
-                        log.error(f"Error processing file: {str(e)}")
-        else:
-            log.info("Converting without hyperthreading")
-            for file in tqdm(files_to_process):
-                try:
-                    processor(file)
-                except Exception as e:
-                    log.error(f"Error processing {file}: {str(e)}")
+        for file in tqdm(files_to_process):
+            try:
+                processor(file)
+            except Exception as e:
+                log.error(f"Error processing {file}: {str(e)}")
 
         log.info("All image conversion tasks are completed.")
 

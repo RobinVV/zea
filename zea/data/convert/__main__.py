@@ -75,11 +75,6 @@ def _add_parser_args_echonetlvh(subparsers):
         action="store_true",
         help="Force recomputation even if parameters already exist",
     )
-    echonetlvh_parser.add_argument(
-        "--no_hyperthreading",
-        action="store_true",
-        help="Disable hyperthreading for multiprocessing",
-    )
 
 
 def _add_parser_args_picmus(subparsers):
@@ -97,11 +92,11 @@ def _add_parser_args_verasonics(subparsers):
     verasonics_parser.add_argument("dst", type=str, help="Destination folder path")
     verasonics_parser.add_argument(
         "--frames",
-        default=["all"],
         type=str,
         nargs="+",
         help="The frames to add to the file. This can be a list of integers, a range "
-        "of integers (e.g. 4-8), or 'all'.",
+        "of integers (e.g. 4-8), or 'all'. Defaults to 'all', unless specified in a "
+        "convert.yaml file.",
     )
     verasonics_parser.add_argument(
         "--allow_accumulate",
