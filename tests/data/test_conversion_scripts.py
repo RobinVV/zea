@@ -341,7 +341,7 @@ def create_echonetlvh_test_data(src):
             # Special case: Add a bright pixel below the scan cone to cause overshoot
             if filename == "0X5555555555555555":
                 # Place a white pixel at the bottom center to confuse cone detection
-                padded_img[-5, padded_img.shape[1] // 2] = 1.0
+                padded_img[-2, 5] = 1.0
 
             # Scale to uint8
             padded_img = (padded_img * 255).astype(np.uint8)
@@ -579,6 +579,7 @@ def verify_converted_echonetlvh_test_data(dst):
             # "0X2222222222222222.avi", # This one was rejected
             "0X3333333333333333.avi",
             "0X4444444444444444.avi",
+            # "0X5555555555555555.avi", # This one results in error
         ]
 
         successful_files = [
@@ -606,6 +607,10 @@ def verify_converted_echonetlvh_test_data(dst):
                 )
                 assert crop_bottom > crop_top, (
                     f"Invalid vertical crop bounds for {row['avi_filename']}"
+                )
+            if row.get("avi_filename") == "0X5555555555555555.avi":
+                assert row.get("status").startswith("error"), (
+                    "Expected error status for 0X5555555555555555.avi due to crop overshoot"
                 )
 
 
