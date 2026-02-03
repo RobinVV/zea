@@ -69,7 +69,7 @@ def test_scan_copy():
 def test_scan_copy_selected_transmits(selection):
     """Test that selected_transmits is copied correctly."""
     scan = Scan(**scan_args)
-    scan.set_transmits(selection if selection is not None else scan_args["n_tx"] // 2)
+    scan.set_transmits(selection)
     scan_copy = scan.copy()
 
     assert np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
