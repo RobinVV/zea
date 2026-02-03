@@ -58,12 +58,7 @@ def test_scan_copy():
     "selection",
     [
         None,
-        "all",
-        "center",
-        3,
         [0, 1, 2],
-        np.array([0, 1, 2]),
-        slice(0, 5, 2),
     ],
 )
 def test_scan_copy_selected_transmits(selection):
@@ -75,6 +70,59 @@ def test_scan_copy_selected_transmits(selection):
     assert np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
     scan.set_transmits(scan_args["n_tx"] // 5)
     assert not np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
+
+
+@pytest.mark.parametrize(
+    "selection",
+    [
+        None,
+        "all",
+        "center",
+        "focused",
+        "diverging",
+        "plane",
+        3,
+        1,
+        [0, 1, 2],
+        np.array([0, 1, 2]),
+        slice(0, 5, 2),
+    ],
+)
+def test_set_transmits(selection):
+    """Test setting transmits with various selection methods."""
+    local_scan_args = scan_args.copy()
+
+    if isinstance(selection, str):
+        if selection == "diverging":
+            local_scan_args["focus_distances"] = np.ones(scan_args["n_tx"]) * -0.02
+        elif selection == "plane":
+            local_scan_args["focus_distances"] = np.full(scan_args["n_tx"], np.inf)
+
+    scan = Scan(**local_scan_args)
+    scan.set_transmits(selection)
+
+    if selection is None:
+        assert scan.n_tx == scan_args["n_tx"]
+    elif isinstance(selection, str):
+        if selection == "all":
+            assert scan.n_tx == scan_args["n_tx"]
+        elif selection == "center":
+            assert scan.n_tx == 1
+            assert scan.selected_transmits[0] == scan_args["n_tx"] // 2
+        elif selection == "focused":
+            assert np.all(scan.focus_distances > 0)
+        elif selection == "diverging":
+            assert np.all(scan.focus_distances < 0)
+        elif selection == "plane":
+            assert np.all(np.isinf(scan.focus_distances))
+    elif isinstance(selection, int):
+        assert scan.n_tx == selection
+    elif isinstance(selection, (list, np.ndarray)):
+        expected = selection if isinstance(selection, list) else selection.tolist()
+        assert np.array_equal(scan.selected_transmits, expected)
+    elif isinstance(selection, slice):
+        expected = list(range(*selection.indices(scan_args["n_tx"])))
+        assert np.array_equal(scan.selected_transmits, expected)
 
 
 def test_scan_erroneous_set_transmits():
@@ -89,6 +137,9 @@ def test_scan_erroneous_set_transmits():
 
     with pytest.raises(ValueError):
         scan.set_transmits([0, scan_args["n_tx"]])
+
+    with pytest.raises(ValueError):
+        scan.set_transmits([0, 1, 2.3])
 
     with pytest.raises(ValueError):
         scan.set_transmits("invalid_string")
