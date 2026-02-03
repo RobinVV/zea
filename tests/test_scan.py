@@ -77,6 +77,23 @@ def test_scan_copy_selected_transmits(selection):
     assert not np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
 
 
+def test_scan_erroneous_set_transmits():
+    """Test erroneous inputs to set_transmits."""
+    scan = Scan(**scan_args)
+
+    with pytest.raises(ValueError):
+        scan.set_transmits(-1)
+
+    with pytest.raises(ValueError):
+        scan.set_transmits(scan_args["n_tx"] + 1)
+
+    with pytest.raises(ValueError):
+        scan.set_transmits([0, scan_args["n_tx"]])
+
+    with pytest.raises(ValueError):
+        scan.set_transmits("invalid_string")
+
+
 def test_initialization():
     """Test initialization of Scan class."""
     scan = Scan(**scan_args)
