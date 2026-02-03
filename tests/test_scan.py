@@ -54,15 +54,27 @@ def test_scan_copy():
     assert scan != scan_copy
 
 
-def test_scan_copy_selected_transmits():
+@pytest.mark.parametrize(
+    "selection",
+    [
+        None,
+        "all",
+        "center",
+        3,
+        [0, 1, 2],
+        np.array([0, 1, 2]),
+        slice(0, 5, 2),
+    ],
+)
+def test_scan_copy_selected_transmits(selection):
     """Test that selected_transmits is copied correctly."""
     scan = Scan(**scan_args)
-    scan.set_transmits(scan_args["n_tx"] // 2)
+    scan.set_transmits(selection if selection is not None else scan_args["n_tx"] // 2)
     scan_copy = scan.copy()
 
-    assert scan.selected_transmits == scan_copy.selected_transmits
-    scan.set_transmits(scan_args["n_tx"] // 3)
-    assert scan.selected_transmits != scan_copy.selected_transmits
+    assert np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
+    scan.set_transmits(scan_args["n_tx"] // 5)
+    assert not np.array_equal(scan.selected_transmits, scan_copy.selected_transmits)
 
 
 def test_initialization():
