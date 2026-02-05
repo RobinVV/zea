@@ -550,10 +550,7 @@ def envelope_detect(data, axis=-3):
         data = ops.take(data, indices, axis=axis)
         data = ops.squeeze(data, axis=-1)
 
-    # data = ops.abs(data)
-    real = ops.real(data)
-    imag = ops.imag(data)
-    data = ops.sqrt(real**2 + imag**2)
+    data = ops.abs(data)
     data = ops.cast(data, "float32")
     return data
 
