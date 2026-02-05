@@ -362,32 +362,26 @@ def hilbert(x, N: int = None, axis=-1):
         axis = n_dim + axis
 
     if N is not None:
-        ops.cond(
-            N < n_ax,
-            lambda: (_ for _ in ()).throw(
-                ValueError(f"N must be greater or equal to n_ax, got N={N}, n_ax={n_ax}")
-            ),
-            lambda: None,
-        )
-        # only pad along the axis, use manual padding
-        pad = ops.maximum(N - n_ax, 0)
+        if N < n_ax:
+            raise ValueError(f"N must be greater or equal to n_ax, got N={N}, n_ax={n_ax}")
+
+        pad = np.maximum(N - n_ax, 0)
 
         pad_list = [[0, 0] for _ in range(n_dim)]
         pad_list[axis] = [0, pad]
 
-        x = ops.pad(x, pad_list, mode="constant", constant_values=0)
+        x = ops.pad(x, pad_list, mode="constant", constant_values=0.0)
     else:
         N = n_ax
 
     # Create filter to zero out negative frequencies
     # h[0] = 1, h[1:N//2] = 2, h[N//2] = 1 (if even), rest = 0
-    N_float = ops.cast(N, "float32")
     indices = ops.arange(N, dtype="float32")
     h = ops.zeros(N, dtype="float32")
 
     h = ops.where(indices == 0, 1.0, h)
-    h = ops.where((indices > 0) & (indices < N_float / 2.0), 2.0, h)
-    h = ops.where(indices == N_float // 2.0, ops.where(N % 2 == 0, 1.0, 0.0), h)
+    h = ops.where((indices > 0) & (indices < N / 2.0), 2.0, h)
+    h = ops.where((N % 2 == 0) & (indices == N / 2.0), 1.0, h)
 
     h = ops.cast(h, "complex64")
 
@@ -544,12 +538,11 @@ def envelope_detect(data, axis=-3):
         data = channels_to_complex(data)
     else:
         n_ax = ops.shape(data)[axis]
-        n_ax_float = ops.cast(n_ax, "float32")
 
         # Calculate next power of 2: M = 2^ceil(log2(n_ax))
         # see https://github.com/tue-bmd/zea/discussions/147
-        log2_n_ax = ops.log2(n_ax_float)
-        M = ops.cast(2 ** ops.ceil(log2_n_ax), "int32")
+        log2_n_ax = np.log2(n_ax)
+        M = int(2 ** np.ceil(log2_n_ax))
 
         data = hilbert(data, N=M, axis=axis)
         indices = ops.arange(n_ax)
