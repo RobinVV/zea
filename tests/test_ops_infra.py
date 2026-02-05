@@ -798,3 +798,33 @@ def test_registry():
             ]:
                 continue
             ops_registry.get_name(_class)  # this raises an error if the class is not registered
+
+
+def test_all_operations_exported():
+    """Test that all registered Operation classes are exported in zea.ops.__all__."""
+    # Get all registered operation classes
+    registered_ops = set()
+    for name in ops_registry.registry:
+        op_class = ops_registry[name]
+        # Only check Operation subclasses that are defined in zea.ops
+        # Skip keras_ops (they're exported via the keras_ops module)
+        if (
+            inspect.isclass(op_class)
+            and issubclass(op_class, ops.Operation)
+            and op_class.__module__.startswith("zea.ops.")
+            and op_class.__module__ != "zea.ops.keras_ops"
+            and op_class.__name__ not in ["Operation", "ImageOperation", "MissingKerasOps"]
+        ):
+            registered_ops.add(op_class.__name__)
+
+    # Get all operations in __all__
+    exported_ops = set(ops.__all__)
+
+    # Check that all registered operations are exported
+    missing_exports = registered_ops - exported_ops
+    if missing_exports:
+        pytest.fail(
+            f"The following registered operations are not exported in zea.ops.__all__: "
+            f"{sorted(missing_exports)}. Please add them to the __all__ list and imports in "
+            f"zea/ops/__init__.py"
+        )
