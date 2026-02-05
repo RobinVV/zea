@@ -314,12 +314,12 @@ class Threshold(Operation):
                 )
         else:  # soft
             if below_threshold:
-                self._threshold_func = (
-                    lambda data, threshold, fill: ops.maximum(data - threshold, 0) + fill
+                self._threshold_func = lambda data, threshold, fill: (
+                    ops.maximum(data - threshold, 0) + fill
                 )
             else:
-                self._threshold_func = (
-                    lambda data, threshold, fill: ops.minimum(data - threshold, 0) + fill
+                self._threshold_func = lambda data, threshold, fill: (
+                    ops.minimum(data - threshold, 0) + fill
                 )
 
     def _resolve_fill_value(self, data, threshold):
