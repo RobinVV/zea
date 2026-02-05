@@ -344,7 +344,7 @@ def hilbert(x, N: int = None, axis=-1):
 
     if N is not None:
         if N < n_ax:
-            raise ValueError("N must be greater or equal to n_ax.")
+            raise ValueError(f"N must be greater or equal to n_ax, got N={N}, n_ax={n_ax}")
         # only pad along the axis, use manual padding
         pad = N - n_ax
         zeros = ops.zeros(
@@ -395,6 +395,7 @@ def hilbert(x, N: int = None, axis=-1):
 
     Xf_i_inv = ops.cast(Xf_i_inv, "complex64")
     Xf_r_inv = ops.cast(Xf_r_inv, "complex64")
+    N = ops.cast(N, "complex64")
 
     x = Xf_r_inv / N
     x = x + 1j * (-Xf_i_inv / N)
