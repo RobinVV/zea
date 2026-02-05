@@ -343,7 +343,7 @@ def hilbert(x, N: int = None, axis=-1):
 
     Raises:
         ValueError: If N is specified and is less than the length of x along the
-            specified axis (validation currently commented out).
+            specified axis.
 
     Example:
         >>> import numpy as np
