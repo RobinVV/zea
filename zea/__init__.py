@@ -6,10 +6,6 @@ import sys
 
 from . import log
 
-# dynamically add __version__ attribute (see pyproject.toml)
-# __version__ = __import__("importlib.metadata").metadata.version(__package__)
-__version__ = "0.0.9"
-
 
 def _bootstrap_backend():
     """Setup function to initialize the zea package."""
@@ -79,6 +75,11 @@ def _bootstrap_backend():
     from keras.backend import backend as keras_backend
 
     log.info(f"Using backend {keras_backend()!r}")
+
+    # dynamically add __version__ attribute (see pyproject.toml)
+    from importlib.metadata import version
+
+    globals()["__version__"] = version("zea")
 
 
 # Skip backend bootstrap when building on ReadTheDocs
