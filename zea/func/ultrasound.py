@@ -343,26 +343,34 @@ def hilbert(x, N: int = None, axis=-1):
         axis = n_dim + axis
 
     if N is not None:
-        if N < n_ax:
-            raise ValueError(f"N must be greater or equal to n_ax, got N={N}, n_ax={n_ax}")
-        # only pad along the axis, use manual padding
-        pad = N - n_ax
-        zeros = ops.zeros(
-            input_shape[:axis] + (pad,) + input_shape[axis + 1 :],
+        ops.cond(
+            N < n_ax,
+            lambda: (_ for _ in ()).throw(
+                ValueError(f"N must be greater or equal to n_ax, got N={N}, n_ax={n_ax}")
+            ),
+            lambda: None,
         )
+        # only pad along the axis, use manual padding
+        pad = ops.maximum(N - n_ax, 0)
 
-        x = ops.concatenate((x, zeros), axis=axis)
+        pad_list = [[0, 0] for _ in range(n_dim)]
+        pad_list[axis] = [0, pad]
+
+        x = ops.pad(x, pad_list, mode="constant", constant_values=0)
     else:
         N = n_ax
 
     # Create filter to zero out negative frequencies
-    h = np.zeros(N)
-    if N % 2 == 0:
-        h[0] = h[N // 2] = 1
-        h[1 : N // 2] = 2
-    else:
-        h[0] = 1
-        h[1 : (N + 1) // 2] = 2
+    # h[0] = 1, h[1:N//2] = 2, h[N//2] = 1 (if even), rest = 0
+    N_float = ops.cast(N, "float32")
+    indices = ops.arange(N, dtype="float32")
+    h = ops.zeros(N, dtype="float32")
+
+    h = ops.where(indices == 0, 1.0, h)
+    h = ops.where((indices > 0) & (indices < N_float / 2.0), 2.0, h)
+    h = ops.where(indices == N_float // 2.0, ops.where(N % 2 == 0, 1.0, 0.0), h)
+
+    h = ops.cast(h, "complex64")
 
     idx = list(range(n_dim))
     # make sure axis gets to the end for fft (operates on last axis)
@@ -371,12 +379,8 @@ def hilbert(x, N: int = None, axis=-1):
     x = ops.transpose(x, idx)
 
     if x.ndim > 1:
-        ind = [np.newaxis] * x.ndim
-        ind[-1] = slice(None)
-        h = h[tuple(ind)]
+        h = ops.reshape(h, [1] * (x.ndim - 1) + [-1])
 
-    h = ops.convert_to_tensor(h)
-    h = ops.cast(h, "complex64")
     h = h + 1j * ops.zeros_like(h)
 
     Xf_r, Xf_i = ops.fft((x, ops.zeros_like(x)))
