@@ -316,24 +316,43 @@ def channels_to_complex(data):
 
 
 def hilbert(x, N: int = None, axis=-1):
-    """Manual implementation of the Hilbert transform function. The function
-    returns the analytical signal.
+    """Implementation of the Hilbert transform function that computes the analytical signal.
 
-    Operated in the Fourier domain.
+    Operates in the Fourier domain by applying a filter that zeros out negative frequencies
+    and doubles positive frequencies.
 
-    Note:
-        THIS IS NOT THE MATHEMATICAL THE HILBERT TRANSFORM as you will find it on
-        wikipedia, but computes the analytical signal. The implementation reproduces
-        the behavior of the `scipy.signal.hilbert` function.
+    .. note::
+        This is NOT the mathematical Hilbert transform as defined in the
+        `Wikipedia article <https://en.wikipedia.org/wiki/Hilbert_transform>`_,
+        but instead computes the analytical signal. The implementation reproduces
+        the behavior of the :func:`scipy.signal.hilbert` function.
 
     Args:
-        x (ndarray): input data of any shape.
-        N (int, optional): number of points in the FFT. Defaults to None.
-        axis (int, optional): axis to operate on. Defaults to -1.
-    Returns:
-        x (ndarray): complex iq data of any shape.k
+        x (ndarray): Input data of any shape.
+        N (int, optional): Number of points to use for the FFT. If specified and greater
+            than the length of the data along the specified axis, the data will be
+            zero-padded. If None, uses the length of x along the specified axis.
+            Defaults to None.
+        axis (int, optional): Axis along which to compute the Hilbert transform.
+            Defaults to -1 (last axis).
 
+    Returns:
+        ndarray: Complex analytical signal with the same shape as the input (or padded
+            to length N if specified). The real part is the original signal and the
+            imaginary part is the Hilbert transform of the signal.
+
+    Raises:
+        ValueError: If N is specified and is less than the length of x along the
+            specified axis (validation currently commented out).
+
+    Example:
+        >>> import numpy as np
+        >>> from zea.func import hilbert
+        >>> x = np.array([1.0, 2.0, 3.0, 4.0])
+        >>> analytical_signal = hilbert(x)
+        >>> envelope = np.abs(analytical_signal)
     """
+
     input_shape = x.shape
     n_dim = len(input_shape)
 
