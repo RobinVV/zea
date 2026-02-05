@@ -349,6 +349,8 @@ class Demodulate(Operation):
     """Demodulates the input data to baseband. After this operation, the carrier frequency
     is removed (0 Hz) and the data is in IQ format stored in two real valued channels."""
 
+    STATIC_PARAMS = ["N", "axis"]
+
     def __init__(self, axis=-3, **kwargs):
         super().__init__(
             input_data_type=DataTypes.RAW_DATA,
