@@ -219,12 +219,14 @@ def get_band_pass_filter(num_taps, sampling_frequency, f1, f2, validate=True):
     if validate:
         if f1 <= 0 or f2 >= 1:
             raise ValueError(
-                "Invalid cutoff frequency: frequencies must be greater than 0 and less than fs/2."
+                f"Invalid cutoff frequency: frequencies must be greater than 0 and less than fs/2. "
+                f"Got f1={f1 * nyq} Hz, f2={f2 * nyq} Hz."
             )
 
         if f1 >= f2:
             raise ValueError(
-                "Invalid cutoff frequencies: the frequencies must be strictly increasing."
+                f"Invalid cutoff frequencies: the frequencies must be strictly increasing. "
+                f"Got f1={f1 * nyq} Hz, f2={f2 * nyq} Hz."
             )
 
     # Build up the coefficients.
@@ -551,7 +553,6 @@ def envelope_detect(data, axis=-3):
         data = ops.squeeze(data, axis=-1)
 
     data = ops.abs(data)
-    data = ops.cast(data, "float32")
     return data
 
 
