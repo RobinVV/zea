@@ -793,7 +793,6 @@ def test_registry():
             # Skip abstract base classes and base Operation classes
             if inspect.isabstract(_class) or _class.__name__ in [
                 "Operation",
-                "ImageOperation",
                 "MissingKerasOps",
             ]:
                 continue

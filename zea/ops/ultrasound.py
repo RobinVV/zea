@@ -1,4 +1,5 @@
 import uuid
+from typing import Tuple
 
 import keras
 import numpy as np
@@ -11,6 +12,7 @@ from zea.func.tensor import (
     apply_along_axis,
     correlate,
     extend_n_dims,
+    gaussian_filter,
     reshape_axis,
 )
 from zea.func.ultrasound import (
@@ -28,15 +30,9 @@ from zea.internal.core import (
     DataTypes,
 )
 from zea.internal.registry import ops_registry
-from zea.ops.base import (
-    ImageOperation,
-    Operation,
-)
-from zea.ops.tensor import (
-    GaussianBlur,
-)
+from zea.ops.base import Operation
 from zea.simulator import simulate_rf
-from zea.utils import canonicalize_axis
+from zea.utils import canonicalize_axis, map_negative_indices
 
 
 @ops_registry("simulate_rf")
@@ -569,7 +565,7 @@ class ComplexToChannels(Operation):
 
 
 @ops_registry("lee_filter")
-class LeeFilter(ImageOperation):
+class LeeFilter(Operation):
     """
     The Lee filter is a speckle reduction filter commonly used in synthetic aperture radar (SAR)
     and ultrasound image processing. It smooths the image while preserving edges and details.
@@ -579,40 +575,41 @@ class LeeFilter(ImageOperation):
     IEEE Transactions on Pattern Analysis and Machine Intelligence, (2), 165-168.
     """
 
-    def __init__(self, sigma=3, kernel_size=None, pad_mode="symmetric", **kwargs):
+    def __init__(
+        self,
+        sigma: float,
+        mode: str = "symmetric",
+        cval: float | None = None,
+        truncate: float = 4.0,
+        axes: Tuple[int] = (-3, -2),
+        **kwargs,
+    ):
         """
         Args:
-            sigma (float): Standard deviation for Gaussian kernel. Default is 3.
-            kernel_size (int, optional): Size of the Gaussian kernel. If None,
-                it will be calculated based on sigma.
-            pad_mode (str): Padding mode to be used for Gaussian blur. Default is "symmetric".
+            sigma (float or tuple): Standard deviation for Gaussian kernel. The standard deviations
+                of the Gaussian filter are given for each axis as a sequence, or as a single number,
+                in which case it is equal for all axes.
+            mode (str, optional): Padding mode for the input image. Default is 'symmetric'.
+                See [keras docs](https://www.tensorflow.org/api_docs/python/tf/keras/ops/pad) for
+                all options and [tensorflow docs](https://www.tensorflow.org/api_docs/python/tf/pad)
+                for some examples. Note that the naming differs from scipy.ndimage.gaussian_filter!
+            cval (float, optional): Value to fill past edges of input if mode is 'constant'.
+                Default is None.
+            truncate (float, optional): Truncate the filter at this many standard deviations.
+                Default is 4.0.
+            axes (Tuple[int], optional): If None, input is filtered along all axes. Otherwise, input
+                is filtered along the specified axes. When axes is specified, any tuples used for
+                sigma, order, mode and/or radius must match the length of axes. The ith entry in
+                any of these tuples corresponds to the ith entry in axes. Default is (-3, -2),
+                which corresponds to the height and width dimensions of a
+                (..., height, width, channels) tensor.
         """
         super().__init__(**kwargs)
         self.sigma = sigma
-        self.kernel_size = kernel_size
-        self.pad_mode = pad_mode
-
-        # Create a GaussianBlur instance for computing local statistics
-        self.gaussian_blur = GaussianBlur(
-            sigma=self.sigma,
-            kernel_size=self.kernel_size,
-            pad_mode=self.pad_mode,
-            with_batch_dim=self.with_batch_dim,
-            jittable=self._jittable,
-            key="data",
-        )
-
-    @property
-    def with_batch_dim(self):
-        """Get the with_batch_dim property of the LeeFilter operation."""
-        return self._with_batch_dim
-
-    @with_batch_dim.setter
-    def with_batch_dim(self, value):
-        """Set the with_batch_dim property of the LeeFilter operation."""
-        self._with_batch_dim = value
-        if hasattr(self, "gaussian_blur"):
-            self.gaussian_blur.with_batch_dim = value
+        self.mode = mode
+        self.cval = cval
+        self.truncate = truncate
+        self.axes = axes
 
     def call(self, **kwargs):
         """Apply the Lee filter to the input data.
@@ -621,23 +618,27 @@ class LeeFilter(ImageOperation):
             data (ops.Tensor): Input image data of shape (height, width, channels) with
                 optional batch dimension if ``self.with_batch_dim``.
         """
-        super().call(**kwargs)
         data = kwargs.pop(self.key)
 
+        axes = map_negative_indices(self.axes, data.ndim)
+        if self.with_batch_dim and 0 in axes:
+            raise ValueError("Batch dimension cannot be one of the axes to filter over.")
+
         # Apply Gaussian blur to get local mean
-        img_mean = self.gaussian_blur.call(data=data, **kwargs)[self.gaussian_blur.output_key]
+        img_mean = gaussian_filter(
+            data, self.sigma, mode=self.mode, cval=self.cval, truncate=self.truncate, axes=axes
+        )
 
         # Apply Gaussian blur to squared data to get local squared mean
-        img_sqr_mean = self.gaussian_blur.call(
-            data=data**2,
-            **kwargs,
-        )[self.gaussian_blur.output_key]
+        img_sqr_mean = gaussian_filter(
+            data**2, self.sigma, mode=self.mode, cval=self.cval, truncate=self.truncate, axes=axes
+        )
 
         # Calculate local variance
         img_variance = img_sqr_mean - img_mean**2
 
         # Calculate global variance (per channel)
-        overall_variance = ops.var(data, axis=(-3, -2), keepdims=True)
+        overall_variance = ops.var(data, axis=axes, keepdims=True)
 
         # Calculate adaptive weights
         eps = keras.config.epsilon()

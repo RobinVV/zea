@@ -380,11 +380,13 @@ def spiral_image():
 
 
 @pytest.mark.parametrize("sigma", [0.5, 1.0, 2.0])
-@backend_equality_check(decimal=4)
+@backend_equality_check(decimal=4, backends=["tensorflow", "jax"])
 def test_gaussian_blur(sigma, spiral_image):
     """
     Test `ops.GaussianBlur against scipy.ndimage.gaussian_filter.`
     `GaussianBlur` with default args should be equivalent to scipy.
+
+    NOTE: We don't test torch backend here because of differences in padding behavior.
     """
     import keras
 
@@ -401,15 +403,19 @@ def test_gaussian_blur(sigma, spiral_image):
 
     blurred_zea = keras.ops.convert_to_numpy(blurred_zea)
 
-    np.testing.assert_allclose(blurred_scipy, blurred_zea, atol=1e-1, rtol=1e-1)
+    np.testing.assert_allclose(blurred_scipy, blurred_zea, rtol=1e-5, atol=1e-5)
+
+    return blurred_zea
 
 
 @pytest.mark.parametrize("sigma", [1.0, 2.0])
-@backend_equality_check(decimal=4)
+@backend_equality_check(decimal=5, backends=["tensorflow", "jax"])
 def test_lee_filter(sigma, spiral_image):
     """
     Test `ops.LeeFilter`, checks if variance is reduced and if with and without
     batch dimension give the same result.
+
+    # NOTE: We don't test torch backend here because of differences in padding behavior.
     """
     import keras
 
@@ -425,14 +431,18 @@ def test_lee_filter(sigma, spiral_image):
     filtered = lee(data=image_tensor)["data"][..., 0]
     filtered_batched = lee_batched(data=image_tensor[None, ...])["data"][0, ..., 0]
 
-    assert np.allclose(
-        keras.ops.convert_to_numpy(filtered),
-        keras.ops.convert_to_numpy(filtered_batched),
-    ), "LeeFilter with and without batch dim should give the same result."
+    filtered = keras.ops.convert_to_numpy(filtered)
+    filtered_batched = keras.ops.convert_to_numpy(filtered_batched)
 
-    assert keras.ops.var(filtered) < keras.ops.var(image_tensor), (
+    assert np.allclose(filtered, filtered_batched), (
+        "LeeFilter with and without batch dim should give the same result."
+    )
+
+    assert np.var(filtered) < np.var(image_tensor), (
         "LeeFilter should reduce variance of the processed image"
     )
+
+    return filtered
 
 
 @pytest.mark.parametrize(

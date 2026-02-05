@@ -305,36 +305,6 @@ class Identity(Operation):
         return {}
 
 
-class ImageOperation(Operation):
-    """
-    Base class for image processing operations.
-
-    This class extends the Operation class to provide a common interface
-    for operations that process image data, with shape (batch, height, width, channels)
-    or (height, width, channels) if batch dimension is not present.
-
-    Subclasses should implement the `call` method to define the image processing logic, and call
-    ``super().call(**kwargs)`` to validate the input data shape.
-    """
-
-    def call(self, **kwargs):
-        """
-        Validate input data shape for image operations.
-
-        Args:
-            **kwargs: Keyword arguments containing input data.
-
-        Raises:
-            AssertionError: If input data does not have the expected number of dimensions.
-        """
-        data = kwargs[self.key]
-
-        if self.with_batch_dim:
-            assert ops.ndim(data) == 4, "Input data must have 4 dimensions (b, h, w, c)."
-        else:
-            assert ops.ndim(data) == 3, "Input data must have 3 dimensions (h, w, c)."
-
-
 @ops_registry("lambda")
 class Lambda(Operation):
     """Use any function as an operation."""
