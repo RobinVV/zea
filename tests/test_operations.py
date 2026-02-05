@@ -353,7 +353,7 @@ def spiral_image():
     Fixture for generating a synthetic spiral image and noisy variants.
     Returns:
         dict: {
-            "spiral": clean spiral image,
+            "spiral": clean spiral image of size (64, 64),
             "noisy": additive Gaussian noise,
             "speckle": multiplicative speckle noise
         }

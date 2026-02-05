@@ -7,12 +7,12 @@ from keras.src.layers.preprocessing.data_layer import DataLayer
 from zea.func import normalize
 from zea.func.tensor import gaussian_filter
 from zea.internal.registry import ops_registry
-from zea.ops.base import Operation
+from zea.ops.base import Filter, Operation
 from zea.utils import map_negative_indices
 
 
 @ops_registry("gaussian_blur")
-class GaussianBlur(Operation):
+class GaussianBlur(Filter):
     """
     GaussianBlur is an operation that applies a Gaussian blur to an input image.
     Uses scipy.ndimage.gaussian_filter to create a kernel.
@@ -68,10 +68,7 @@ class GaussianBlur(Operation):
                 optional batch dimension if ``self.with_batch_dim``.
         """
         data = kwargs[self.key]
-
-        axes = map_negative_indices(self.axes, data.ndim)
-        if self.with_batch_dim and 0 in axes:
-            raise ValueError("Batch dimension cannot be one of the axes to filter over.")
+        axes = self._resolve_filter_axes(data, self.axes)
 
         out = gaussian_filter(
             data, self.sigma, self.order, self.mode, self.cval, self.truncate, axes

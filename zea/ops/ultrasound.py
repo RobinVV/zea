@@ -30,9 +30,9 @@ from zea.internal.core import (
     DataTypes,
 )
 from zea.internal.registry import ops_registry
-from zea.ops.base import Operation
+from zea.ops.base import Filter, Operation
 from zea.simulator import simulate_rf
-from zea.utils import canonicalize_axis, map_negative_indices
+from zea.utils import canonicalize_axis
 
 
 @ops_registry("simulate_rf")
@@ -565,7 +565,7 @@ class ComplexToChannels(Operation):
 
 
 @ops_registry("lee_filter")
-class LeeFilter(Operation):
+class LeeFilter(Filter):
     """
     The Lee filter is a speckle reduction filter commonly used in synthetic aperture radar (SAR)
     and ultrasound image processing. It smooths the image while preserving edges and details.
@@ -619,10 +619,7 @@ class LeeFilter(Operation):
                 optional batch dimension if ``self.with_batch_dim``.
         """
         data = kwargs.pop(self.key)
-
-        axes = map_negative_indices(self.axes, data.ndim)
-        if self.with_batch_dim and 0 in axes:
-            raise ValueError("Batch dimension cannot be one of the axes to filter over.")
+        axes = self._resolve_filter_axes(data, self.axes)
 
         # Apply Gaussian blur to get local mean
         img_mean = gaussian_filter(

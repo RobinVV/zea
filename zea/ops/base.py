@@ -16,6 +16,7 @@ from zea.internal.core import (
 from zea.internal.registry import ops_registry
 from zea.utils import (
     deep_compare,
+    map_negative_indices,
 )
 
 
@@ -294,6 +295,34 @@ class Operation(keras.Operation):
             return False
 
         return True
+
+
+class Filter(Operation):
+    def _resolve_filter_axes(self, data, axes=None):
+        """
+        Resolve the axes to filter over based on the axes parameter and with_batch_dim flag.
+
+        Args:
+            data: Input tensor
+            axes: Tuple of axes to filter over, or None to filter all (non-batch) axes
+
+        Returns:
+            Tuple of resolved axes indices
+
+        Raises:
+            ValueError: If batch dimension is included in axes when with_batch_dim is True
+        """
+
+        if axes is None:
+            if self.with_batch_dim:
+                return tuple(range(1, data.ndim))
+            else:
+                return tuple(range(data.ndim))
+        else:
+            axes = map_negative_indices(axes, data.ndim)
+            if self.with_batch_dim and 0 in axes:
+                raise ValueError("Batch dimension cannot be one of the axes to filter over.")
+            return axes
 
 
 @ops_registry("identity")
