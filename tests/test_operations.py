@@ -423,11 +423,12 @@ def test_lee_filter(sigma, spiral_image):
 
     # Use spiral image for testing
     image = spiral_image["spiral"]
+    image = image[..., None]  # add channel dimension
 
     lee = ops.LeeFilter(sigma=sigma, with_batch_dim=False)
     lee_batched = ops.LeeFilter(sigma=sigma, with_batch_dim=True)
 
-    image_tensor = keras.ops.convert_to_tensor(image[..., None])
+    image_tensor = keras.ops.convert_to_tensor(image)
     filtered = lee(data=image_tensor)["data"][..., 0]
     filtered_batched = lee_batched(data=image_tensor[None, ...])["data"][0, ..., 0]
 
@@ -438,7 +439,7 @@ def test_lee_filter(sigma, spiral_image):
         "LeeFilter with and without batch dim should give the same result."
     )
 
-    assert np.var(filtered) < np.var(image_tensor), (
+    assert np.var(filtered) < np.var(image), (
         "LeeFilter should reduce variance of the processed image"
     )
 
