@@ -312,9 +312,27 @@ def test_up_and_down_conversion(factor, batch_size):
     )
 
 
+@pytest.mark.parametrize(
+    "shape, axis, N",
+    [
+        # 1D tests
+        ((500,), -1, None),
+        ((500,), -1, 500),
+        ((500,), -1, 1024),
+        # 2D tests
+        ((128, 500), -1, None),
+        ((128, 500), -1, 512),
+        # 3D tests
+        ((2, 500, 128), 1, None),
+        ((2, 500, 128), 1, 600),
+        # 4D tests (original test case)
+        ((2, 500, 128, 1), -3, None),
+        ((2, 500, 128, 1), -3, 512),
+    ],
+)
 @backend_equality_check(decimal=4)
-def test_hilbert_transform():
-    """Test hilbert transform"""
+def test_hilbert_transform(shape, axis, N):
+    """Test hilbert transform with various shapes and N values"""
 
     import keras
 
@@ -322,18 +340,26 @@ def test_hilbert_transform():
 
     rng = np.random.default_rng(DEFAULT_TEST_SEED)
 
-    # create some dummy sinusoidal data of size (2, 500, 128, 1)
-    # sinusoids on axis 1
-    data = np.sin(np.linspace(0, 2 * math.e * np.pi, 500))
-    data = data[np.newaxis, :, np.newaxis, np.newaxis]
-    data = np.tile(data, (2, 1, 128, 1))
+    # Create sinusoidal data along the specified axis
+    n_samples = shape[axis]
+    base_signal = np.sin(np.linspace(0, 2 * math.e * np.pi, n_samples))
 
-    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    # Reshape to match target shape
+    reshape_spec = [1] * len(shape)
+    reshape_spec[axis] = n_samples
+    data = base_signal.reshape(reshape_spec)
+
+    # Tile to full shape
+    tile_spec = list(shape)
+    tile_spec[axis] = 1
+    data = np.tile(data, tile_spec)
+
+    # Add small noise
     data = data + rng.random(data.shape) * 0.1
 
     data = keras.ops.convert_to_tensor(data)
 
-    data_iq = func.hilbert(data, axis=-3)
+    data_iq = func.hilbert(data, N=N, axis=axis)
     assert keras.ops.dtype(data_iq) in [
         "complex64",
         "complex128",
@@ -341,10 +367,25 @@ def test_hilbert_transform():
 
     data_iq = keras.ops.convert_to_numpy(data_iq)
 
-    reference_data_iq = hilbert_scipy(data, axis=-3)
+    reference_data_iq = hilbert_scipy(data, N=N, axis=axis)
     np.testing.assert_almost_equal(reference_data_iq, data_iq, decimal=4)
 
     return data_iq
+
+
+def test_hilbert_transform_invalid_N():
+    """Test that hilbert raises ValueError when N < n_ax"""
+    import keras
+
+    from zea import func
+
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+    data = rng.random((100,))
+    data = keras.ops.convert_to_tensor(data)
+
+    # N=50 is less than n_ax=100, should raise ValueError
+    with pytest.raises(ValueError, match="N must be greater or equal to n_ax"):
+        func.hilbert(data, N=50, axis=-1)
 
 
 @pytest.fixture(scope="module")
