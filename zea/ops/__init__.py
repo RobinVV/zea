@@ -97,7 +97,6 @@ from zea.ops import keras_ops
 
 from .base import (
     Identity,
-    ImageOperation,
     Lambda,
     Mean,
     Merge,
@@ -147,7 +146,6 @@ __all__ = [
     "ops_registry",
     # Base operations
     "Identity",
-    "ImageOperation",
     "Lambda",
     "Mean",
     "Merge",
