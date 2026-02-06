@@ -2,9 +2,16 @@
 
 import importlib.util
 import os
-import sys
+from importlib.metadata import PackageNotFoundError, version
 
 from . import log
+
+try:
+    # dynamically add __version__ attribute (see pyproject.toml)
+    __version__ = version("zea")
+except PackageNotFoundError:
+    # Package is not installed (e.g., running from source)
+    __version__ = "dev"
 
 
 def _bootstrap_backend():
@@ -75,11 +82,6 @@ def _bootstrap_backend():
     from keras.backend import backend as keras_backend
 
     log.info(f"Using backend {keras_backend()!r}")
-
-    # dynamically add __version__ attribute (see pyproject.toml)
-    from importlib.metadata import version
-
-    globals()["__version__"] = version("zea")
 
 
 # Skip backend bootstrap when building on ReadTheDocs
