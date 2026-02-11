@@ -157,7 +157,7 @@ class UNetTimeConditional(BaseModel):
 def get_time_conditional_unetwork(
     image_shape,
     widths=None,
-    block_depth=2,
+    block_depth=None,
     embedding_min_frequency=1.0,
     embedding_max_frequency=1000.0,
     embedding_dims=32,
@@ -169,19 +169,22 @@ def get_time_conditional_unetwork(
     Args:
         image_shape: tuple, (height, width, channels)
         widths: list, number of filters in each layer
-        block_depth: int, number of residual blocks in each down/up block (default: 2)
+        block_depth: int, number of residual blocks in each down/up block (defaults to 2 if None)
         embedding_min_frequency: float, minimum frequency for sinusoidal embeddings
         embedding_max_frequency: float, maximum frequency for sinusoidal embeddings
-        embedding_dims: int, number of dimensions for sinusoidal embeddings
+        embedding_dims: int, number of dimensions for sinusoidal embeddings (must be even)
 
     Returns:
         keras.Model
     """
     assert len(image_shape) == 3, "image_shape must be a tuple of (height, width, channels)"
+    assert embedding_dims % 2 == 0, "embedding_dims must be even! (sin + cos)"
 
     if widths is None:
         log.warning("No widths provided, using default widths [32, 64, 96, 128]")
         widths = [32, 64, 96, 128]
+    if block_depth is None:
+        block_depth = 2
 
     image_height, image_width, n_channels = image_shape
     noisy_images = keras.Input(shape=(image_height, image_width, n_channels))
