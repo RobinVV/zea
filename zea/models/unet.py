@@ -157,7 +157,7 @@ class UNetTimeConditional(BaseModel):
 def get_time_conditional_unetwork(
     image_shape,
     widths=None,
-    block_depth=None,
+    block_depth=2,
     embedding_min_frequency=1.0,
     embedding_max_frequency=1000.0,
     embedding_dims=32,
@@ -169,7 +169,7 @@ def get_time_conditional_unetwork(
     Args:
         image_shape: tuple, (height, width, channels)
         widths: list, number of filters in each layer
-        block_depth: int, number of residual blocks in each down/up block
+        block_depth: int, number of residual blocks in each down/up block (default: 2)
         embedding_min_frequency: float, minimum frequency for sinusoidal embeddings
         embedding_max_frequency: float, maximum frequency for sinusoidal embeddings
         embedding_dims: int, number of dimensions for sinusoidal embeddings
@@ -182,9 +182,6 @@ def get_time_conditional_unetwork(
     if widths is None:
         log.warning("No widths provided, using default widths [32, 64, 96, 128]")
         widths = [32, 64, 96, 128]
-    if block_depth is None:
-        log.warning("No block_depth provided, using default block_depth 2")
-        block_depth = 2
 
     image_height, image_width, n_channels = image_shape
     noisy_images = keras.Input(shape=(image_height, image_width, n_channels))
@@ -196,7 +193,7 @@ def get_time_conditional_unetwork(
             x, embedding_min_frequency, embedding_max_frequency, embedding_dims
         )
 
-    e = layers.Lambda(_sinusoidal_embedding, output_shape=(1, 1, 32))(noise_variances)
+    e = layers.Lambda(_sinusoidal_embedding, output_shape=(1, 1, embedding_dims))(noise_variances)
     e = layers.UpSampling2D(size=(image_height, image_width), interpolation="nearest")(e)
 
     x = layers.Conv2D(widths[0], kernel_size=1)(noisy_images)
