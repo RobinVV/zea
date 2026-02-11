@@ -6,8 +6,7 @@ import numpy as np
 from keras import ops
 
 from zea import log
-from zea.beamform.beamformer import tof_correction
-from zea.beamform.beamformergrid import tof_correction_grid
+from zea.beamform.beamformer import tof_correction, tof_correction_grid
 from zea.display import scan_convert
 from zea.func.tensor import (
     apply_along_axis,
@@ -142,6 +141,9 @@ class TOFCorrection(Operation):
         apply_lens_correction=None,
         lens_thickness=None,
         lens_sound_speed=None,
+        sos_grid=None,
+        x_sos_grid=None,
+        z_sos_grid=None,
         **kwargs,
     ):
         """Perform time-of-flight correction on raw RF data.
@@ -166,121 +168,60 @@ class TOFCorrection(Operation):
             apply_lens_correction (bool): Whether to apply lens correction
             lens_thickness (float): Lens thickness
             lens_sound_speed (float): Sound speed in the lens
-
-        Returns:
-            dict: Dictionary containing tof_corrected_data
-        """
-
-        raw_data = kwargs[self.key]
-
-        tof_kwargs = {
-            "flatgrid": flatgrid,
-            "t0_delays": t0_delays,
-            "tx_apodizations": tx_apodizations,
-            "sound_speed": sound_speed,
-            "probe_geometry": probe_geometry,
-            "initial_times": initial_times,
-            "sampling_frequency": sampling_frequency,
-            "demodulation_frequency": demodulation_frequency,
-            "f_number": f_number,
-            "polar_angles": polar_angles,
-            "focus_distances": focus_distances,
-            "t_peak": t_peak,
-            "tx_waveform_indices": tx_waveform_indices,
-            "transmit_origins": transmit_origins,
-            "apply_lens_correction": apply_lens_correction,
-            "lens_thickness": lens_thickness,
-            "lens_sound_speed": lens_sound_speed,
-        }
-
-        if not self.with_batch_dim:
-            tof_corrected = tof_correction(raw_data, **tof_kwargs)
-        else:
-            tof_corrected = ops.map(
-                lambda data: tof_correction(data, **tof_kwargs),
-                raw_data,
-            )
-
-        return {self.output_key: tof_corrected}
-
-
-@ops_registry("tof_correction_grid")
-class TOFCorrectionGrid(Operation):
-    """Time-of-flight correction operation for ultrasound data using a supplied sound speed grid."""
-
-    # Define operation-specific static parameters
-    STATIC_PARAMS = [
-        "f_number",
-        "apply_lens_correction",
-        "grid_size_x",
-        "grid_size_y",
-        "grid_size_z",
-    ]
-
-    def __init__(self, **kwargs):
-        super().__init__(
-            input_data_type=DataTypes.RAW_DATA,
-            output_data_type=DataTypes.ALIGNED_DATA,
-            **kwargs,
-        )
-
-    def call(
-        self,
-        sos_grid,
-        x_sos_grid,
-        z_sos_grid,
-        flatgrid,
-        sampling_frequency,
-        f_number,
-        demodulation_frequency,
-        t0_delays,
-        initial_times,
-        probe_geometry,
-        t_peak,
-        tx_waveform_indices,
-        **kwargs,
-    ):
-        """Perform time-of-flight correction on raw RF data Using straight-ray
-        interpolation through a supplied sound speed grid.
-
-        Args:
-            raw_data (ops.Tensor): Raw RF data to correct
             sos_grid (ops.Tensor): sound speed grid
             x_sos_grid (ops.Tensor): x coordinates of the sound speed grid
             z_sos_grid (ops.Tensor): z coordinates of the sound speed grid
-            flatgrid (ops.Tensor): Grid points at which to evaluate the time-of-flight
-            sampling_frequency (float): Sampling frequency
-            f_number (float): F-number for apodization
-            demodulation_frequency (float): Demodulation frequency
-            t0_delays (ops.Tensor): T0 delays
-            tx_apodizations (ops.Tensor): Transmit apodizations
-            initial_times (ops.Tensor): Initial times
-            probe_geometry (ops.Tensor): Probe element positions
-            t_peak (float): Time to peak of the transmit pulse
-            tx_waveform_indices (ops.Tensor): Index of the transmit waveform for each
-                transmit. (All zero if there is only one waveform)
-            apply_lens_correction (bool): Whether to apply lens correction
-            lens_thickness (float): Lens thickness
-            lens_sound_speed (float): Sound speed in the lens
-            inr_params (dict): Parameters for the INR model
+
         Returns:
             dict: Dictionary containing tof_corrected_data
         """
+
         raw_data = kwargs[self.key]
-        tof_kwargs = {
-            "sos_grid": sos_grid,
-            "x_sos_grid": x_sos_grid,
-            "z_sos_grid": z_sos_grid,
-            "flatgrid": flatgrid,
-            "t0_delays": t0_delays,
-            "probe_geometry": probe_geometry,
-            "initial_times": initial_times,
-            "sampling_frequency": sampling_frequency,
-            "demodulation_frequency": demodulation_frequency,
-            "f_number": f_number,
-            "t_peak": t_peak,
-            "tx_waveform_indices": tx_waveform_indices,
-        }
+
+        # Use grid?
+        if sos_grid is None:
+            tof_kwargs = {
+                "flatgrid": flatgrid,
+                "t0_delays": t0_delays,
+                "tx_apodizations": tx_apodizations,
+                "sound_speed": sound_speed,
+                "probe_geometry": probe_geometry,
+                "initial_times": initial_times,
+                "sampling_frequency": sampling_frequency,
+                "demodulation_frequency": demodulation_frequency,
+                "f_number": f_number,
+                "polar_angles": polar_angles,
+                "focus_distances": focus_distances,
+                "t_peak": t_peak,
+                "tx_waveform_indices": tx_waveform_indices,
+                "transmit_origins": transmit_origins,
+                "apply_lens_correction": apply_lens_correction,
+                "lens_thickness": lens_thickness,
+                "lens_sound_speed": lens_sound_speed,
+            }
+
+            if not self.with_batch_dim:
+                tof_corrected = tof_correction(raw_data, **tof_kwargs)
+            else:
+                tof_corrected = ops.map(
+                    lambda data: tof_correction(data, **tof_kwargs),
+                    raw_data,
+                )
+        else:
+            tof_kwargs = {
+                "sos_grid": sos_grid,
+                "x_sos_grid": x_sos_grid,
+                "z_sos_grid": z_sos_grid,
+                "flatgrid": flatgrid,
+                "t0_delays": t0_delays,
+                "probe_geometry": probe_geometry,
+                "initial_times": initial_times,
+                "sampling_frequency": sampling_frequency,
+                "demodulation_frequency": demodulation_frequency,
+                "f_number": f_number,
+                "t_peak": t_peak,
+                "tx_waveform_indices": tx_waveform_indices,
+            }
         if not self.with_batch_dim:
             tof_corrected = tof_correction_grid(raw_data, **tof_kwargs)
         else:
