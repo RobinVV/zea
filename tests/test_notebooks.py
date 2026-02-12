@@ -78,6 +78,10 @@ NOTEBOOK_PARAMETERS = {
         "n_samples": 2,
         "batch_size": 1,
     },
+    "dbua_example.ipynb": {
+        "num_iterations": 2,
+        "step_size": 1,
+    },
     # Add more notebooks and their parameters here as needed
     # "other_notebook.ipynb": {
     #     "param1": value1,
