@@ -208,7 +208,7 @@ class TOFCorrection(Operation):
                 lambda data: tof_correction(data, **tof_kwargs),
                 raw_data,
             )
-            
+
         return {self.output_key: tof_corrected}
 
 
