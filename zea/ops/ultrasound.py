@@ -6,7 +6,7 @@ import numpy as np
 from keras import ops
 
 from zea import log
-from zea.beamform.beamformer import tof_correction, tof_correction_grid
+from zea.beamform.beamformer import tof_correction
 from zea.display import scan_convert
 from zea.func.tensor import (
     apply_along_axis,
@@ -178,58 +178,37 @@ class TOFCorrection(Operation):
 
         raw_data = kwargs[self.key]
 
-        # Use grid?
-        if sos_grid is None:
-            tof_kwargs = {
-                "flatgrid": flatgrid,
-                "t0_delays": t0_delays,
-                "tx_apodizations": tx_apodizations,
-                "sound_speed": sound_speed,
-                "probe_geometry": probe_geometry,
-                "initial_times": initial_times,
-                "sampling_frequency": sampling_frequency,
-                "demodulation_frequency": demodulation_frequency,
-                "f_number": f_number,
-                "polar_angles": polar_angles,
-                "focus_distances": focus_distances,
-                "t_peak": t_peak,
-                "tx_waveform_indices": tx_waveform_indices,
-                "transmit_origins": transmit_origins,
-                "apply_lens_correction": apply_lens_correction,
-                "lens_thickness": lens_thickness,
-                "lens_sound_speed": lens_sound_speed,
-            }
+        tof_kwargs = {
+            "flatgrid": flatgrid,
+            "t0_delays": t0_delays,
+            "tx_apodizations": tx_apodizations,
+            "sound_speed": sound_speed,
+            "probe_geometry": probe_geometry,
+            "initial_times": initial_times,
+            "sampling_frequency": sampling_frequency,
+            "demodulation_frequency": demodulation_frequency,
+            "f_number": f_number,
+            "polar_angles": polar_angles,
+            "focus_distances": focus_distances,
+            "t_peak": t_peak,
+            "tx_waveform_indices": tx_waveform_indices,
+            "transmit_origins": transmit_origins,
+            "apply_lens_correction": apply_lens_correction,
+            "lens_thickness": lens_thickness,
+            "lens_sound_speed": lens_sound_speed,
+            "sos_grid": sos_grid,
+            "x_sos_grid": x_sos_grid,
+            "z_sos_grid": z_sos_grid,
+        }
 
-            if not self.with_batch_dim:
-                tof_corrected = tof_correction(raw_data, **tof_kwargs)
-            else:
-                tof_corrected = ops.map(
-                    lambda data: tof_correction(data, **tof_kwargs),
-                    raw_data,
-                )
-        else:
-            tof_kwargs = {
-                "sos_grid": sos_grid,
-                "x_sos_grid": x_sos_grid,
-                "z_sos_grid": z_sos_grid,
-                "flatgrid": flatgrid,
-                "t0_delays": t0_delays,
-                "probe_geometry": probe_geometry,
-                "initial_times": initial_times,
-                "sampling_frequency": sampling_frequency,
-                "demodulation_frequency": demodulation_frequency,
-                "f_number": f_number,
-                "t_peak": t_peak,
-                "tx_waveform_indices": tx_waveform_indices,
-            }
         if not self.with_batch_dim:
-            tof_corrected = tof_correction_grid(raw_data, **tof_kwargs)
+            tof_corrected = tof_correction(raw_data, **tof_kwargs)
         else:
             tof_corrected = ops.map(
-                lambda data: tof_correction_grid(data, **tof_kwargs),
+                lambda data: tof_correction(data, **tof_kwargs),
                 raw_data,
             )
-
+            
         return {self.output_key: tof_corrected}
 
 
