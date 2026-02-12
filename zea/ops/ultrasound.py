@@ -1069,9 +1069,18 @@ class ApplyWindow(Operation):
 
 @ops_registry("common_midpoint_phase_error")
 class CommonMidpointPhaseError(Operation):
-    """Calculate the Common Midpoint Phase Error between translated transmit and receive apertures
-    with Common midpoint. Only works for multistatic data.
-    This was directly adapted from https://waltersimson.com/dbua/"""
+    """Calculates the Common Midpoint Phase Error (CMPE)
+
+    Computes CMPE between translated transmit and receive apertures with a common midpoint.
+
+    .. important::
+        Only works for multistatic datasets, e.g. synthetic aperture data.
+
+    .. note::
+        This was directly adapted from the Differentiable Beamforming for Ultrasound Autofocusing (DBUA)
+        paper, see `original paper and code <https://waltersimson.com/dbua/>`_.
+
+    """  # noqa: E501
 
     def _init_(
         self,
@@ -1080,18 +1089,20 @@ class CommonMidpointPhaseError(Operation):
     ):
         super()._init_(
             input_data_type=None,
-            # DataTypes.IMAGE, because we have a image of the phase map
-            output_data_type=DataTypes.image,
+            # DataTypes.IMAGE, because we have an image of the phase map
+            output_data_type=DataTypes.IMAGE,
             **kwargs,
         )
         self.reshape_grid = reshape_grid
 
     def create_subapertures(self, data, halfsa, dx):
         """Create subapertures from the data.
+
         Args:
             data (ops.Tensor): The data to create subapertures from.
             halfsa (int): Half of the subaperture.
             dx (float): The spacing between the subapertures.
+
         Returns:
             transmit_subap (ops.Tensor): The transmit subapertures.
             receive_subap (ops.Tensor): The receive subapertures.
@@ -1106,8 +1117,10 @@ class CommonMidpointPhaseError(Operation):
 
     def process_phase_map(self, data, **kwargs):
         """Create the common midpoint subaperture phase error map.
+
         Args:
             data (ops.Tensor): The data to create the phase error map from.
+
         Returns:
             phase_error_map (ops.Tensor): The phase error map.
         """
@@ -1118,7 +1131,7 @@ class CommonMidpointPhaseError(Operation):
         rx_zero_count = ops.matmul(receive_subaps, (complex_data == 0).astype(int))
 
         # Mask out subapertures with point outside fov in receive
-        rx_valid = rx_zero_count <= 1  #
+        rx_valid = rx_zero_count <= 1
         complex_data_rx = ops.matmul(receive_subaps, complex_data)
         complex_data_rx = ops.where(rx_valid, complex_data_rx, 0)
         complex_data_rx = ops.transpose(complex_data_rx, (1, 0, 2))  # [n_tx, n_subap_rx, n_pix]
