@@ -103,6 +103,7 @@ def tof_correction(
             straight in front of the element (fn(0.0)) to the largest angle within the f-number cone
             (fn(1.0)). The function should be zero for fn(x>1.0).
         sos_grid (Tensor): The matrix of sound speed values in m/s (Nx x Nz)
+            The sos_grid does not have to be the same shape as the image grid.
             When supplied we calculate the delays using the supplied sos_grid instead of
             assuming a constant sound speed, only valid for multistatic data.
         x_sos_grid (Tensor): Vector of x-grid points in sound speed grid
@@ -116,6 +117,52 @@ def tof_correction(
         "The input data should have 4 dimensions, "
         f"namely n_tx, n_ax, n_el, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
+    
+    def _apply_delays(data_tx, txdel, mask_tx= None):
+        """
+        Applies the delays to TOF correct a single transmit.
+        using a mask in transmit and receive.
+
+        Args:
+            data_tx (ops.Tensor): The RF/IQ data for a single transmit of shape
+                `(n_ax, n_el, n_ch)`.
+            txdel (ops.Tensor): The transmit delays for a single transmit in samples
+                (not in seconds) of shape `(n_pix, 1)`.
+            mask_tx (ops.Tensor): mask for pixel (f_number based)
+        Returns:
+            ops.Tensor: The time-of-flight corrected data of shape
+            `(n_pix, n_el, n_ch)`.
+        """
+        # data_tx is of shape (num_elements, num_samples,  2)
+
+        # Take receive delays and add the transmit delays for this transmit
+        # The txdel tensor has one fewer dimensions because the transmit
+        # delays are the same for all dimensions
+        # delays is of shape (n_pix, n_el)
+        delays = rxdel + txdel  # (n_pix, n_el)
+
+        # Compute the time-of-flight corrected samples for each element
+        # from each pixel of shape (n_pix, n_el, n_ch)
+
+        tof_tx = apply_delays(data_tx, delays, clip_min=0, clip_max=n_ax - 1)
+        # Apply the mask in receive and transmit
+        if mask_tx is not None:
+            tof_tx = tof_tx * mask * mask_tx[:, :, None]
+        else:
+            tof_tx = tof_tx * mask
+
+        # Apply phase rotation if using IQ data
+        # This is needed because interpolating the IQ data without phase rotation
+        # is not equivalent to interpolating the RF data and then IQ demodulating
+        # See the docstring from complex_rotate for more details
+        apply_phase_rotation = data_tx.shape[-1] == 2
+        if apply_phase_rotation:
+            total_delay_seconds = delays[:, :] / sampling_frequency
+            theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
+            tof_tx = complex_rotate(tof_tx, theta)
+
+        return tof_tx
+
     # Homogeneous medium case
     if sos_grid is None:
         n_tx, n_ax, n_el, _ = ops.shape(data)
@@ -157,46 +204,6 @@ def tof_correction(
             lambda: fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn),
         )
 
-        def _apply_delays(data_tx, txdel):
-            """Applies the delays to TOF correct a single transmit.
-
-            Args:
-                data_tx (ops.Tensor): The RF/IQ data for a single transmit of shape
-                    `(n_ax, n_el, n_ch)`.
-                txdel (ops.Tensor): The transmit delays for a single transmit in samples
-                    (not in seconds) of shape `(n_pix, 1)`.
-
-            Returns:
-                ops.Tensor: The time-of-flight corrected data of shape
-                `(n_pix, n_el, n_ch)`.
-            """
-            # data_tx is of shape (num_elements, num_samples, 1 or 2)
-
-            # Take receive delays and add the transmit delays for this transmit
-            # The txdel tensor has one fewer dimensions because the transmit
-            # delays are the same for all dimensions
-            # delays is of shape (n_pix, n_el)
-            delays = rxdel + txdel
-
-            # Compute the time-of-flight corrected samples for each element
-            # from each pixel of shape (n_pix, n_el, n_ch)
-
-            tof_tx = apply_delays(data_tx, delays, clip_min=0, clip_max=n_ax - 1)
-
-            # Apply the mask
-            tof_tx = tof_tx * mask
-
-            # Apply phase rotation if using IQ data
-            # This is needed because interpolating the IQ data without phase rotation
-            # is not equivalent to interpolating the RF data and then IQ demodulating
-            # See the docstring from complex_rotate for more details
-            apply_phase_rotation = data_tx.shape[-1] == 2
-            if apply_phase_rotation:
-                total_delay_seconds = delays[:, :] / sampling_frequency
-                theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
-                tof_tx = complex_rotate(tof_tx, theta)
-            return tof_tx
-
         # Reshape to (n_tx, n_pix, 1)
         txdel = ops.moveaxis(txdel, 1, 0)
         txdel = txdel[..., None]
@@ -207,7 +214,6 @@ def tof_correction(
     else:
         assert data.shape[0] == data.shape[2], "The dataset should be multistatic"
         txdel, rxdel = calculate_delays_grid(
-            data,
             flatgrid,
             sos_grid,
             x_sos_grid,
@@ -216,7 +222,6 @@ def tof_correction(
             probe_geometry,
             initial_times,
             sampling_frequency,
-            f_number,
             t_peak,
             tx_waveform_indices,
         )
@@ -232,52 +237,9 @@ def tof_correction(
                 ),
             )
         )
-
-        def _apply_delays_grid(data_tx, txdel, mask_tx):
-            """
-            Applies the delays to TOF correct a single transmit.
-            using a mask in transmit and receive.
-
-            Args:
-                data_tx (ops.Tensor): The RF/IQ data for a single transmit of shape
-                    `(n_ax, n_el, n_ch)`.
-                txdel (ops.Tensor): The transmit delays for a single transmit in samples
-                    (not in seconds) of shape `(n_pix, 1)`.
-                mask_tx (ops.Tensor): mask for pixel (f_number based)
-            Returns:
-                ops.Tensor: The time-of-flight corrected data of shape
-                `(n_pix, n_el, n_ch)`.
-            """
-            # data_tx is of shape (num_elements, num_samples,  2)
-
-            # Take receive delays and add the transmit delays for this transmit
-            # The txdel tensor has one fewer dimensions because the transmit
-            # delays are the same for all dimensions
-            # delays is of shape (n_pix, n_el)
-            delays = rxdel + txdel  # (n_pix, n_el)
-
-            # Compute the time-of-flight corrected samples for each element
-            # from each pixel of shape (n_pix, n_el, n_ch)
-
-            tof_tx = apply_delays(data_tx, delays, clip_min=0, clip_max=n_ax - 1)
-            # Apply the mask in receive and transmit
-            tof_tx = tof_tx * mask * mask_tx[:, :, None]
-
-            # Apply phase rotation if using IQ data
-            # This is needed because interpolating the IQ data without phase rotation
-            # is not equivalent to interpolating the RF data and then IQ demodulating
-            # See the docstring from complex_rotate for more details
-            apply_phase_rotation = data_tx.shape[-1] == 2
-            if apply_phase_rotation:
-                total_delay_seconds = delays[:, :] / sampling_frequency
-                theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
-                tof_tx = complex_rotate(tof_tx, theta)
-
-            return tof_tx
-
         txdel = txdel[..., None]
         mask_tx = ops.moveaxis(mask, 1, 0)
-        _apply_delays_ckpt = keras.remat(_apply_delays_grid)
+        _apply_delays_ckpt = keras.remat(_apply_delays)
 
     return ops.vectorize(
         _apply_delays_ckpt,
@@ -710,7 +672,6 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
 
 
 def calculate_delays_grid(
-    data,
     grid,
     sos_grid,
     x_sos_grid,
@@ -719,7 +680,6 @@ def calculate_delays_grid(
     probe_geometry,
     initial_times,
     sampling_frequency,
-    f_number,
     t_peak,
     tx_waveform_indices,
 ):
@@ -739,7 +699,6 @@ def calculate_delays_grid(
     element.
 
     Args:
-        data (ops.Tensor): Input RF/IQ data of shape `(n_tx, n_ax, n_el, n_ch)`.
         grid (Tensor): The pixel coordinates to beamform to of shape `(n_pix, 3)`.
         sos_grid (Tensor): The matrix of sound speed values in m/s (Nx x Nz)
         x_sos_grid (Tensor): Vector of x-grid points in sound speed definition
@@ -751,7 +710,6 @@ def calculate_delays_grid(
         initial_times (Tensor): The probe transmit time offsets of shape
             `(n_tx,)`.
         sampling_frequency (float): The sampling frequency of the probe in Hz.
-        f_number (float): Focus number (ratio of focal depth to aperture size).
         t_peak (ops.Tensor): Time of the peak of the pulse in seconds.
             Shape `(n_waveforms,)`.
         tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
