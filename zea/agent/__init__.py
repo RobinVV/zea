@@ -17,7 +17,7 @@ The :mod:`zea.agent` module provides the building blocks for implementing such p
 loops.
 
 .. note::
-    The functions currently available implement selection strategies for focused transmit actions. Development of action selection functions for more general transmit schemes is currently a work-in-progress.
+    The functions currently available implement selection strategies for *focused transmit actions*. Development of action selection functions for more general transmit schemes is currently a work-in-progress.
 
 Action Selection Strategies
 ===========================
