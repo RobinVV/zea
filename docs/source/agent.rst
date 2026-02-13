@@ -5,7 +5,7 @@ Agent
 
 The ``zea`` toolbox provides agent functionalities for implementing **cognitive ultrasound** imaging via active perception. This module enables intelligent, adaptive transmit design, where acquisition decisions are informed by the current belief state about the imaged tissue.
 
-For background on cognitive ultrasound imaging and perception-action loops, see the introductory paper by van Sloun :cite:t:`about-van2024active`.
+For background on cognitive ultrasound imaging and perception-action loops, see the introductory paper by :cite:t:`about-van2024active`.
 
 -------------------------------
 Overview

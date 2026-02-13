@@ -46,6 +46,7 @@ Check out the :doc:`about` page for more information and the motivation behind `
    parameters
    pipeline
    models
+   agent
    environment
    cli
 
