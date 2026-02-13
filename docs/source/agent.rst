@@ -59,8 +59,8 @@ The following strategies are available in :mod:`zea.agent.selection`:
     )
 
     # Sample actions given a set of belief particles
-    # particles: tensor of shape (n_particles, height, width)
-    selected_lines = action_selector.sample(particles)
+    # particles: tensor of shape (n_particles, height, width) representing beliefs
+    selected_lines, masks = action_selector.sample(particles)
 
 -------------------------------
 Masks
