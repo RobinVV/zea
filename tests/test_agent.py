@@ -7,7 +7,6 @@ from keras import ops
 from zea.agent import masks, selection
 
 from . import DEFAULT_TEST_SEED
-from tests import backend_equality_check
 
 
 def test_equispaced_lines():
@@ -75,6 +74,7 @@ def test_lines_action_model():
     with pytest.raises(AssertionError):
         selection.LinesActionModel(n_actions=2, n_possible_actions=3, img_width=8, img_height=8)
 
+
 def test_greedy_entropy():
     """Test GreedyEntropy action selection."""
     # Note: this test is hard-coded to work with rng seed 2, seed should not be a variable.
@@ -90,7 +90,7 @@ def test_greedy_entropy():
     particles = np.stack([rand_img_1, rand_img_2], axis=0)
     particles = np.expand_dims(particles, axis=0)  # add batch dim
     particles = np.squeeze(particles, axis=-1)  # remove channel dim --> (batch, n_particles, h, w)
-    
+
     particles = ops.convert_to_tensor(particles)
 
     n_actions = 1

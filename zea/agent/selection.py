@@ -137,7 +137,9 @@ class GreedyEntropy(LinesActionModel):
         )
         self.upside_down_gaussian = upside_down_gaussian(points_to_evaluate)
         self.entropy_sigma = entropy_sigma
-        self.select_line_and_reweight_entropy_vmap = tensor.vmap(self.select_line_and_reweight_entropy)
+        self.select_line_and_reweight_entropy_vmap = tensor.vmap(
+            self.select_line_and_reweight_entropy
+        )
 
     @staticmethod
     def compute_pairwise_pixel_gaussian_error(
