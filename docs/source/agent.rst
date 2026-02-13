@@ -116,7 +116,7 @@ References
 
 .. bibliography:: ../../paper/paper.bib
    :style: unsrt
-   :keyprefix: about-
-   :labelprefix: A-
+   :keyprefix: agent-
+   :labelprefix: Ag-
 
    van2024active
