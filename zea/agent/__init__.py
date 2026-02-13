@@ -52,7 +52,7 @@ Basic Usage
 
     >>> # (batch, samples, height, width)
     >>> particles = np.random.rand(1, 10, 112, 112)
-    >>> lines, mask = agent.sample(particles)  # doctest: +SKIP
+    >>> lines, mask = agent.sample(particles)
 
 Masks
 =====
