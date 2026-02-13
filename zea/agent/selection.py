@@ -654,9 +654,9 @@ class TaskBasedLines(GreedyEntropy):
         # Greedily select best line, reweight entropies, and repeat
         all_selected_lines = []
         for _ in range(self.n_actions):
-            max_contribution_line, actionwise_contribution_to_var_dst = ops.vectorized_map(
-                self.select_line_and_reweight_entropy,
-                actionwise_contribution_to_var_dst,
+            max_contribution_line = ops.argmax(actionwise_contribution_to_var_dst, axis=1)
+            actionwise_contribution_to_var_dst = self.select_line_and_reweight_entropy_vmap(
+                actionwise_contribution_to_var_dst, max_contribution_line
             )
             all_selected_lines.append(max_contribution_line)
 
