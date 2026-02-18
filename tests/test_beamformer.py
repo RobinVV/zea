@@ -13,6 +13,7 @@ from zea.beamform.beamformer import (
     transmit_delays,
 )
 from zea.beamform.delays import compute_t0_delays_planewave
+from zea.beamform.lens_correction import compute_lens_corrected_travel_times
 from zea.beamform.pixelgrid import cartesian_pixel_grid
 
 from . import backend_equality_check
@@ -423,3 +424,45 @@ def test_tof_correction_sos_grid_zero_data(probe_geometry, flatgrid):
     result = keras.ops.convert_to_numpy(tof_correction(**inputs))
     np.testing.assert_allclose(result, 0.0, atol=1e-7)
     return result
+
+
+@backend_equality_check()
+def test_lens_correction_output_shape(probe_geometry, flatgrid):
+    """Output should be (n_pix, n_el)."""
+    element_pos = keras.ops.convert_to_tensor(probe_geometry)
+    pixel_pos = keras.ops.convert_to_tensor(flatgrid)
+    tt = compute_lens_corrected_travel_times(
+        element_pos,
+        pixel_pos,
+        lens_thickness=1e-3,
+        c_lens=1000.0,
+        c_medium=SOUND_SPEED,
+    )
+    assert tt.shape == (flatgrid.shape[0], probe_geometry.shape[0])
+    return tt
+
+
+@backend_equality_check()
+def test_lens_correction_known_vertical_path():
+    """Pixel directly above an element gives an analytically known travel time."""
+    lens_thickness = 1e-3
+    c_lens = 1000.0
+    c_medium = SOUND_SPEED
+    z_pixel = 20e-3
+
+    element_pos = keras.ops.convert_to_tensor([[0.0, 0.0, 0.0]])
+    pixel_pos = keras.ops.convert_to_tensor([[0.0, 0.0, z_pixel]])
+
+    tt = keras.ops.convert_to_numpy(
+        compute_lens_corrected_travel_times(
+            element_pos,
+            pixel_pos,
+            lens_thickness=lens_thickness,
+            c_lens=c_lens,
+            c_medium=c_medium,
+            n_iter=5,
+        )
+    )
+    expected = lens_thickness / c_lens + (z_pixel - lens_thickness) / c_medium
+    np.testing.assert_allclose(tt[0, 0], expected, rtol=1e-4)
+    return tt
