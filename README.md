@@ -22,6 +22,7 @@ Welcome to the `zea` package: *A Toolbox for Cognitive Ultrasound Imaging.*
 - A flexible ultrasound signal processing and image reconstruction pipeline written in your favorite deep learning framework.
 - A complete set of data acquisition loading tools for ultrasound data and acquisition parameters, designed for deep learning workflows.
 - A collection of pretrained models for ultrasound image and signal processing.
+- A set of action selection functions for cognitive ultrasound in the agent module.
 - **Multi-Backend Support via [Keras3](https://keras.io/keras_3/):** You can use [PyTorch](https://github.com/pytorch/pytorch), [TensorFlow](https://github.com/tensorflow/tensorflow), or [JAX](https://github.com/google/jax).
 
 > [!WARNING]
