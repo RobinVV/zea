@@ -1,4 +1,10 @@
-"""Main beamforming functions for ultrasound imaging."""
+"""Main beamforming functions for ultrasound imaging.
+
+This module implements the core time-of-flight (TOF) correction pipeline used
+by the :class:`~zea.ops.ultrasound.TOFCorrection` operation.  It also exposes
+the lower-level building blocks (delay computation, f-number masking, phase
+rotation, etc.) so that they can be used independently.
+"""
 
 import keras
 import numpy as np
@@ -9,13 +15,32 @@ from zea.func.tensor import vmap
 
 
 def fnum_window_fn_rect(normalized_angle):
-    """Rectangular window function for f-number masking."""
+    """Rectangular window function for f-number masking.
+
+    Returns 1 when ``normalized_angle <= 1`` and 0 otherwise.
+
+    Args:
+        normalized_angle (Tensor): Normalised angle values (0 = on-axis, 1 = edge
+            of the f-number cone).
+
+    Returns:
+        Tensor: Binary mask with the same shape as *normalized_angle*.
+    """
     return ops.where(normalized_angle <= 1.0, 1.0, 0.0)
 
 
 def fnum_window_fn_hann(normalized_angle):
-    """Hann window function for f-number masking."""
-    # Use a Hann window function to smoothly transition the mask
+    """Hann window function for f-number masking.
+
+    Provides a smooth cosine roll-off from 1 at ``normalized_angle = 0``
+    to 0 at ``normalized_angle = 1``.
+
+    Args:
+        normalized_angle (Tensor): Normalised angle values.
+
+    Returns:
+        Tensor: Apodization weights with the same shape as *normalized_angle*.
+    """
     return ops.where(
         normalized_angle <= 1.0,
         0.5 * (1 + ops.cos(np.pi * normalized_angle)),
@@ -26,12 +51,18 @@ def fnum_window_fn_hann(normalized_angle):
 def fnum_window_fn_tukey(normalized_angle, alpha=0.5):
     """Tukey window function for f-number masking.
 
+    A Tukey window is flat in the centre and tapers with a cosine lobe near
+    the edges.  Setting ``alpha = 0`` produces a rectangular window;
+    ``alpha = 1`` produces a Hann window.
+
     Args:
-        normalized_angle (ops.Tensor): Normalized angle values in the range [0, 1].
-        alpha (float, optional): The alpha parameter for the Tukey window. 0.0 corresponds to a
-            rectangular window, 1.0 corresponds to a Hann window. Defaults to 0.5.
+        normalized_angle (Tensor): Normalised angle values in [0, 1].
+        alpha (float, optional): Shape parameter controlling the fraction of
+            the window inside the cosine taper.  Defaults to ``0.5``.
+
+    Returns:
+        Tensor: Apodization weights with the same shape as *normalized_angle*.
     """
-    # Use a Tukey window function to smoothly transition the mask
     normalized_angle = ops.clip(ops.abs(normalized_angle), 0.0, 1.0)
 
     beta = 1.0 - alpha
@@ -71,112 +102,91 @@ def tof_correction(
     x_sos_grid=None,
     z_sos_grid=None,
 ):
-    """Time-of-flight correction for a flat grid.
+    """Time-of-flight (TOF) correction for ultrasound data on a flat pixel grid.
+
+    Corrects raw RF or IQ data for differences in propagation time from the
+    transmitter through each pixel and back to every receiving element.  Two
+    modes are supported:
+
+    * **Homogeneous medium** (default) — a constant ``sound_speed`` is used
+      to compute delays analytically via :func:`calculate_delays`.
+    * **Heterogeneous medium** — a spatially-varying speed-of-sound map
+      (``sos_grid``) is provided and delays are computed numerically via
+      :func:`calculate_delays_grid`.
+
+    .. important::
+
+       The heterogeneous mode currently requires **multistatic** acquisitions
+       (``n_tx == n_el``).
+
+    After delay computation the data is interpolated to the requested pixel
+    positions, masked with the receive f-number aperture, and — for IQ data —
+    phase-rotated to compensate for the demodulation carrier (see
+    :func:`complex_rotate`).
 
     Args:
-        data (ops.Tensor): Input RF/IQ data of shape `(n_tx, n_ax, n_el, n_ch)`.
-        flatgrid (ops.Tensor): Pixel locations x, y, z of shape `(n_pix, 3)`
-        t0_delays (ops.Tensor): Times at which the elements fire shifted such
-            that the first element fires at t=0 of shape `(n_tx, n_el)`
-        tx_apodizations (ops.Tensor): Transmit apodizations of shape `(n_tx, n_el)`
-        sound_speed (float): Speed-of-sound.
-        probe_geometry (ops.Tensor): Element positions x, y, z of shape (n_el, 3)
-        initial_times (Tensor): The probe transmit time offsets of shape `(n_tx,)`.
-        sampling_frequency (float): Sampling frequency.
-        demodulation_frequency (float): Demodulation frequency.
-        f_number (float): Focus number (ratio of focal depth to aperture size).
-        polar_angles (ops.Tensor): The angles of the waves in radians of shape `(n_tx,)`
-        focus_distances (ops.Tensor): The focus distance of shape `(n_tx,)`
-        t_peak (ops.Tensor): Time of the peak of the pulse in seconds.
-            Shape `(n_waveforms,)`.
-        tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
-            transmit of shape `(n_tx,)`.
-        transmit_origins (ops.Tensor): Transmit origins of shape (n_tx, 3).
-        apply_lens_correction (bool, optional): Whether to apply lens correction to
-            time-of-flights. This makes it slower, but more accurate in the near-field.
-            Defaults to False.
-        lens_thickness (float, optional): Thickness of the lens in meters. Used for
-            lens correction. Defaults to 1e-3.
-        lens_sound_speed (float, optional): Speed of sound in the lens in m/s. Used
-            for lens correction Defaults to 1000.
-        fnum_window_fn (callable, optional): F-number function to define the transition from
-            straight in front of the element (fn(0.0)) to the largest angle within the f-number cone
-            (fn(1.0)). The function should be zero for fn(x>1.0).
-        sos_grid (Tensor): The matrix of sound speed values in m/s (Nx x Nz)
-            The sos_grid does not have to be the same shape as the image grid.
-            When supplied we calculate the delays using the supplied sos_grid instead of
-            assuming a constant sound speed, only valid for multistatic data.
-        x_sos_grid (Tensor): Vector of x-grid points in sound speed grid
-        z_sos_grid (Tensor): Vector of z-grid points in sound speed grid
+        data (Tensor): Input RF or IQ data of shape ``(n_tx, n_ax, n_el, n_ch)``.
+            Use ``n_ch=1`` for RF data and ``n_ch=2`` for IQ (in-phase /
+            quadrature).
+        flatgrid (Tensor): Pixel locations ``(x, y, z)`` of shape ``(n_pix, 3)``.
+        t0_delays (Tensor): Per-element transmit fire times, shifted so that
+            the first element fires at *t = 0*, of shape ``(n_tx, n_el)``.
+        tx_apodizations (Tensor): Transmit apodization weights of shape
+            ``(n_tx, n_el)``.
+        sound_speed (float): Speed of sound in m/s.
+        probe_geometry (Tensor): Element positions ``(x, y, z)`` of shape
+            ``(n_el, 3)``.
+        initial_times (Tensor): Per-transmit time offsets of shape ``(n_tx,)``.
+        sampling_frequency (float): Sampling frequency in Hz.
+        demodulation_frequency (float): Demodulation (carrier) frequency in Hz.
+            Only used when ``n_ch=2`` (IQ data).
+        f_number (float): Receive f-number.  Set to ``0`` to disable
+            f-number masking.
+        polar_angles (Tensor): Steering angles in radians of shape ``(n_tx,)``.
+        focus_distances (Tensor): Focus distances in metres of shape
+            ``(n_tx,)``.  Use ``0`` for plane-wave transmission.
+        t_peak (Tensor): Time of each waveform peak in seconds of shape
+            ``(n_waveforms,)``.
+        tx_waveform_indices (Tensor): Index into ``t_peak`` for each transmit
+            of shape ``(n_tx,)``.
+        transmit_origins (Tensor): Origin of each transmit beam of shape
+            ``(n_tx, 3)``.
+        apply_lens_correction (bool, optional): Apply acoustic-lens correction
+            to the receive travel times (slower but more accurate in the
+            near-field).  Defaults to ``False``.
+        lens_thickness (float, optional): Lens thickness in metres.
+            Defaults to ``1e-3``.
+        lens_sound_speed (float, optional): Speed of sound inside the lens in
+            m/s.  Defaults to ``1000``.
+        fnum_window_fn (callable, optional): Window function applied to the
+            normalised angle for f-number masking.  Receives values in ``[0, 1]``
+            and should return ``0`` for values ``> 1``.
+            Defaults to :func:`fnum_window_fn_rect`.
+        sos_grid (Tensor, optional): 2-D speed-of-sound map of shape
+            ``(Nx, Nz)`` in m/s.  When provided, delays are computed
+            numerically (heterogeneous mode, multistatic only).
+            Defaults to ``None``.
+        x_sos_grid (Tensor, optional): x-coordinates of ``sos_grid`` columns.
+        z_sos_grid (Tensor, optional): z-coordinates of ``sos_grid`` rows.
 
     Returns:
-        (ops.Tensor): time-of-flight corrected data
-        with shape: `(n_tx, n_pix, n_el, n_ch)`.
+        Tensor: Time-of-flight corrected data of shape
+        ``(n_tx, n_pix, n_el, n_ch)``.
     """
     assert len(data.shape) == 4, (
         "The input data should have 4 dimensions, "
         f"namely n_tx, n_ax, n_el, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
 
-    def _apply_delays(data_tx, txdel, mask_tx=None):
-        """
-        Applies the delays to TOF correct a single transmit.
-        using a mask in transmit and receive.
+    n_tx, n_ax, n_el, _ = ops.shape(data)
+    n_pix = ops.shape(flatgrid)[0]
 
-        Args:
-            data_tx (ops.Tensor): The RF/IQ data for a single transmit of shape
-                `(n_ax, n_el, n_ch)`.
-            txdel (ops.Tensor): The transmit delays for a single transmit in samples
-                (not in seconds) of shape `(n_pix, 1)`.
-            mask_tx (ops.Tensor): mask for pixel (f_number based)
-        Returns:
-            ops.Tensor: The time-of-flight corrected data of shape
-            `(n_pix, n_el, n_ch)`.
-        """
-        # data_tx is of shape (num_elements, num_samples,  2)
-
-        # Take receive delays and add the transmit delays for this transmit
-        # The txdel tensor has one fewer dimensions because the transmit
-        # delays are the same for all dimensions
-        # delays is of shape (n_pix, n_el)
-        delays = rxdel + txdel  # (n_pix, n_el)
-
-        # Compute the time-of-flight corrected samples for each element
-        # from each pixel of shape (n_pix, n_el, n_ch)
-
-        tof_tx = apply_delays(data_tx, delays, clip_min=0, clip_max=n_ax - 1)
-        # Apply the mask in receive and transmit
-        if mask_tx is not None:
-            tof_tx = tof_tx * mask * mask_tx[:, :, None]
-        else:
-            tof_tx = tof_tx * mask
-
-        # Apply phase rotation if using IQ data
-        # This is needed because interpolating the IQ data without phase rotation
-        # is not equivalent to interpolating the RF data and then IQ demodulating
-        # See the docstring from complex_rotate for more details
-        apply_phase_rotation = data_tx.shape[-1] == 2
-        if apply_phase_rotation:
-            total_delay_seconds = delays[:, :] / sampling_frequency
-            theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
-            tof_tx = complex_rotate(tof_tx, theta)
-
-        return tof_tx
-
-    # Homogeneous medium case
+    # ---- Compute delays ------------------------------------------------
+    # txdel: transmit delay from t=0 to wavefront reaching each pixel
+    # rxdel: receive delay from each pixel back to each element
+    # After this block both have a consistent layout:
+    #   txdel: (n_pix, n_tx)   rxdel: (n_pix, n_el)
     if sos_grid is None:
-        n_tx, n_ax, n_el, _ = ops.shape(data)
-
-        # Calculate delays
-        # --------------------------------------------------------------------
-        # txdel: The delay from t=0 to the wavefront reaching the pixel
-        # txdel has shape (n_tx, n_pix)
-        #
-        # rxdel: The delay from the wavefront reaching the pixel to the scattered wave
-        # reaching the transducer element.
-        # rxdel has shape (n_el, n_pix)
-        # --------------------------------------------------------------------
-
         txdel, rxdel = calculate_delays(
             flatgrid,
             t0_delays,
@@ -196,23 +206,12 @@ def tof_correction(
             lens_thickness,
             lens_sound_speed,
         )
-
-        n_pix = ops.shape(flatgrid)[0]
-        mask = ops.cond(
-            f_number == 0,
-            lambda: ops.ones((n_pix, n_el, 1)),
-            lambda: fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn),
-        )
-
-        # Reshape to (n_tx, n_pix, 1)
-        txdel = ops.moveaxis(txdel, 1, 0)
-        txdel = txdel[..., None]
-
-        return vmap(_apply_delays)(data, txdel)
-
-    # Heterogenous medium case with sos_grid
+        # calculate_delays returns txdel (n_pix, n_tx), rxdel (n_pix, n_el)
     else:
-        assert data.shape[0] == data.shape[2], "The dataset should be multistatic"
+        assert data.shape[0] == data.shape[2], (
+            "Heterogeneous SOS grid mode requires multistatic data (n_tx == n_el), "
+            f"got n_tx={data.shape[0]}, n_el={data.shape[2]}."
+        )
         txdel, rxdel = calculate_delays_grid(
             flatgrid,
             sos_grid,
@@ -225,26 +224,66 @@ def tof_correction(
             t_peak,
             tx_waveform_indices,
         )
-        rxdel = ops.moveaxis(rxdel, 1, 0)
-        n_tx, n_ax, n_el, _ = ops.shape(data)
-        n_pix = ops.shape(flatgrid)[0]
-        mask = ops.stop_gradient(
-            ops.cond(
-                f_number == 0,
-                lambda: ops.ones((n_pix, n_el, 1)),
-                lambda: fnumber_mask(
-                    flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn
-                ),
-            )
-        )
-        txdel = txdel[..., None]
-        mask_tx = ops.moveaxis(mask, 1, 0)
-        _apply_delays_ckpt = keras.remat(_apply_delays)
+        # calculate_delays_grid returns txdel (n_tx, n_pix), rxdel (n_el, n_pix)
+        # Transpose both to the shared convention.
+        txdel = ops.moveaxis(txdel, 1, 0)  # -> (n_pix, n_tx)
+        rxdel = ops.moveaxis(rxdel, 1, 0)  # -> (n_pix, n_el)
 
-    return ops.vectorize(
-        _apply_delays_ckpt,
-        signature="(n_samples,n_el,n_ch),(n_pix,1),(n_pix,1)->(n_pix,n_el,n_ch)",
-    )(data, txdel, mask_tx)
+    # ---- F-number mask (receive aperture) ------------------------------
+    mask = ops.cond(
+        f_number == 0,
+        lambda: ops.ones((n_pix, n_el, 1)),
+        lambda: fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn),
+    )
+    if sos_grid is not None:
+        # Prevent gradients from flowing through the mask when optimising
+        # through the heterogeneous beamformer (e.g. SOS estimation).
+        mask = ops.stop_gradient(mask)
+
+    # ---- Correct a single transmit (closure) ---------------------------
+    def _correct_single_tx(data_tx, txdel_tx, mask_tx=None):
+        """Apply delay-and-interpolate for one transmit event.
+
+        Args:
+            data_tx (Tensor): RF/IQ data for one transmit ``(n_ax, n_el, n_ch)``.
+            txdel_tx (Tensor): Transmit delays ``(n_pix, 1)``.
+            mask_tx (Tensor, optional): Per-pixel transmit mask ``(n_pix, 1)``.
+
+        Returns:
+            Tensor: TOF-corrected data ``(n_pix, n_el, n_ch)``.
+        """
+        # Total delay per pixel per element: (n_pix, n_el)
+        delays = rxdel + txdel_tx
+
+        # Interpolate data at the computed delay positions
+        tof_tx = apply_delays(data_tx, delays, clip_min=0, clip_max=n_ax - 1)
+
+        # Apply f-number mask(s)
+        if mask_tx is not None:
+            tof_tx = tof_tx * mask * mask_tx[:, :, None]
+        else:
+            tof_tx = tof_tx * mask
+
+        # Phase rotation for IQ data (see complex_rotate docstring)
+        if data_tx.shape[-1] == 2:
+            total_delay_seconds = delays / sampling_frequency
+            theta = 2 * np.pi * demodulation_frequency * total_delay_seconds
+            tof_tx = complex_rotate(tof_tx, theta)
+
+        return tof_tx
+
+    # ---- Vectorise over transmits --------------------------------------
+    # Reshape txdel from (n_pix, n_tx) -> (n_tx, n_pix, 1) for per-tx slicing
+    txdel = ops.moveaxis(txdel, 1, 0)[..., None]
+
+    if sos_grid is None:
+        return vmap(_correct_single_tx)(data, txdel)
+
+    # Heterogeneous path: apply transmit f-number mask and use gradient
+    # checkpointing to limit memory consumption.
+    mask_tx = ops.moveaxis(mask, 1, 0)
+    _correct_single_tx_ckpt = keras.remat(_correct_single_tx)
+    return vmap(_correct_single_tx_ckpt)(data, txdel, mask_tx)
 
 
 def calculate_delays(
@@ -267,57 +306,53 @@ def calculate_delays(
     lens_sound_speed=None,
     n_iter=2,
 ):
-    """Calculates the delays in samples to every pixel in the grid.
+    """Compute transmit and receive delays in samples to every pixel.
 
-    The delay consists of two components: The transmit delay and the
-    receive delay.
+    The total round-trip delay for a pixel is the sum of two components:
 
-    The transmit delay is the delay between transmission and the
-    wavefront reaching the pixel.
+    * **Transmit delay** — time from transmission until the wavefront
+      reaches the pixel.
+    * **Receive delay** — time from the pixel back to each transducer
+      element.
 
-    The receive delay is the delay between the
-    wavefront reaching a pixel and the reflections returning to a specific
-    element.
+    Both are returned in **sample units** (i.e. already multiplied by
+    ``sampling_frequency``).
 
     Args:
-        grid (Tensor): The pixel coordinates to beamform to of shape `(n_pix, 3)`.
-        t0_delays (Tensor): The transmit delays in seconds of shape
-            `(n_tx, n_el)`, shifted such that the smallest delay is 0. Defaults to None.
-        tx_apodizations (Tensor): The transmit apodizations of shape
-            `(n_tx, n_el)`.
-        probe_geometry (Tensor): The positions of the transducer elements of shape
-            `(n_el, 3)`.
-        initial_times (Tensor): The probe transmit time offsets of shape
-            `(n_tx,)`.
-        sampling_frequency (float): The sampling frequency of the probe in Hz.
-        sound_speed (float): The assumed speed of sound in m/s.
-        focus_distances (Tensor): The focus distances of shape `(n_tx,)`.
-            If the focus distance is set to infinity, the beamformer will
-            assume plane wave transmission.
-        polar_angles (Tensor): The polar angles of the plane waves in radians
-            of shape `(n_tx,)`.
-        t_peak (Tensor): Time of the peak of the pulse in seconds of shape
-            `(n_waveforms,)`.
-        tx_waveform_indices (Tensor): The indices of the waveform used for each
-            transmit of shape `(n_tx,)`.
-        transmit_origins (Tensor): Transmit origins of shape (n_tx, 3).
-        apply_lens_correction (bool, optional): Whether to apply lens correction to
-            time-of-flights. This makes it slower, but more accurate in the near-field.
-            Defaults to False.
-        lens_thickness (float, optional): Thickness of the lens in meters. Used for
-            lens correction.
-        lens_sound_speed (float, optional): Speed of sound in the lens in m/s. Used
-            for lens correction.
-        n_iter (int, optional): Number of iterations for the Newton-Raphson method
-            used in lens correction. Defaults to 2.
-
+        grid (Tensor): Pixel coordinates of shape ``(n_pix, 3)``.
+        t0_delays (Tensor): Per-element transmit delays in seconds of shape
+            ``(n_tx, n_el)``, shifted so that the smallest delay is 0.
+        tx_apodizations (Tensor): Transmit apodization weights of shape
+            ``(n_tx, n_el)``.
+        probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
+        initial_times (Tensor): Per-transmit time offsets of shape ``(n_tx,)``.
+        sampling_frequency (float): Sampling frequency in Hz.
+        sound_speed (float): Assumed speed of sound in m/s.
+        n_tx (int): Number of transmit events.
+        n_el (int): Number of transducer elements.
+        focus_distances (Tensor): Focus distances of shape ``(n_tx,)``.
+            Use ``0`` for plane-wave transmission.
+        polar_angles (Tensor): Polar steering angles in radians of shape
+            ``(n_tx,)``.
+        t_peak (Tensor): Waveform peak times in seconds of shape
+            ``(n_waveforms,)``.
+        tx_waveform_indices (Tensor): Index into ``t_peak`` for each transmit
+            of shape ``(n_tx,)``.
+        transmit_origins (Tensor): Origin of each transmit beam of shape
+            ``(n_tx, 3)``.
+        apply_lens_correction (bool, optional): Apply acoustic-lens
+            correction (slower but more accurate in the near-field).
+            Defaults to ``False``.
+        lens_thickness (float, optional): Lens thickness in metres.
+        lens_sound_speed (float, optional): Speed of sound in the lens in
+            m/s.
+        n_iter (int, optional): Newton–Raphson iterations for lens
+            correction.  Defaults to ``2``.
 
     Returns:
-        transmit_delays (Tensor): The tensor of transmit delays to every pixel
-            in samples (not in seconds), of shape `(n_pix, n_tx)`.
-        receive_delays (Tensor): The tensor of receive delays from every pixel
-            back to the transducer element in samples (not in seconds), of shape
-            `(n_pix, n_el)`.
+        tuple[Tensor, Tensor]:
+            - **transmit_delays** — of shape ``(n_pix, n_tx)``.
+            - **receive_delays** — of shape ``(n_pix, n_el)``.
     """
 
     # Validate input shapes
@@ -375,26 +410,22 @@ def calculate_delays(
 
 
 def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
-    """Applies time delays for a single transmit using linear interpolation.
+    """Interpolate RF/IQ data at fractional sample positions.
 
-    Most delays in d will not be by an integer number of samples, which means
-    we have no measurement for that time instant. This function solves this by
-    finding the sample before and after and interpolating the data to the
-    desired delays in d using linear interpolation.
+    Because the exact delay to a pixel will almost never fall on an integer
+    sample index, this function performs **linear interpolation** between the
+    two nearest samples (floor and ceil of each delay value).
 
     Args:
-        data (ops.Tensor): The RF or IQ data of shape `(n_ax, n_el, n_ch)`. This is
-            the data we are drawing samples from to for each element for each pixel.
-        delays (ops.Tensor): The delays in samples of shape `(n_pix, n_el)`. Contains
-            one delay value for every pixel in the image for every transducer element.
-        clip_min (int, optional): The minimum delay value to use. If set to -1 no
-            clipping is applied. Defaults to -1.
-        clip_max (int, optional): The maximum delay value to use. If set to -1 no
-            clipping is applied. Defaults to -1.
+        data (Tensor): RF or IQ data of shape ``(n_ax, n_el, n_ch)``.
+        delays (Tensor): Delays **in samples** of shape ``(n_pix, n_el)``.
+        clip_min (int, optional): Minimum allowed sample index.  ``-1`` means
+            no clipping.  Defaults to ``-1``.
+        clip_max (int, optional): Maximum allowed sample index.  ``-1`` means
+            no clipping.  Defaults to ``-1``.
 
     Returns:
-        ops.Tensor: The samples received by each transducer element corresponding to the
-            reflections of each pixel in the image of shape `(n_pix, n_el, n_ch)`.
+        Tensor: Interpolated samples of shape ``(n_pix, n_el, n_ch)``.
     """
 
     # Add a dummy channel dimension to the delays tensor to ensure it has the
@@ -439,16 +470,26 @@ def apply_delays(data, delays, clip_min: int = -1, clip_max: int = -1):
 
 
 def complex_rotate(iq, theta):
-    """Performs a simple phase rotation of I and Q component.
+    """Phase-rotate IQ data by angle *theta*.
+
+    When delaying IQ-demodulated data it is not sufficient to interpolate the
+    I and Q channels independently — the carrier phase shift must be
+    compensated as well.  This function applies the rotation:
+
+    .. math::
+
+        I_\\Delta &= I' \\cos\\theta - Q' \\sin\\theta \\\\
+        Q_\\Delta &= Q' \\cos\\theta + I' \\sin\\theta
 
     Args:
-        iq (ops.Tensor): The iq data of shape `(..., 2)`.
-        theta (float): The complex angle to rotate by.
+        iq (Tensor): IQ data of shape ``(..., 2)``.
+        theta (Tensor or float): Rotation angle in radians (broadcastable to
+            ``iq[..., 0]``).
 
     Returns:
-        Tensor: The rotated tensor of shape `(..., 2)`.
+        Tensor: Rotated IQ data of shape ``(..., 2)``.
 
-    .. dropdown:: Explanation
+    .. dropdown:: Derivation
 
         The IQ data is related to the RF data as follows:
 
@@ -498,17 +539,15 @@ def complex_rotate(iq, theta):
 
 
 def distance_Rx(grid, probe_geometry):
-    """Computes distance to user-defined pixels from elements.
-
-    Expects all inputs to be arrays specified in SI units.
+    """Euclidean distance from every pixel to every transducer element.
 
     Args:
-        grid (ops.Tensor): Pixel positions in x,y,z of shape `(n_pix, 3)`.
-        probe_geometry (ops.Tensor): Element positions in x,y,z of shape `(n_el, 3)`.
+        grid (Tensor): Pixel positions ``(x, y, z)`` of shape ``(n_pix, 3)``.
+        probe_geometry (Tensor): Element positions ``(x, y, z)`` of shape
+            ``(n_el, 3)``.
 
     Returns:
-        dist (ops.Tensor): Distance from each pixel to each element of shape
-            `(n_pix, n_el)`.
+        Tensor: Distances of shape ``(n_pix, n_el)``.
     """
     # Get norm of distance vector between elements and pixels via broadcasting
     dist = ops.linalg.norm(grid[:, None, :] - probe_geometry[None, :, :], axis=-1)
@@ -526,30 +565,30 @@ def transmit_delays(
     azimuth_angle=None,
     transmit_origin=None,
 ):
-    """
-    Computes the transmit delay from transmission to each pixel in the grid.
+    """Compute the transmit delay from transmission to each pixel.
 
-    Uses the first-arrival time for pixels before the focus (or virtual source)
-    and the last-arrival time for pixels beyond the focus.
-
-    The receive delays can be precomputed since they do not depend on the
-    transmit parameters.
+    Uses the **first-arrival** time for pixels before the focus (or virtual
+    source) and the **last-arrival** time for pixels beyond the focus.
 
     Args:
-        grid (ops.Tensor): Flattened tensor of pixel positions in x,y,z of shape `(n_pix, 3)`
-        t0_delays (Tensor): The transmit delays in seconds of shape (n_el,).
-        tx_apodization (Tensor): The transmit apodization of shape (n_el,).
-        rx_delays (Tensor): The travel times in seconds from elements to pixels
-            of shape (n_pix, n_el).
-        focus_distance (float): The focus distance in meters.
-        polar_angle (float): The polar angle in radians.
-        initial_time (float): The initial time for this transmit in seconds.
-        azimuth_angle (float, optional): The azimuth angle in radians. Defaults to 0.0.
-        transmit_origin (ops.Tensor, optional): The origin of the transmit beam of shape (3,).
-            If None, defaults to (0, 0, 0). Defaults to None.
+        grid (Tensor): Pixel positions ``(x, y, z)`` of shape ``(n_pix, 3)``.
+        t0_delays (Tensor): Per-element transmit delays in seconds of shape
+            ``(n_el,)``.
+        tx_apodization (Tensor): Transmit apodization weights of shape
+            ``(n_el,)``.
+        rx_delays (Tensor): Travel times in seconds from elements to pixels
+            of shape ``(n_pix, n_el)``.
+        focus_distance (float): Focus distance in metres.  Use ``0`` for
+            plane-wave transmission.
+        polar_angle (float): Polar steering angle in radians.
+        initial_time (float): Time offset for this transmit in seconds.
+        azimuth_angle (float, optional): Azimuth steering angle in radians.
+            Defaults to ``None`` (treated as 0).
+        transmit_origin (Tensor, optional): Origin of the transmit beam of
+            shape ``(3,)``.  Defaults to ``(0, 0, 0)``.
 
     Returns:
-        Tensor: The transmit delays of shape `(n_pix,)`.
+        Tensor: Transmit delays of shape ``(n_pix,)``.
     """
     # Add a large offset for elements that are not used in the transmit to
     # disqualify them from being the closest element
@@ -625,28 +664,25 @@ def transmit_delays(
 
 
 def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
-    """Apodization mask for the receive beamformer.
+    """Receive-aperture apodization mask based on the f-number.
 
-    Computes a mask to disregard pixels outside of the vision cone of a
-    transducer element. Transducer elements can only accurately measure
-    signals within some range of incidence angles. Waves coming in from the
-    side do not register correctly leading to a worse image.
+    Computes a per-pixel, per-element mask that suppresses contributions
+    from elements whose angle to a pixel exceeds the acceptance cone
+    defined by the f-number.  The transition within the cone is controlled
+    by *fnum_window_fn* (e.g. :func:`fnum_window_fn_rect`,
+    :func:`fnum_window_fn_hann`, :func:`fnum_window_fn_tukey`).
 
     Args:
-        flatgrid (ops.Tensor): The flattened image grid `(n_pix, 3)`.
-        probe_geometry (ops.Tensor): The transducer element positions of shape
-            `(n_el, 3)`.
-        f_number (int): The receive f-number. Set to zero to not use masking and
-            return 1. (The f-number is the  ratio between distance from the transducer
-            and the size of the aperture below which transducer elements contribute to
-            the signal for a pixel.).
-        fnum_window_fn (callable): F-number function to define the transition from
-            straight in front of the element (fn(0.0)) to the largest angle within the f-number cone
-            (fn(1.0)). The function should be zero for fn(x>1.0).
-
+        flatgrid (Tensor): Flattened pixel grid of shape ``(n_pix, 3)``.
+        probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
+        f_number (float): Receive f-number (depth / aperture).  A value
+            of ``0`` disables masking.
+        fnum_window_fn (callable): Window function mapping normalised
+            angles in ``[0, 1]`` to weights.  Must return ``0`` for inputs
+            ``> 1``.
 
     Returns:
-        Tensor: Mask of shape `(n_pix, n_el, 1)`
+        Tensor: Mask of shape ``(n_pix, n_el, 1)``.
     """
 
     grid_relative_to_probe = flatgrid[:, None] - probe_geometry[None]
@@ -682,90 +718,107 @@ def calculate_delays_grid(
     sampling_frequency,
     t_peak,
     tx_waveform_indices,
+    n_ray_points=100,
 ):
-    """
-    Uses supplied sos_grid to interpolate the delays in samples to every pixel in the grid
-    , only valid for multistatic data.
+    """Compute delays using a spatially-varying speed-of-sound map.
 
+    Integrates the slowness (1 / speed-of-sound) along straight rays
+    between each element and each pixel to approximate heterogeneous
+    travel times.
 
-    The delay consists of two components: The transmit delay and the
-    receive delay.
+    .. important::
 
-    The transmit delay is the delay between transmission and the
-    wavefront reaching the pixel.
+       Only valid for **multistatic** acquisitions (``n_tx == n_el``).
 
-    The receive delay is the delay between the
-    wavefront reaching a pixel and the reflections returning to a specific
-    element.
+    .. note::
+
+        This function is not compatible with the torch backend.
+
+    For the homogeneous (constant speed-of-sound) variant see
+    :func:`calculate_delays`.
 
     Args:
-        grid (Tensor): The pixel coordinates to beamform to of shape `(n_pix, 3)`.
-        sos_grid (Tensor): The matrix of sound speed values in m/s (Nx x Nz)
-        x_sos_grid (Tensor): Vector of x-grid points in sound speed definition
-        z_sos_grid (Tensor): Vector of z-grid points in sound speed definition
-        t0_delays (Tensor): The transmit delays in seconds of shape
-            `(n_tx, n_el)`, shifted such that the smallest delay is 0. Defaults to None.
-        probe_geometry (Tensor): The positions of the transducer elements of shape
-            `(n_el, 3)`.
-        initial_times (Tensor): The probe transmit time offsets of shape
-            `(n_tx,)`.
-        sampling_frequency (float): The sampling frequency of the probe in Hz.
-        t_peak (ops.Tensor): Time of the peak of the pulse in seconds.
-            Shape `(n_waveforms,)`.
-        tx_waveform_indices (ops.Tensor): The indices of the waveform used for each
-            transmit of shape `(n_tx,)`.
+        grid (Tensor): Pixel coordinates of shape ``(n_pix, 3)``.
+        sos_grid (Tensor): Speed-of-sound map of shape ``(Nx, Nz)`` in m/s.
+        x_sos_grid (Tensor): x-coordinates of ``sos_grid`` columns.
+        z_sos_grid (Tensor): z-coordinates of ``sos_grid`` rows.
+        t0_delays (Tensor): Transmit delays of shape ``(n_tx, n_el)``,
+            shifted so that the smallest delay is 0.
+        probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
+        initial_times (Tensor): Per-transmit time offsets of shape ``(n_tx,)``.
+        sampling_frequency (float): Sampling frequency in Hz.
+        t_peak (Tensor): Waveform peak times of shape ``(n_waveforms,)``.
+        tx_waveform_indices (Tensor): Index into ``t_peak`` for each transmit
+            of shape ``(n_tx,)``.
+        n_ray_points (int, optional): Number of integration points along
+            each element-to-pixel ray.  Higher values improve accuracy at
+            the cost of computation time.  Defaults to ``100``.
+
+    Returns:
+        tuple[Tensor, Tensor]:
+            - **tx_delays** — Transmit delays in samples ``(n_tx, n_pix)``.
+            - **rx_delays** — Receive delays in samples ``(n_el, n_pix)``.
     """
 
-    npts = 100  # Number of points to interpolate on a ray
-    pts = ops.linspace(1, 0, npts, endpoint=False)[::-1]
-    s = 1 / sos_grid  # slowness map
-    x = grid[:, 0]
-    z = grid[:, 2]
+    ray_parameters = ops.linspace(1, 0, n_ray_points, endpoint=False)[::-1]
+    slowness_map = 1 / sos_grid
+    grid_x = grid[:, 0]
+    grid_z = grid[:, 2]
 
-    xe = probe_geometry[:, 0]
-    ze = probe_geometry[:, 2]
+    element_x = probe_geometry[:, 0]
+    element_z = probe_geometry[:, 2]
 
-    def interpolate(p, xe, ze):
-        xp = p * (x - xe) + xe  # True spatial location of path in x at t
-        zp = p * (z - ze) + ze  # True spatial location of path in z at t
+    def _interpolate_slowness(p, el_x, el_z):
+        """Bilinearly interpolate the slowness map at a point along a ray."""
+        xp = p * (grid_x - el_x) + el_x
+        zp = p * (grid_z - el_z) + el_z
 
-        # Convert spatial locations into indices in xc and zc coordinates (in slowness map)
-        dxc, dzc = (
-            x_sos_grid[1] - x_sos_grid[0],
-            z_sos_grid[1] - z_sos_grid[0],
-        )  # Assume a grid! Grid spacings
-        # Get indices of xt, zt in slowness map. Clamp at borders
-        xit = ops.clip((xp - x_sos_grid[0]) / dxc, 0, s.shape[0] - 1)
-        zit = ops.clip((zp - z_sos_grid[0]) / dzc, 0, s.shape[1] - 1)
+        # Convert spatial locations to fractional indices in the slowness map
+        dx_sos = x_sos_grid[1] - x_sos_grid[0]
+        dz_sos = z_sos_grid[1] - z_sos_grid[0]
+
+        xit = ops.clip((xp - x_sos_grid[0]) / dx_sos, 0, slowness_map.shape[0] - 1)
+        zit = ops.clip((zp - z_sos_grid[0]) / dz_sos, 0, slowness_map.shape[1] - 1)
         xi0 = ops.floor(xit)
         zi0 = ops.floor(zit)
-        xi1 = ops.clip(xi0 + 1, 0, s.shape[0] - 1)
-        zi1 = ops.clip(zi0 + 1, 0, s.shape[1] - 1)
+        xi1 = ops.clip(xi0 + 1, 0, slowness_map.shape[0] - 1)
+        zi1 = ops.clip(zi0 + 1, 0, slowness_map.shape[1] - 1)
 
-        # Interpolate slowness at (xt, zt)
-        s00 = s[xi0.astype("int32"), zi0.astype("int32")]
-        s10 = s[xi1.astype("int32"), zi0.astype("int32")]
-        s01 = s[xi0.astype("int32"), zi1.astype("int32")]
-        s11 = s[xi1.astype("int32"), zi1.astype("int32")]
+        # Bilinear interpolation using flattened indexing
+        xi0_int = ops.cast(xi0, "int32")
+        zi0_int = ops.cast(zi0, "int32")
+        xi1_int = ops.cast(xi1, "int32")
+        zi1_int = ops.cast(zi1, "int32")
+
+        nz = slowness_map.shape[1]
+        s_flat = ops.reshape(slowness_map, (-1,))
+        s00 = ops.take(s_flat, xi0_int * nz + zi0_int)
+        s10 = ops.take(s_flat, xi1_int * nz + zi0_int)
+        s01 = ops.take(s_flat, xi0_int * nz + zi1_int)
+        s11 = ops.take(s_flat, xi1_int * nz + zi1_int)
+
         w00 = (xi1 - xit) * (zi1 - zit)
         w10 = (xit - xi0) * (zi1 - zit)
         w01 = (xi1 - xit) * (zit - zi0)
         w11 = (xit - xi0) * (zit - zi0)
         return s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11
 
-    # Compute the time-of-flight
-    dx = ops.abs(xe[:, None] - x[None, :])
-    dz = ops.abs(ze[:, None] - z[None, :])
-    dtrue = ops.sqrt(dx**2 + dz**2)
+    # Euclidean distance from each element to each pixel
+    dx = ops.abs(element_x[:, None] - grid_x[None, :])
+    dz = ops.abs(element_z[:, None] - grid_z[None, :])
+    ray_lengths = ops.sqrt(dx**2 + dz**2)
 
-    slowness = vmap(lambda xe, ze: vmap(lambda p: interpolate(p, xe, ze))(pts))(xe, ze)
+    # Average slowness along each ray via numerical integration
+    slowness = vmap(
+        lambda el_x, el_z: vmap(lambda p: _interpolate_slowness(p, el_x, el_z))(ray_parameters)
+    )(element_x, element_z)
 
-    mask = ~ops.isnan(slowness)
-    masked_sum = ops.sum(ops.where(mask, slowness, 0.0), axis=1)
-    count = ops.sum(mask, axis=1)
-    mean_slowness = masked_sum / (count + 1e-9)  # avoid division by zero
+    valid_mask = ~ops.isnan(slowness)
+    masked_sum = ops.sum(ops.where(valid_mask, slowness, 0.0), axis=1)
+    count = ops.cast(ops.sum(valid_mask, axis=1), masked_sum.dtype)
+    mean_slowness = masked_sum / (count + 1e-9)
 
-    tof = mean_slowness * dtrue
+    tof = mean_slowness * ray_lengths
     rx_delays = tof * sampling_frequency
     tx_delays = (
         tof

@@ -227,6 +227,10 @@ class GreedyEntropy(LinesActionModel):
         Selected the max entropy line and reweights the entropy values around it,
         approximating the decrease in entropy that would occur from observing that line.
 
+        .. note::
+
+            This function is not compatible with the torch backend.
+
         Args:
             entropy_per_line (Tensor): Entropy per line of shape
                 (batch_size, n_possible_actions)
