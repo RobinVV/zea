@@ -117,8 +117,8 @@ def tof_correction(
         "The input data should have 4 dimensions, "
         f"namely n_tx, n_ax, n_el, n_ch, got {len(data.shape)} dimensions: {data.shape}"
     )
-    
-    def _apply_delays(data_tx, txdel, mask_tx= None):
+
+    def _apply_delays(data_tx, txdel, mask_tx=None):
         """
         Applies the delays to TOF correct a single transmit.
         using a mask in transmit and receive.
