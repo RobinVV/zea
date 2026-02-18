@@ -664,3 +664,158 @@ def test_make_tgc_curve():
 
     # Check that values are positive
     assert np.all(tgc_curve > 0), "TGC curve values should be positive"
+
+
+@pytest.mark.parametrize(
+    "n_tx, n_pix, n_rx, with_batch",
+    [
+        (32, 50, 32, False),  # Square aperture, no batch
+        (32, 50, 32, True),  # Square aperture, with batch
+        (48, 100, 48, False),  # Larger aperture, no batch
+        (20, 25, 20, False),  # Smaller aperture, no batch
+    ],
+)
+@backend_equality_check(decimal=5)
+def test_common_midpoint_phase_error(n_tx, n_pix, n_rx, with_batch):
+    """Test CommonMidpointPhaseError operation.
+
+    This operation computes the Common Midpoint Phase Error (CMPE) between
+    translated transmit and receive subapertures, used for autofocusing.
+    """
+    from zea import ops
+
+    # Create synthetic TOF-corrected IQ data
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+
+    # Create data with some coherent structure (simulating actual TOF-corrected data)
+    # Add random phase variations to simulate realistic ultrasound data
+    # IQ data has 2 channels (I and Q)
+    phase = rng.random((n_tx, n_pix, n_rx)) * 2 * np.pi
+    amplitude = rng.random((n_tx, n_pix, n_rx)) * 0.5 + 0.5  # Amplitude between 0.5 and 1
+
+    # Convert to IQ format
+    data = np.stack(
+        [
+            amplitude * np.cos(phase),  # I channel
+            amplitude * np.sin(phase),  # Q channel
+        ],
+        axis=-1,
+    ).astype(np.float32)
+
+    # Test with batch dimension if requested
+    if with_batch:
+        batch_size = 2
+        data = np.stack([data, data * 0.8], axis=0)  # Create two slightly different samples
+        cmpe = ops.CommonMidpointPhaseError(with_batch_dim=True)
+        expected_output_shape = (batch_size, n_pix)
+    else:
+        cmpe = ops.CommonMidpointPhaseError(with_batch_dim=False)
+        expected_output_shape = (n_pix,)
+
+    data_tensor = keras.ops.convert_to_tensor(data)
+
+    # Compute CMPE
+    output = cmpe(data=data_tensor)
+    phase_error = output["data"]
+
+    # Convert to numpy for assertions
+    phase_error_np = keras.ops.convert_to_numpy(phase_error)
+
+    # Check output shape
+    assert phase_error_np.shape == expected_output_shape, (
+        f"Expected shape {expected_output_shape}, got {phase_error_np.shape}"
+    )
+
+    # Check that output values are in valid range [0, π]
+    # Phase differences should be absolute values bounded by π
+    assert np.all(phase_error_np >= 0), "Phase errors should be non-negative"
+    assert np.all(phase_error_np <= np.pi + 1e-5), (
+        f"Phase errors should be <= π, got max: {np.max(phase_error_np)}"
+    )
+
+    # Check that not all values are zero (would indicate wrong computation)
+    assert np.any(phase_error_np > 0), (
+        "Phase errors should have some non-zero values for random data"
+    )
+
+    # Check for NaN values
+    assert not np.any(np.isnan(phase_error_np)), "Phase errors should not contain NaN values"
+
+    return phase_error_np
+
+
+def test_common_midpoint_phase_error_with_zeros():
+    """Test CommonMidpointPhaseError operation handles zeros correctly.
+
+    The operation should handle cases where some data points are zero
+    (e.g., points outside the field of view).
+    """
+    # Create small synthetic data
+    n_tx, n_pix, n_rx = 24, 30, 24
+
+    rng = np.random.default_rng(DEFAULT_TEST_SEED)
+
+    # Create data with some zeros
+    # IQ data has 2 channels (I and Q)
+    phase = rng.random((n_tx, n_pix, n_rx)) * 2 * np.pi
+    amplitude = rng.random((n_tx, n_pix, n_rx)) * 0.5 + 0.5
+
+    data = np.stack(
+        [
+            amplitude * np.cos(phase),
+            amplitude * np.sin(phase),
+        ],
+        axis=-1,
+    ).astype(np.float32)
+
+    # Set some regions to zero (simulating out-of-FOV points)
+    data[:5, :, :5, :] = 0  # Zero out corner region
+    data[-5:, :, -5:, :] = 0  # Zero out another corner
+
+    cmpe = ops.CommonMidpointPhaseError(with_batch_dim=False)
+    data_tensor = keras.ops.convert_to_tensor(data)
+
+    output = cmpe(data=data_tensor)
+    phase_error = keras.ops.convert_to_numpy(output["data"])
+
+    # Check that computation doesn't crash and produces valid output
+    assert phase_error.shape == (n_pix,), f"Expected shape ({n_pix},), got {phase_error.shape}"
+
+    # Check for NaN or inf values
+    assert np.all(np.isfinite(phase_error)), "Phase errors should be finite even with zeros in data"
+
+    # Check that values are in valid range
+    assert np.all(phase_error >= 0) and np.all(phase_error <= np.pi + 1e-5), (
+        "Phase errors should be in [0, π] range"
+    )
+
+
+def test_common_midpoint_phase_error_coherent_data():
+    """Test CommonMidpointPhaseError with perfectly coherent data.
+
+    With perfectly coherent data (same phase everywhere), the phase error
+    should be close to zero.
+    """
+    n_tx, n_pix, n_rx, n_ch = 32, 40, 32, 2
+
+    # Create perfectly coherent data (same phase for all elements)
+    amplitude = 1.0
+    phase = np.pi / 4  # Single phase value
+
+    data = np.full((n_tx, n_pix, n_rx, n_ch), 0.0, dtype=np.float32)
+    data[..., 0] = amplitude * np.cos(phase)  # I channel
+    data[..., 1] = amplitude * np.sin(phase)  # Q channel
+
+    cmpe = ops.CommonMidpointPhaseError(with_batch_dim=False)
+    data_tensor = keras.ops.convert_to_tensor(data)
+
+    output = cmpe(data=data_tensor)
+    phase_error = keras.ops.convert_to_numpy(output["data"])
+
+    # For perfectly coherent data, phase errors should be very small
+    assert np.all(phase_error < 0.01), (
+        f"Phase errors for coherent data should be near zero, got max: {np.max(phase_error)}"
+    )
+
+    # Check shape
+    assert phase_error.shape == (n_pix,), f"Expected shape ({n_pix},), got {phase_error.shape}"

@@ -1091,7 +1091,7 @@ class CommonMidpointPhaseError(Operation):
         for diag in range(-halfsa, halfsa + 1):
             receive_subaps = receive_subaps + ops.diag(ops.ones((n_rx - abs(diag),)), diag)
         receive_subaps = receive_subaps[halfsa : receive_subaps.shape[0] - halfsa : dx]
-        transmit_subaps = receive_subaps[::-1]
+        transmit_subaps = ops.flip(receive_subaps, axis=0)
         return transmit_subaps, receive_subaps
 
     def process_phase_map(self, data, **kwargs):
@@ -1107,14 +1107,14 @@ class CommonMidpointPhaseError(Operation):
         transmit_subaps, receive_subaps = self.create_subapertures(data, 8, 1)
         complex_data = ops.view_as_complex(data)  # [n_tx, n_pix, n_rx, n_ch] -> [n_rtx, n_pix, r_x]
         complex_data = ops.transpose(complex_data, (2, 0, 1))  # [n_rx, n_tx, n_pix]
-        rx_zero_count = ops.matmul(receive_subaps, (complex_data == 0).astype(int))
+        rx_zero_count = ops.matmul(receive_subaps, ops.cast(complex_data == 0, "int32"))
 
         # Mask out subapertures with point outside fov in receive
         rx_valid = rx_zero_count <= 1
         complex_data_rx = ops.matmul(receive_subaps, complex_data)
         complex_data_rx = ops.where(rx_valid, complex_data_rx, 0)
         complex_data_rx = ops.transpose(complex_data_rx, (1, 0, 2))  # [n_tx, n_subap_rx, n_pix]
-        tx_zero_count = ops.matmul(transmit_subaps, (complex_data_rx == 0).astype(int))
+        tx_zero_count = ops.matmul(transmit_subaps, ops.cast(complex_data_rx == 0, "int32"))
 
         # Mask out subapertures with point outside fov in transmit
         tx_valid = tx_zero_count <= 1
@@ -1135,7 +1135,7 @@ class CommonMidpointPhaseError(Operation):
         dphi = ops.angle(xy)
         dphi = ops.abs(dphi)
 
-        dphi = ops.sum(dphi, (0, 1)) / ops.sum(valid, (0, 1)).astype(dphi.dtype)
+        dphi = ops.sum(dphi, (0, 1)) / ops.cast(ops.sum(valid, (0, 1)), dphi.dtype)
         return dphi
 
     def call(
@@ -1143,5 +1143,11 @@ class CommonMidpointPhaseError(Operation):
         **kwargs,
     ):
         data = kwargs[self.key]
-        pemap = self.process_phase_map(data)
+        if not self.with_batch_dim:
+            pemap = self.process_phase_map(data)
+        else:
+            pemap = ops.map(
+                lambda d: self.process_phase_map(d),
+                data,
+            )
         return {self.output_key: pemap}
