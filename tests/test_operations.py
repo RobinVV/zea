@@ -718,7 +718,9 @@ def test_common_midpoint_phase_error(n_tx, n_pix, n_rx, with_batch):
     # Test with batch dimension if requested
     if with_batch:
         batch_size = 2
-        data = np.stack([data, data * 0.8], axis=0)  # Create two slightly different samples
+        # create two batches with different phase patterns
+        data = np.stack([data, data * np.exp(1j * 0.1)], axis=0)
+
         cmpe = ops.CommonMidpointPhaseError(with_batch_dim=True)
         expected_output_shape = (batch_size, n_pix)
     else:
@@ -753,6 +755,12 @@ def test_common_midpoint_phase_error(n_tx, n_pix, n_rx, with_batch):
 
     # Check for NaN values
     assert not np.any(np.isnan(phase_error_np)), "Phase errors should not contain NaN values"
+
+    if with_batch:
+        # Check that the two batches are not identical (due to different phase patterns)
+        assert not np.allclose(phase_error_np[0], phase_error_np[1], rtol=1e-7), (
+            "Phase errors for different batches should not be identical"
+        )
 
     return phase_error_np
 
