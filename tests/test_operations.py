@@ -587,6 +587,11 @@ def test_compute_time_to_peak():
 )
 def test_beamformers(beamformer, expected_shape):
     """Test all beamformer operations (DAS and DMAS stages)."""
+
+    import keras
+
+    from zea import ops
+
     if beamformer == "das":
         operation = ops.DelayAndSum(with_batch_dim=True)
     elif beamformer == "dmas":
@@ -617,6 +622,11 @@ def test_beamformers(beamformer, expected_shape):
 )
 def test_apply_window(axis, size, start, end, window_type):
     """Test ApplyWindow operation."""
+
+    import keras
+
+    from zea import ops
+
     operation = ops.ultrasound.ApplyWindow(
         axis=axis, size=size, start=start, end=end, window_type=window_type
     )
@@ -682,6 +692,9 @@ def test_common_midpoint_phase_error(n_tx, n_pix, n_rx, with_batch):
     This operation computes the Common Midpoint Phase Error (CMPE) between
     translated transmit and receive subapertures, used for autofocusing.
     """
+
+    import keras
+
     from zea import ops
 
     # Create synthetic TOF-corrected IQ data
@@ -744,12 +757,18 @@ def test_common_midpoint_phase_error(n_tx, n_pix, n_rx, with_batch):
     return phase_error_np
 
 
+@backend_equality_check()
 def test_common_midpoint_phase_error_with_zeros():
     """Test CommonMidpointPhaseError operation handles zeros correctly.
 
     The operation should handle cases where some data points are zero
     (e.g., points outside the field of view).
     """
+
+    import keras
+
+    from zea import ops
+
     # Create small synthetic data
     n_tx, n_pix, n_rx = 24, 30, 24
 
@@ -796,14 +815,21 @@ def test_common_midpoint_phase_error_with_zeros():
         assert np.all(finite_values >= 0) and np.all(finite_values <= np.pi + 1e-5), (
             "Finite phase errors should be in [0, π] range"
         )
+    return phase_error
 
 
+@backend_equality_check()
 def test_common_midpoint_phase_error_coherent_data():
     """Test CommonMidpointPhaseError with perfectly coherent data.
 
     With perfectly coherent data (same phase everywhere), the phase error
     should be close to zero.
     """
+
+    import keras
+
+    from zea import ops
+
     n_tx, n_pix, n_rx, n_ch = 32, 40, 32, 2
 
     # Create perfectly coherent data (same phase for all elements)
@@ -827,3 +853,5 @@ def test_common_midpoint_phase_error_coherent_data():
 
     # Check shape
     assert phase_error.shape == (n_pix,), f"Expected shape ({n_pix},), got {phase_error.shape}"
+
+    return phase_error
