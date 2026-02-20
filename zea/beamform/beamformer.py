@@ -20,7 +20,7 @@ def fnum_window_fn_rect(normalized_angle):
     Returns 1 when ``normalized_angle <= 1`` and 0 otherwise.
 
     Args:
-        normalized_angle (Tensor): Normalised angle values (0 = on-axis, 1 = edge
+        normalized_angle (Tensor): Normalized angle values (0 = on-axis, 1 = edge
             of the f-number cone).
 
     Returns:
@@ -36,7 +36,7 @@ def fnum_window_fn_hann(normalized_angle):
     to 0 at ``normalized_angle = 1``.
 
     Args:
-        normalized_angle (Tensor): Normalised angle values.
+        normalized_angle (Tensor): Normalized angle values.
 
     Returns:
         Tensor: Apodization weights with the same shape as *normalized_angle*.
@@ -51,12 +51,12 @@ def fnum_window_fn_hann(normalized_angle):
 def fnum_window_fn_tukey(normalized_angle, alpha=0.5):
     """Tukey window function for f-number masking.
 
-    A Tukey window is flat in the centre and tapers with a cosine lobe near
+    A Tukey window is flat in the center and tapers with a cosine lobe near
     the edges.  Setting ``alpha = 0`` produces a rectangular window;
     ``alpha = 1`` produces a Hann window.
 
     Args:
-        normalized_angle (Tensor): Normalised angle values in [0, 1].
+        normalized_angle (Tensor): Normalized angle values in [0, 1].
         alpha (float, optional): Shape parameter controlling the fraction of
             the window inside the cosine taper.  Defaults to ``0.5``.
 
@@ -143,7 +143,7 @@ def tof_correction(
         f_number (float): Receive f-number.  Set to ``0`` to disable
             f-number masking.
         polar_angles (Tensor): Steering angles in radians of shape ``(n_tx,)``.
-        focus_distances (Tensor): Focus distances in metres of shape
+        focus_distances (Tensor): Focus distances in meters of shape
             ``(n_tx,)``.  Use ``0`` for plane-wave transmission.
         t_peak (Tensor): Time of each waveform peak in seconds of shape
             ``(n_waveforms,)``.
@@ -154,12 +154,12 @@ def tof_correction(
         apply_lens_correction (bool, optional): Apply acoustic-lens correction
             to the receive travel times (slower but more accurate in the
             near-field).  Defaults to ``False``.
-        lens_thickness (float, optional): Lens thickness in metres.
+        lens_thickness (float, optional): Lens thickness in meters.
             Defaults to ``1e-3``.
         lens_sound_speed (float, optional): Speed of sound inside the lens in
             m/s.  Defaults to ``1000``.
         fnum_window_fn (callable, optional): Window function applied to the
-            normalised angle for f-number masking.  Receives values in ``[0, 1]``
+            normalized angle for f-number masking.  Receives values in ``[0, 1]``
             and should return ``0`` for values ``> 1``.
             Defaults to :func:`fnum_window_fn_rect`.
         sos_grid (Tensor, optional): 2-D speed-of-sound map of shape
@@ -272,7 +272,7 @@ def tof_correction(
 
         return tof_tx
 
-    # ---- Vectorise over transmits --------------------------------------
+    # ---- Vectorize over transmits --------------------------------------
     # Reshape txdel from (n_pix, n_tx) -> (n_tx, n_pix, 1) for per-tx slicing
     txdel = ops.moveaxis(txdel, 1, 0)[..., None]
 
@@ -343,10 +343,10 @@ def calculate_delays(
         apply_lens_correction (bool, optional): Apply acoustic-lens
             correction (slower but more accurate in the near-field).
             Defaults to ``False``.
-        lens_thickness (float, optional): Lens thickness in metres.
+        lens_thickness (float, optional): Lens thickness in meters.
         lens_sound_speed (float, optional): Speed of sound in the lens in
             m/s.
-        n_iter (int, optional): Newton–Raphson iterations for lens
+        n_iter (int, optional): Newton-Raphson iterations for lens
             correction.  Defaults to ``2``.
 
     Returns:
@@ -578,7 +578,7 @@ def transmit_delays(
             ``(n_el,)``.
         rx_delays (Tensor): Travel times in seconds from elements to pixels
             of shape ``(n_pix, n_el)``.
-        focus_distance (float): Focus distance in metres.  Use ``0`` for
+        focus_distance (float): Focus distance in meters.  Use ``0`` for
             plane-wave transmission.
         polar_angle (float): Polar steering angle in radians.
         initial_time (float): Time offset for this transmit in seconds.
@@ -677,7 +677,7 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
         probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
         f_number (float): Receive f-number (depth / aperture).  A value
             of ``0`` disables masking.
-        fnum_window_fn (callable): Window function mapping normalised
+        fnum_window_fn (callable): Window function mapping normalized
             angles in ``[0, 1]`` to weights.  Must return ``0`` for inputs
             ``> 1``.
 
