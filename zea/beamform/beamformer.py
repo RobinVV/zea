@@ -198,8 +198,6 @@ def tof_correction(
             initial_times,
             sampling_frequency,
             sound_speed,
-            n_tx,
-            n_el,
             focus_distances,
             polar_angles,
             t_peak,
