@@ -230,6 +230,7 @@ class GreedyEntropy(LinesActionModel):
         .. note::
 
             This function is not compatible with the torch backend.
+            See `Issue #268 <https://github.com/tue-bmd/zea/issues/268>`_
 
         Args:
             entropy_per_line (Tensor): Entropy per line of shape
