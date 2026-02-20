@@ -123,9 +123,9 @@ def _make_multistatic_inputs(probe_geometry, flatgrid, n_ax=128):
     transmit_origins = np.zeros((n_tx, 3), dtype=np.float32)
 
     nx_sos, nz_sos = 16, 16
-    x_sos = np.linspace(-10e-3, 10e-3, nx_sos).astype(np.float32)
-    z_sos = np.linspace(0e-3, 25e-3, nz_sos).astype(np.float32)
-    sos_grid = np.full((nx_sos, nz_sos), SOUND_SPEED, dtype=np.float32)
+    sos_grid_x = np.linspace(-10e-3, 10e-3, nx_sos).astype(np.float32)
+    sos_grid_z = np.linspace(0e-3, 25e-3, nz_sos).astype(np.float32)
+    sos_map = np.full((nz_sos, nx_sos), SOUND_SPEED, dtype=np.float32)
 
     return dict(
         data=data,
@@ -143,9 +143,9 @@ def _make_multistatic_inputs(probe_geometry, flatgrid, n_ax=128):
         t_peak=t_peak,
         tx_waveform_indices=tx_waveform_indices,
         transmit_origins=transmit_origins,
-        sos_grid=sos_grid,
-        x_sos_grid=x_sos,
-        z_sos_grid=z_sos,
+        sos_map=sos_map,
+        sos_grid_x=sos_grid_x,
+        sos_grid_z=sos_grid_z,
     )
 
 

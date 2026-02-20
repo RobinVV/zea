@@ -99,9 +99,9 @@ def tof_correction(
     lens_thickness=1e-3,
     lens_sound_speed=1000,
     fnum_window_fn=fnum_window_fn_rect,
-    sos_grid=None,
-    x_sos_grid=None,
-    z_sos_grid=None,
+    sos_map=None,
+    sos_grid_x=None,
+    sos_grid_z=None,
 ):
     """Time-of-flight (TOF) correction for ultrasound data on a flat pixel grid.
 
@@ -112,7 +112,7 @@ def tof_correction(
     * **Homogeneous medium** (default) — a constant ``sound_speed`` is used
       to compute delays analytically via :func:`calculate_delays`.
     * **Heterogeneous medium** — a spatially-varying speed-of-sound map
-      (``sos_grid``) is provided and delays are computed numerically via
+      (``sos_map``) is provided and delays are computed numerically via
       :func:`calculate_delays_heterogeneous_medium`.
 
     .. important::
@@ -163,12 +163,12 @@ def tof_correction(
             normalized angle for f-number masking.  Receives values in ``[0, 1]``
             and should return ``0`` for values ``> 1``.
             Defaults to :func:`fnum_window_fn_rect`.
-        sos_grid (Tensor, optional): 2-D speed-of-sound map of shape
-            ``(Nx, Nz)`` in m/s.  When provided, delays are computed
+        sos_map (Tensor, optional): 2-D speed-of-sound map of shape
+            ``(Nz, Nx)`` in m/s.  When provided, delays are computed
             numerically (heterogeneous mode, multistatic only).
             Defaults to ``None``.
-        x_sos_grid (Tensor, optional): x-coordinates of ``sos_grid`` columns.
-        z_sos_grid (Tensor, optional): z-coordinates of ``sos_grid`` rows.
+        sos_grid_x (Tensor, optional): x-coordinates of ``sos_map`` columns.
+        sos_grid_z (Tensor, optional): z-coordinates of ``sos_map`` rows.
 
     Returns:
         Tensor: Time-of-flight corrected data of shape
@@ -189,7 +189,7 @@ def tof_correction(
     # rxdel: receive delay from each pixel back to each element
     # After this block both have a consistent layout:
     #   txdel: (n_pix, n_tx)   rxdel: (n_pix, n_el)
-    if sos_grid is None:
+    if sos_map is None:
         txdel, rxdel = calculate_delays(
             flatgrid,
             t0_delays,
@@ -211,14 +211,14 @@ def tof_correction(
     else:
         assert apply_lens_correction is False, (
             "Lens correction is not currently supported in heterogeneous SOS mode. "
-            "Either set apply_lens_correction=False or set sos_grid=None."
+            "Either set apply_lens_correction=False or set sos_map=None."
         )
 
         txdel, rxdel = calculate_delays_heterogeneous_medium(
             flatgrid,
-            sos_grid,
-            x_sos_grid,
-            z_sos_grid,
+            sos_map,
+            sos_grid_x,
+            sos_grid_z,
             t0_delays,
             probe_geometry,
             initial_times,
@@ -237,7 +237,7 @@ def tof_correction(
         lambda: ops.ones((n_pix, n_el, 1)),
         lambda: fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn=fnum_window_fn),
     )
-    if sos_grid is not None:
+    if sos_map is not None:
         # Prevent gradients from flowing through the mask when optimising
         # through the heterogeneous beamformer (e.g. SOS estimation).
         mask = ops.stop_gradient(mask)
@@ -278,7 +278,7 @@ def tof_correction(
     # Reshape txdel from (n_pix, n_tx) -> (n_tx, n_pix, 1) for per-tx slicing
     txdel = ops.moveaxis(txdel, 1, 0)[..., None]
 
-    if sos_grid is None:
+    if sos_map is None:
         return vmap(_correct_single_tx)(data, txdel)
 
     # Heterogeneous path: apply transmit f-number mask and use gradient
@@ -733,9 +733,9 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
 
 def calculate_delays_heterogeneous_medium(
     grid,
-    sos_grid,
-    x_sos_grid,
-    z_sos_grid,
+    sos_map,
+    sos_grid_x,
+    sos_grid_z,
     t0_delays,
     probe_geometry,
     initial_times,
@@ -770,9 +770,9 @@ def calculate_delays_heterogeneous_medium(
 
     Args:
         grid (Tensor): Pixel coordinates of shape ``(n_pix, 3)``.
-        sos_grid (Tensor): Speed-of-sound map of shape ``(Nx, Nz)`` in m/s.
-        x_sos_grid (Tensor): x-coordinates of ``sos_grid`` columns.
-        z_sos_grid (Tensor): z-coordinates of ``sos_grid`` rows.
+        sos_map (Tensor): Speed-of-sound map of shape ``(Nz, Nx)`` in m/s.
+        sos_grid_x (Tensor): x-coordinates of ``sos_map`` rows.
+        sos_grid_z (Tensor): z-coordinates of ``sos_map`` columns.
         t0_delays (Tensor): Transmit delays of shape ``(n_tx, n_el)``,
             shifted so that the smallest delay is 0.
         probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
@@ -806,7 +806,8 @@ def calculate_delays_heterogeneous_medium(
     )
 
     ray_parameters = ops.linspace(1, 0, n_ray_points, endpoint=False)[::-1]
-    slowness_map = 1 / sos_grid
+    slowness_map = 1 / sos_map
+
     grid_x = grid[:, 0]
     grid_z = grid[:, 2]
 
@@ -819,15 +820,15 @@ def calculate_delays_heterogeneous_medium(
         zp = p * (grid_z - el_z) + el_z
 
         # Convert spatial locations to fractional indices in the slowness map
-        dx_sos = x_sos_grid[1] - x_sos_grid[0]
-        dz_sos = z_sos_grid[1] - z_sos_grid[0]
+        dx_sos = sos_grid_x[1] - sos_grid_x[0]
+        dz_sos = sos_grid_z[1] - sos_grid_z[0]
 
-        xit = ops.clip((xp - x_sos_grid[0]) / dx_sos, 0, slowness_map.shape[0] - 1)
-        zit = ops.clip((zp - z_sos_grid[0]) / dz_sos, 0, slowness_map.shape[1] - 1)
+        xit = ops.clip((xp - sos_grid_x[0]) / dx_sos, 0, slowness_map.shape[1] - 1)
+        zit = ops.clip((zp - sos_grid_z[0]) / dz_sos, 0, slowness_map.shape[0] - 1)
         xi0 = ops.floor(xit)
         zi0 = ops.floor(zit)
-        xi1 = ops.clip(xi0 + 1, 0, slowness_map.shape[0] - 1)
-        zi1 = ops.clip(zi0 + 1, 0, slowness_map.shape[1] - 1)
+        xi1 = ops.clip(xi0 + 1, 0, slowness_map.shape[1] - 1)
+        zi1 = ops.clip(zi0 + 1, 0, slowness_map.shape[0] - 1)
 
         # Bilinear interpolation using flattened indexing
         xi0_int = ops.cast(xi0, "int32")
@@ -835,12 +836,12 @@ def calculate_delays_heterogeneous_medium(
         xi1_int = ops.cast(xi1, "int32")
         zi1_int = ops.cast(zi1, "int32")
 
-        nz = slowness_map.shape[1]
+        nx = slowness_map.shape[1]
         s_flat = ops.reshape(slowness_map, (-1,))
-        s00 = ops.take(s_flat, xi0_int * nz + zi0_int)
-        s10 = ops.take(s_flat, xi1_int * nz + zi0_int)
-        s01 = ops.take(s_flat, xi0_int * nz + zi1_int)
-        s11 = ops.take(s_flat, xi1_int * nz + zi1_int)
+        s00 = ops.take(s_flat, zi0_int * nx + xi0_int)
+        s10 = ops.take(s_flat, zi0_int * nx + xi1_int)
+        s01 = ops.take(s_flat, zi1_int * nx + xi0_int)
+        s11 = ops.take(s_flat, zi1_int * nx + xi1_int)
 
         w00 = (xi1 - xit) * (zi1 - zit)
         w10 = (xit - xi0) * (zi1 - zit)

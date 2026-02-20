@@ -141,9 +141,9 @@ class TOFCorrection(Operation):
         apply_lens_correction=None,
         lens_thickness=None,
         lens_sound_speed=None,
-        sos_grid=None,
-        x_sos_grid=None,
-        z_sos_grid=None,
+        sos_map=None,
+        sos_grid_x=None,
+        sos_grid_z=None,
         **kwargs,
     ):
         """Perform time-of-flight correction on raw RF data.
@@ -168,9 +168,9 @@ class TOFCorrection(Operation):
             apply_lens_correction (bool): Whether to apply lens correction
             lens_thickness (float): Lens thickness
             lens_sound_speed (float): Sound speed in the lens
-            sos_grid (ops.Tensor): sound speed grid
-            x_sos_grid (ops.Tensor): x coordinates of the sound speed grid
-            z_sos_grid (ops.Tensor): z coordinates of the sound speed grid
+            sos_map (Tensor): Speed-of-sound map of shape ``(Nz, Nx)`` in m/s.
+            sos_grid_x (Tensor): x-coordinates of ``sos_map`` rows.
+            sos_grid_z (Tensor): z-coordinates of ``sos_map`` columns.
 
         Returns:
             dict: Dictionary containing tof_corrected_data
@@ -196,9 +196,9 @@ class TOFCorrection(Operation):
             "apply_lens_correction": apply_lens_correction,
             "lens_thickness": lens_thickness,
             "lens_sound_speed": lens_sound_speed,
-            "sos_grid": sos_grid,
-            "x_sos_grid": x_sos_grid,
-            "z_sos_grid": z_sos_grid,
+            "sos_map": sos_map,
+            "sos_grid_x": sos_grid_x,
+            "sos_grid_z": sos_grid_z,
         }
 
         if not self.with_batch_dim:
