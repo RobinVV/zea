@@ -112,7 +112,7 @@ def tof_correction(
       to compute delays analytically via :func:`calculate_delays`.
     * **Heterogeneous medium** — a spatially-varying speed-of-sound map
       (``sos_grid``) is provided and delays are computed numerically via
-      :func:`calculate_delays_grid`.
+      :func:`calculate_delays_heterogeneous_medium`.
 
     .. important::
 
@@ -144,7 +144,7 @@ def tof_correction(
             f-number masking.
         polar_angles (Tensor): Steering angles in radians of shape ``(n_tx,)``.
         focus_distances (Tensor): Focus distances in meters of shape
-            ``(n_tx,)``.  Use ``0`` for plane-wave transmission.
+            ``(n_tx,)``.  Use ``0`` or ``np.inf`` for plane-wave transmission.
         t_peak (Tensor): Time of each waveform peak in seconds of shape
             ``(n_waveforms,)``.
         tx_waveform_indices (Tensor): Index into ``t_peak`` for each transmit
@@ -212,7 +212,12 @@ def tof_correction(
             "Heterogeneous SOS grid mode requires multistatic data (n_tx == n_el), "
             f"got n_tx={data.shape[0]}, n_el={data.shape[2]}."
         )
-        txdel, rxdel = calculate_delays_grid(
+        assert apply_lens_correction is False, (
+            "Lens correction is not currently supported in heterogeneous SOS mode. "
+            "Either set apply_lens_correction=False or set sos_grid=None."
+        )
+
+        txdel, rxdel = calculate_delays_heterogeneous_medium(
             flatgrid,
             sos_grid,
             x_sos_grid,
@@ -224,7 +229,7 @@ def tof_correction(
             t_peak,
             tx_waveform_indices,
         )
-        # calculate_delays_grid returns txdel (n_tx, n_pix), rxdel (n_el, n_pix)
+        # calculate_delays_heterogeneous_medium returns txdel (n_tx, n_pix), rxdel (n_el, n_pix)
         # Transpose both to the shared convention.
         txdel = ops.moveaxis(txdel, 1, 0)  # -> (n_pix, n_tx)
         rxdel = ops.moveaxis(rxdel, 1, 0)  # -> (n_pix, n_el)
@@ -331,7 +336,7 @@ def calculate_delays(
         n_tx (int): Number of transmit events.
         n_el (int): Number of transducer elements.
         focus_distances (Tensor): Focus distances of shape ``(n_tx,)``.
-            Use ``0`` for plane-wave transmission.
+            Use ``0`` or ``np.inf`` for plane-wave transmission.
         polar_angles (Tensor): Polar steering angles in radians of shape
             ``(n_tx,)``.
         t_peak (Tensor): Waveform peak times in seconds of shape
@@ -578,8 +583,8 @@ def transmit_delays(
             ``(n_el,)``.
         rx_delays (Tensor): Travel times in seconds from elements to pixels
             of shape ``(n_pix, n_el)``.
-        focus_distance (float): Focus distance in meters.  Use ``0`` for
-            plane-wave transmission.
+        focus_distance (float): Focus distance in meters.
+            Use ``0`` or ``np.inf`` for plane-wave transmission.
         polar_angle (float): Polar steering angle in radians.
         initial_time (float): Time offset for this transmit in seconds.
         azimuth_angle (float, optional): Azimuth steering angle in radians.
@@ -707,7 +712,7 @@ def fnumber_mask(flatgrid, probe_geometry, f_number, fnum_window_fn):
     return mask
 
 
-def calculate_delays_grid(
+def calculate_delays_heterogeneous_medium(
     grid,
     sos_grid,
     x_sos_grid,
@@ -726,16 +731,23 @@ def calculate_delays_grid(
     between each element and each pixel to approximate heterogeneous
     travel times.
 
+    For the homogeneous (constant speed-of-sound) variant see
+    :func:`calculate_delays`. If you do not have a SOS map, it is
+    recommended to use :func:`calculate_delays`.
+
     .. important::
 
        Only valid for **multistatic** acquisitions (``n_tx == n_el``).
 
     .. note::
 
-        This function is not compatible with the torch backend.
+        Currently only supports 2D grids, not yet compatible with 3D.
+        Assumes the grid is in the x-z plane and the y dimension is zero.
+        Please use :func:`calculate_delays` for 3D data.
 
-    For the homogeneous (constant speed-of-sound) variant see
-    :func:`calculate_delays`.
+    .. note::
+
+        This function is not compatible with the torch backend.
 
     Args:
         grid (Tensor): Pixel coordinates of shape ``(n_pix, 3)``.
@@ -759,11 +771,33 @@ def calculate_delays_grid(
             - **tx_delays** — Transmit delays in samples ``(n_tx, n_pix)``.
             - **rx_delays** — Receive delays in samples ``(n_el, n_pix)``.
     """
+    n_tx = t0_delays.shape[0]
+    n_el = probe_geometry.shape[0]
+
+    if keras.backend.backend() == "torch":
+        raise NotImplementedError(
+            "calculate_delays_heterogeneous_medium is not currently "
+            "implemented for the torch backend."
+        )
+
+    assert n_tx == n_el, (
+        "Computing delays with heterogeneous medium (a sos grid was provided) "
+        "requires a multistatic dataset (n_tx == n_el), "
+        f"got n_tx={n_tx}, n_el={n_el}."
+    )
 
     ray_parameters = ops.linspace(1, 0, n_ray_points, endpoint=False)[::-1]
     slowness_map = 1 / sos_grid
     grid_x = grid[:, 0]
+    grid_y = grid[:, 1]
     grid_z = grid[:, 2]
+
+    is_3d = ops.any(grid_y != 0.0)
+    if is_3d:
+        raise NotImplementedError(
+            "calculate_delays_heterogeneous_medium currently only supports 2D grids. "
+            "Please use calculate_delays for 3D data, or set grid_y to 0 for all pixels."
+        )
 
     element_x = probe_geometry[:, 0]
     element_z = probe_geometry[:, 2]
