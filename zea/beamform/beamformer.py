@@ -12,6 +12,7 @@ from keras import ops
 
 from zea.beamform.lens_correction import compute_lens_corrected_travel_times
 from zea.func.tensor import vmap
+from zea.internal.checks import _check_raw_data
 
 
 def fnum_window_fn_rect(normalized_angle):
@@ -181,6 +182,8 @@ def tof_correction(
     n_tx, n_ax, n_el, _ = ops.shape(data)
     n_pix = ops.shape(flatgrid)[0]
 
+    _validate_delay_inputs(data, flatgrid, t0_delays, probe_geometry, tx_apodizations)
+
     # ---- Compute delays ------------------------------------------------
     # txdel: transmit delay from t=0 to wavefront reaching each pixel
     # rxdel: receive delay from each pixel back to each element
@@ -208,10 +211,6 @@ def tof_correction(
         )
         # calculate_delays returns txdel (n_pix, n_tx), rxdel (n_pix, n_el)
     else:
-        assert data.shape[0] == data.shape[2], (
-            "Heterogeneous SOS grid mode requires multistatic data (n_tx == n_el), "
-            f"got n_tx={data.shape[0]}, n_el={data.shape[2]}."
-        )
         assert apply_lens_correction is False, (
             "Lens correction is not currently supported in heterogeneous SOS mode. "
             "Either set apply_lens_correction=False or set sos_grid=None."
@@ -291,6 +290,38 @@ def tof_correction(
     return vmap(_correct_single_tx_ckpt)(data, txdel, mask_tx)
 
 
+def _validate_delay_inputs(data, grid, t0_delays, probe_geometry, tx_apodizations):
+    """Validate input shapes common to all delay computation functions.
+
+    Args:
+        data (Tensor): Input RF or IQ data of shape ``(n_tx, n_ax, n_el, n_ch)``.
+        grid (Tensor): Pixel coordinates of shape ``(n_pix, 3)``.
+        t0_delays (Tensor): Per-element transmit delays of shape
+            ``(n_tx, n_el)``.
+        probe_geometry (Tensor): Element positions of shape ``(n_el, 3)``.
+
+    Raises:
+        AssertionError: If any array is not 2-D or if any array has an incompatible shape.
+    """
+    n_tx, n_ax, n_el, n_ch = ops.shape(data)
+
+    _check_raw_data(data)
+
+    for arr in [grid, t0_delays, probe_geometry, tx_apodizations]:
+        assert arr.ndim == 2, f"Expected a 2-D array, got shape {arr.shape}."
+
+    assert ops.shape(grid)[1] == 3, f"Expected grid to have shape (n_pix, 3), got {grid.shape}."
+    assert ops.shape(probe_geometry) == (n_el, 3), (
+        f"Expected probe_geometry to have shape (n_el, 3), got {probe_geometry.shape}."
+    )
+    assert ops.shape(t0_delays) == (n_tx, n_el), (
+        f"Expected t0_delays to have shape (n_tx, n_el), got {t0_delays.shape}."
+    )
+    assert ops.shape(tx_apodizations) == (n_tx, n_el), (
+        f"Expected tx_apodizations to have shape (n_tx, n_el), got {tx_apodizations.shape}."
+    )
+
+
 def calculate_delays(
     grid,
     t0_delays,
@@ -299,8 +330,6 @@ def calculate_delays(
     initial_times,
     sampling_frequency,
     sound_speed,
-    n_tx,
-    n_el,
     focus_distances,
     polar_angles,
     t_peak,
@@ -333,8 +362,6 @@ def calculate_delays(
         initial_times (Tensor): Per-transmit time offsets of shape ``(n_tx,)``.
         sampling_frequency (float): Sampling frequency in Hz.
         sound_speed (float): Assumed speed of sound in m/s.
-        n_tx (int): Number of transmit events.
-        n_el (int): Number of transducer elements.
         focus_distances (Tensor): Focus distances of shape ``(n_tx,)``.
             Use ``0`` or ``np.inf`` for plane-wave transmission.
         polar_angles (Tensor): Polar steering angles in radians of shape
@@ -359,12 +386,6 @@ def calculate_delays(
             - **transmit_delays** — of shape ``(n_pix, n_tx)``.
             - **receive_delays** — of shape ``(n_pix, n_el)``.
     """
-
-    # Validate input shapes
-    for arr in [t0_delays, grid, tx_apodizations, probe_geometry]:
-        assert arr.ndim == 2
-    assert probe_geometry.shape[0] == n_el
-    assert t0_delays.shape[0] == n_tx
 
     if not apply_lens_correction:
         # Compute receive distances in meters of shape (n_pix, n_el)
@@ -771,8 +792,8 @@ def calculate_delays_heterogeneous_medium(
             - **tx_delays** — Transmit delays in samples ``(n_tx, n_pix)``.
             - **rx_delays** — Receive delays in samples ``(n_el, n_pix)``.
     """
-    n_tx = t0_delays.shape[0]
-    n_el = probe_geometry.shape[0]
+    n_tx = ops.shape(t0_delays)[0]
+    n_el = ops.shape(probe_geometry)[0]
 
     if keras.backend.backend() == "torch":
         raise NotImplementedError(
@@ -789,15 +810,7 @@ def calculate_delays_heterogeneous_medium(
     ray_parameters = ops.linspace(1, 0, n_ray_points, endpoint=False)[::-1]
     slowness_map = 1 / sos_grid
     grid_x = grid[:, 0]
-    grid_y = grid[:, 1]
     grid_z = grid[:, 2]
-
-    is_3d = ops.any(grid_y != 0.0)
-    if is_3d:
-        raise NotImplementedError(
-            "calculate_delays_heterogeneous_medium currently only supports 2D grids. "
-            "Please use calculate_delays for 3D data, or set grid_y to 0 for all pixels."
-        )
 
     element_x = probe_geometry[:, 0]
     element_z = probe_geometry[:, 2]
